@@ -5,6 +5,7 @@ import fr from '../src/i18n/locales/fr.json';
 import itIT from '../src/i18n/locales/it.json';
 import nl from '../src/i18n/locales/nl.json';
 import ptBR from '../src/i18n/locales/pt-BR.json';
+import vi from '../src/i18n/locales/vi.json';
 
 // A new language goes in this list too, next to src/i18n/index.ts.
 const LOCALES: Array<[string, Tree]> = [
@@ -14,6 +15,7 @@ const LOCALES: Array<[string, Tree]> = [
   ['it', itIT],
   ['nl', nl],
   ['pt-BR', ptBR],
+  ['vi', vi],
 ];
 
 type Tree = { [key: string]: string | Tree };

@@ -1482,5 +1482,47 @@
       "installFailedTitle": "Update not installed",
       "installFailedMessage": "The update was downloaded but Android refused to install it: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Invalid date",
+    "dateBeforeStart": "Date cannot be before start date",
+    "timeInvalid": "Invalid time format (use HH:MM)",
+    "daysNone": "No days",
+    "daysEvery": "Every day",
+    "daysWeekdays": "Weekdays",
+    "daysWeekends": "Weekends",
+    "regionNew": "New Region",
+    "regionNameRequired": "Region name is required",
+    "regionXStartRange": "X Start must be between 0 and 100",
+    "regionYStartRange": "Y Start must be between 0 and 100",
+    "regionXEndRange": "X End must be between 0 and 100",
+    "regionYEndRange": "Y End must be between 0 and 100",
+    "regionXOrder": "X Start must be less than X End",
+    "regionYOrder": "Y Start must be less than Y End",
+    "storagePermissionTitle": "Storage Permission",
+    "storagePermissionMessage": "FreeKiosk needs storage access to save and load backup files.",
+    "askLater": "Ask Me Later",
+    "cancel": "Cancel",
+    "backupStorageDenied": "Storage permission denied",
+    "backupBuildFailed": "Failed to build backup",
+    "backupNotFound": "Backup file not found",
+    "backupInvalid": "Invalid backup file format",
+    "backupInvalidMissing": "Invalid backup file format. Missing version or settings.",
+    "fileNotFound": "File not found",
+    "pinLockedRetry": "Too many failed attempts. Try again in {{minutes}} minutes.",
+    "pinLocked15": "Too many failed attempts. Locked for 15 minutes.",
+    "pinIncorrect": "Incorrect PIN",
+    "pinVerifyError": "Error verifying PIN",
+    "cloudCannotReach": "Cannot reach server",
+    "cloudEnrollFailed": "Enrollment failed",
+    "dayAbbr": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    }
   }
 }

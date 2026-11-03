@@ -1357,7 +1357,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       );
     } catch (error: any) {
       setDownloading(false);
-      const errorMsg = error?.message || error?.toString() || 'Unknown error';
+      const errorMsg = error?.message || error?.toString() || t('advanced.cloud.unknownError');
 
       if (error?.code === 'CANCELLED') {
         return;

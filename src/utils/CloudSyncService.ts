@@ -10,6 +10,7 @@ import { SignagePlaylist } from './SignagePlaylist';
 import { ServerClock } from './ServerClock';
 import { deviceTimeZone } from './DeviceTimeZone';
 import KioskModule from './KioskModule';
+import { tr } from '../i18n/tr';
 import {
   CloudCredentials,
   SensitiveConfig,
@@ -48,6 +49,16 @@ export type ProvisioningStatus =
   | { state: 'failed'; error: string };
 
 const PROVISIONING_RETRY_MS = 30_000;
+
+/**
+ * What to show for an enrollment error. The two messages the app makes itself stay in English in the
+ * code, since the retry logic compares them; anything else came from the server, in its own words.
+ */
+export function cloudErrorText(error: string | undefined): string | undefined {
+  if (error === 'Cannot reach server') return tr('system.cloudCannotReach', error);
+  if (error === 'Enrollment failed') return tr('system.cloudEnrollFailed', error);
+  return error;
+}
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -106,6 +117,13 @@ interface HeartbeatResponse {
   force_unenroll: boolean;
   // Digital signage: absent from an older cloud, null when the device has no playlist
   playlist_version?: string | null;
+}
+
+/** The server answers a refusal in JSON; a proxy answers with an HTML page or says it stepped in */
+function isProxyRefusal(response: Response): boolean {
+  const headers = response.headers;
+  if (!headers?.get) return false;
+  return !!headers.get('cf-mitigated') || (headers.get('content-type') ?? '').toLowerCase().includes('text/html');
 }
 
 async function simpleHash(str: string): Promise<string> {
@@ -309,6 +327,13 @@ class CloudSyncServiceClass {
       );
 
       if (response.status === 401 || response.status === 403) {
+        // A page from a proxy in front of the server (Cloudflare WAF or Access, Nginx Proxy
+        // Manager) says nothing about this device: keep it from counting toward a wipe, or one
+        // rule set too tight for half an hour would unenroll a whole fleet.
+        if (isProxyRefusal(response)) {
+          console.warn(`[CloudSync] Heartbeat refused with ${response.status} by a proxy, not by the server: keeping the credentials.`);
+          return;
+        }
         // Possibly removed from the cloud server-side, possibly not: wipe only once the
         // refusal has persisted. See AUTH_FAILURE_GRACE_MS.
         if (await this._authRefusalIsPersistent(response.status)) {

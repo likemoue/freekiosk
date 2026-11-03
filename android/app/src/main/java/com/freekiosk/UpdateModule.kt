@@ -107,9 +107,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         Thread {
             try {
                 val apiUrl = if (includeBeta) {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases?per_page=10"
+                    "https://api.github.com/repos/likemoue/freekiosk/releases?per_page=10"
                 } else {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases/latest"
+                    "https://api.github.com/repos/likemoue/freekiosk/releases/latest"
                 }
                 
                 android.util.Log.d("UpdateModule", "Checking updates: includeBeta=$includeBeta, url=$apiUrl")
@@ -162,7 +162,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                     
                     // Fallback to constructed URL if no asset found (should not happen)
                     if (apkUrl.isEmpty()) {
-                        apkUrl = "https://github.com/rushb-fr/freekiosk/releases/download/v${tagName}/FreeKiosk-v${tagName}.apk"
+                        apkUrl = "https://github.com/likemoue/freekiosk/releases/download/v${tagName}/FreeKiosk-v${tagName}.apk"
                         android.util.Log.w("UpdateModule", "No APK asset found, using fallback URL")
                     }
                     
@@ -277,8 +277,8 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             
             val fileName = "FreeKiosk-${version}.apk"
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-                setTitle("FreeKiosk Update")
-                setDescription("Downloading version $version")
+                setTitle("Cập nhật FreeKiosk")
+                setDescription("Đang tải phiên bản $version")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 // Use app-private external dir: no WRITE_EXTERNAL_STORAGE permission needed
                 setDestinationInExternalFilesDir(reactApplicationContext, Environment.DIRECTORY_DOWNLOADS, fileName)

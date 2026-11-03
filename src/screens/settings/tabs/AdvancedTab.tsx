@@ -26,6 +26,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { Colors, Spacing, Typography } from '../../../theme';
 import { useTranslation } from 'react-i18next';
+import { DEFAULT_CLOUD_URL } from '../../../config/features';
+import { cloudErrorText } from '../../../utils/CloudSyncService';
 
 const { KioskModule } = NativeModules;
 
@@ -89,7 +91,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   // Cloud management state
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [orgName, setOrgName] = useState<string | null>(null);
-  const [cloudUrl, setCloudUrl] = useState('https://cloud.freekiosk.app');
+  const [cloudUrl, setCloudUrl] = useState(DEFAULT_CLOUD_URL);
   const [enrollToken, setEnrollToken] = useState('');
   const [enrolling, setEnrolling] = useState(false);
   const [unenrolling, setUnenrolling] = useState(false);
@@ -168,7 +170,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
               setWizardAfterEnroll(true);
               setShowWizard(true);
             } else {
-              Alert.alert(t('advanced.cloud.enrollmentFailedTitle'), result.error ?? t('advanced.cloud.unknownError'));
+              Alert.alert(t('advanced.cloud.enrollmentFailedTitle'), cloudErrorText(result.error) ?? t('advanced.cloud.unknownError'));
             }
           },
         },
@@ -286,7 +288,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
             <SettingsInput
               label={t('advanced.cloud.cloudUrl')}
               icon="server"
-              placeholder="https://cloud.freekiosk.app"
+              placeholder={DEFAULT_CLOUD_URL}
               value={cloudUrl}
               onChangeText={setCloudUrl}
               keyboardType="url"

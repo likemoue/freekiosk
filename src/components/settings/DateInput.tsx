@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Colors, Spacing, Typography } from '../../theme';
+import { tr } from '../../i18n/tr';
 
 interface DateInputProps {
   label: string;
@@ -105,10 +106,10 @@ const DateInput: React.FC<DateInputProps> = ({
   const getErrorMessage = (): string => {
     if (error) return error;
     if (displayValue.length === 10 && !isValidDate(displayValue)) {
-      return 'Invalid date';
+      return tr('system.dateInvalid', 'Invalid date');
     }
     if (isDateBeforeMin()) {
-      return 'Date cannot be before start date';
+      return tr('system.dateBeforeStart', 'Date cannot be before start date');
     }
     return '';
   };

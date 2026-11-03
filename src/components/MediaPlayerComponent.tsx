@@ -137,7 +137,7 @@ const MediaPlayerComponent: React.FC<MediaPlayerComponentProps> = ({
 };
 
 function generateEmptyHTML(bgColor: string): string {
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{margin:0;padding:0}body{background:${bgColor};display:flex;align-items:center;justify-content:center;height:100vh;color:#fff;font-family:sans-serif;text-align:center}h1{font-size:48px;margin-bottom:16px}p{font-size:18px;opacity:0.7}</style></head><body><div><h1>🎬</h1><p>No media configured</p></div></body></html>`;
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{margin:0;padding:0}body{background:${bgColor};display:flex;align-items:center;justify-content:center;height:100vh;color:#fff;font-family:sans-serif;text-align:center}h1{font-size:48px;margin-bottom:16px}p{font-size:18px;opacity:0.7}</style></head><body><div><h1>🎬</h1><p>Chưa cấu hình nội dung</p></div></body></html>`;
 }
 
 export function generatePlayerHTML(settings: {
@@ -319,7 +319,7 @@ export function generatePlayerHTML(settings: {
     <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
     <div class="error-overlay" id="errorOverlay">
       <div class="error-icon">⚠️</div>
-      <div class="error-msg" id="errorMsg">Failed to load media</div>
+      <div class="error-msg" id="errorMsg">Không tải được nội dung</div>
     </div>
     <div class="controls-bar" id="controlsBar">
       <button class="ctrl-btn" id="prevBtn" onclick="player.prev()">⏮</button>
@@ -510,7 +510,7 @@ export function generatePlayerHTML(settings: {
       frameTimer = null;
       if (isShown()) return;
       hideLoading();
-      showError('Failed to load ' + label);
+      showError('Không tải được ' + label);
       skipLater(SETTINGS.unattended ? 0 : 3000);
     }, GUARD_LIMIT_MS);
   }
@@ -543,7 +543,7 @@ export function generatePlayerHTML(settings: {
       }
     });
     slot.appendChild(frame);
-    watchFrame(function() { return shown; }, 'web page');
+    watchFrame(function() { return shown; }, 'trang web');
   }
 
   function loadYoutube(slot, item, first) {
@@ -575,7 +575,7 @@ export function generatePlayerHTML(settings: {
       if (data.event === 'onError') {
         // A video that cannot be embedded (owner's choice, removed, private)
         hideLoading();
-        showError('This YouTube video cannot be played');
+        showError('Không phát được video YouTube này');
         skipLater(SETTINGS.unattended ? 0 : 3000);
         return;
       }
@@ -590,7 +590,7 @@ export function generatePlayerHTML(settings: {
     };
     window.addEventListener('message', frameMessageHandler);
     slot.appendChild(frame);
-    watchFrame(function() { return shown; }, 'YouTube video');
+    watchFrame(function() { return shown; }, 'video YouTube');
   }
 
   function loadMedia(index) {
@@ -647,7 +647,7 @@ export function generatePlayerHTML(settings: {
     
     video.addEventListener('error', function(e) {
       hideLoading();
-      showError('Failed to load video: ' + item.url);
+      showError('Không tải được video: ' + item.url);
       errorRetryTimer = setTimeout(function() {
         hideError();
         advanceToNext();
@@ -688,7 +688,7 @@ export function generatePlayerHTML(settings: {
     
     img.addEventListener('error', function() {
       hideLoading();
-      showError('Failed to load image: ' + item.url);
+      showError('Không tải được hình ảnh: ' + item.url);
       errorRetryTimer = setTimeout(function() {
         hideError();
         advanceToNext();
@@ -821,7 +821,7 @@ export function generatePlayerHTML(settings: {
       });
       video.addEventListener('error', function() {
         hideLoading();
-        showError('Failed to load video: ' + firstItem.url);
+        showError('Không tải được video: ' + firstItem.url);
         errorRetryTimer = setTimeout(function() { hideError(); advanceToNext(); }, 3000);
       });
       video.addEventListener('timeupdate', function() {
@@ -851,7 +851,7 @@ export function generatePlayerHTML(settings: {
       });
       img.addEventListener('error', function() {
         hideLoading();
-        showError('Failed to load image: ' + firstItem.url);
+        showError('Không tải được hình ảnh: ' + firstItem.url);
         errorRetryTimer = setTimeout(function() { hideError(); advanceToNext(); }, 3000);
       });
       

@@ -1,7 +1,15 @@
-import i18next, { LANGUAGE_OPTIONS, resolveSupportedLanguage } from '../src/i18n';
+import i18next, { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, resolveSupportedLanguage } from '../src/i18n';
 
 describe('device locale to app language', () => {
+  it('starts in Vietnamese, whatever the language of the device', () => {
+    expect(DEFAULT_LANGUAGE).toBe('vi');
+    expect(i18next.language).toBe('vi');
+    expect(i18next.t('general.language.title')).toBe('Ngôn ngữ');
+  });
+
   it.each([
+    ['vi_VN', 'vi'],
+    ['vi', 'vi'],
     ['es_ES', 'es'],
     ['es_MX', 'es'],
     ['es-AR', 'es'],

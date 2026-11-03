@@ -1482,5 +1482,47 @@
       "installFailedTitle": "Update nicht installiert",
       "installFailedMessage": "Das Update wurde heruntergeladen, aber Android hat die Installation abgelehnt: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Ungültiges Datum",
+    "dateBeforeStart": "Das Datum darf nicht vor dem Startdatum liegen",
+    "timeInvalid": "Ungültiges Zeitformat (HH:MM verwenden)",
+    "daysNone": "Keine Tage",
+    "daysEvery": "Jeden Tag",
+    "daysWeekdays": "Wochentage",
+    "daysWeekends": "Wochenende",
+    "regionNew": "Neue Region",
+    "regionNameRequired": "Regionsname ist erforderlich",
+    "regionXStartRange": "X-Start muss zwischen 0 und 100 liegen",
+    "regionYStartRange": "Y-Start muss zwischen 0 und 100 liegen",
+    "regionXEndRange": "X-Ende muss zwischen 0 und 100 liegen",
+    "regionYEndRange": "Y-Ende muss zwischen 0 und 100 liegen",
+    "regionXOrder": "X-Start muss kleiner als X-Ende sein",
+    "regionYOrder": "Y-Start muss kleiner als Y-Ende sein",
+    "storagePermissionTitle": "Speicherberechtigung",
+    "storagePermissionMessage": "FreeKiosk benötigt Speicherzugriff, um Sicherungsdateien zu speichern und zu laden.",
+    "askLater": "Später fragen",
+    "cancel": "Abbrechen",
+    "backupStorageDenied": "Speicherberechtigung verweigert",
+    "backupBuildFailed": "Sicherung konnte nicht erstellt werden",
+    "backupNotFound": "Sicherungsdatei nicht gefunden",
+    "backupInvalid": "Ungültiges Format der Sicherungsdatei",
+    "backupInvalidMissing": "Ungültiges Format der Sicherungsdatei. Version oder Einstellungen fehlen.",
+    "fileNotFound": "Datei nicht gefunden",
+    "pinLockedRetry": "Zu viele Fehlversuche. Erneut versuchen in {{minutes}} Minuten.",
+    "pinLocked15": "Zu viele Fehlversuche. Für 15 Minuten gesperrt.",
+    "pinIncorrect": "Falsche PIN",
+    "pinVerifyError": "Fehler bei der PIN-Prüfung",
+    "cloudCannotReach": "Server nicht erreichbar",
+    "cloudEnrollFailed": "Registrierung fehlgeschlagen",
+    "dayAbbr": {
+      "0": "So",
+      "1": "Mo",
+      "2": "Di",
+      "3": "Mi",
+      "4": "Do",
+      "5": "Fr",
+      "6": "Sa"
+    }
   }
 }

@@ -1,0 +1,19 @@
+# Copy to gradle.properties, which is not committed because the signing passwords go there.
+
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+org.gradle.parallel=true
+
+android.useAndroidX=true
+
+# Remove x86 and x86_64 to build faster for real tablets; keep them to run on an emulator.
+reactNativeArchitectures=armeabi-v7a,arm64-v8a
+
+newArchEnabled=true
+hermesEnabled=true
+
+# Signing key of your own builds. Without these four lines, release builds are signed with the
+# debug key: they install, but cannot update a build signed with another key.
+# FREEKIOSK_UPLOAD_STORE_FILE=freekiosk-release.keystore
+# FREEKIOSK_UPLOAD_STORE_PASSWORD=
+# FREEKIOSK_UPLOAD_KEY_ALIAS=freekiosk
+# FREEKIOSK_UPLOAD_KEY_PASSWORD=

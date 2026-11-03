@@ -500,7 +500,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         <SettingsInfoBox variant="info">
           <Text style={styles.infoText}>
             {returnMode === 'button' && displayMode === 'external_app'
-              ? t('security.returnToSettings.infoButtonMode', { position: returnButtonPosition, count: returnTapCount || '5' })
+              ? t('security.returnToSettings.infoButtonMode', { position: t(`security.returnToSettings.${returnButtonPosition.replace(/-(\w)/, (_, c: string) => c.toUpperCase())}`), count: returnTapCount || '5' })
               : t('security.returnToSettings.infoAnywhereMode', { count: returnTapCount || '5', timeout: returnTapTimeout ? `${(parseInt(returnTapTimeout, 10) / 1000).toFixed(1)}s` : '1.5s' })}
             {kioskEnabled && t('security.returnToSettings.pinRequired')}
           </Text>

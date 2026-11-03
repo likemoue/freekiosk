@@ -1482,5 +1482,47 @@
       "installFailedTitle": "Atualização não instalada",
       "installFailedMessage": "A atualização foi baixada, mas o Android se recusou a instalá-la: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Data inválida",
+    "dateBeforeStart": "A data não pode ser anterior à data de início",
+    "timeInvalid": "Formato de hora inválido (use HH:MM)",
+    "daysNone": "Nenhum dia",
+    "daysEvery": "Todos os dias",
+    "daysWeekdays": "Dias úteis",
+    "daysWeekends": "Fins de semana",
+    "regionNew": "Nova região",
+    "regionNameRequired": "O nome da região é obrigatório",
+    "regionXStartRange": "X inicial deve estar entre 0 e 100",
+    "regionYStartRange": "Y inicial deve estar entre 0 e 100",
+    "regionXEndRange": "X final deve estar entre 0 e 100",
+    "regionYEndRange": "Y final deve estar entre 0 e 100",
+    "regionXOrder": "X inicial deve ser menor que X final",
+    "regionYOrder": "Y inicial deve ser menor que Y final",
+    "storagePermissionTitle": "Permissão de armazenamento",
+    "storagePermissionMessage": "O FreeKiosk precisa de acesso ao armazenamento para salvar e carregar backups.",
+    "askLater": "Perguntar depois",
+    "cancel": "Cancelar",
+    "backupStorageDenied": "Permissão de armazenamento negada",
+    "backupBuildFailed": "Não foi possível criar o backup",
+    "backupNotFound": "Arquivo de backup não encontrado",
+    "backupInvalid": "Formato de backup inválido",
+    "backupInvalidMissing": "Formato de backup inválido. Faltam a versão ou as configurações.",
+    "fileNotFound": "Arquivo não encontrado",
+    "pinLockedRetry": "Muitas tentativas falhas. Tente novamente em {{minutes}} minutos.",
+    "pinLocked15": "Muitas tentativas falhas. Bloqueado por 15 minutos.",
+    "pinIncorrect": "PIN incorreto",
+    "pinVerifyError": "Erro ao verificar o PIN",
+    "cloudCannotReach": "Não foi possível acessar o servidor",
+    "cloudEnrollFailed": "Falha no registro",
+    "dayAbbr": {
+      "0": "Dom",
+      "1": "Seg",
+      "2": "Ter",
+      "3": "Qua",
+      "4": "Qui",
+      "5": "Sex",
+      "6": "Sáb"
+    }
   }
 }

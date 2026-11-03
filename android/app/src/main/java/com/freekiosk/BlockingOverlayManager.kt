@@ -149,7 +149,7 @@ class BlockingOverlayManager(private val context: Context) {
             isFocusable = false
             
             // Set content description for accessibility
-            contentDescription = "Blocked area: ${region.name}"
+            contentDescription = "Vùng bị chặn: ${region.name}"
         }
     }
     

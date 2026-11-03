@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">FreeKiosk</string>
-    <string name="accessibility_service_description">FreeKiosk uses this service to send keyboard input and remote control commands to apps running on this device. This is required for the REST API remote control feature to work in external app mode.</string>
-    <string name="boot_loading">Starting kiosk…</string>
+    <string name="accessibility_service_description">FreeKiosk dùng dịch vụ này để gửi thao tác bàn phím và lệnh điều khiển từ xa tới các ứng dụng đang chạy trên thiết bị. Cần có dịch vụ này để tính năng điều khiển từ xa qua REST API hoạt động ở chế độ ứng dụng ngoài.</string>
+    <string name="boot_loading">Đang khởi động kiosk…</string>
 </resources>

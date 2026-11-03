@@ -313,10 +313,10 @@ class OverlayService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "FreeKiosk Overlay",
+                "Lớp phủ FreeKiosk",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Overlay service for external app mode"
+                description = "Dịch vụ lớp phủ cho chế độ ứng dụng ngoài"
                 setShowBadge(false)
             }
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -326,7 +326,7 @@ class OverlayService : Service() {
         // Créer une notification minimale
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("FreeKiosk")
-            .setContentText("External app mode active")
+            .setContentText("Chế độ ứng dụng ngoài đang bật")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

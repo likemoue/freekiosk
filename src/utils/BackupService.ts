@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import RNFS from 'react-native-fs';
 import { hasSecurePin, getSecureApiKey, saveSecureApiKey, getSecureMqttPassword, saveSecureMqttPassword } from './secureStorage';
+import { tr } from '../i18n/tr';
 
 // All storage keys to backup
 const BACKUP_KEYS = [
@@ -234,10 +235,10 @@ async function requestStoragePermission(): Promise<boolean> {
       const writeGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
         {
-          title: 'Storage Permission',
-          message: 'FreeKiosk needs storage access to save and load backup files.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
+          title: tr('system.storagePermissionTitle', 'Storage Permission'),
+          message: tr('system.storagePermissionMessage', 'FreeKiosk needs storage access to save and load backup files.'),
+          buttonNeutral: tr('system.askLater', 'Ask Me Later'),
+          buttonNegative: tr('system.cancel', 'Cancel'),
           buttonPositive: 'OK',
         }
       );
@@ -245,10 +246,10 @@ async function requestStoragePermission(): Promise<boolean> {
       const readGranted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
         {
-          title: 'Storage Permission',
-          message: 'FreeKiosk needs storage access to save and load backup files.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
+          title: tr('system.storagePermissionTitle', 'Storage Permission'),
+          message: tr('system.storagePermissionMessage', 'FreeKiosk needs storage access to save and load backup files.'),
+          buttonNeutral: tr('system.askLater', 'Ask Me Later'),
+          buttonNegative: tr('system.cancel', 'Cancel'),
           buttonPositive: 'OK',
         }
       );
@@ -346,12 +347,12 @@ export async function exportBackup(): Promise<{ success: boolean; filePath?: str
   try {
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      return { success: false, error: 'Storage permission denied' };
+      return { success: false, error: tr('system.backupStorageDenied', 'Storage permission denied') };
     }
 
     const built = await buildBackupJson();
     if (!built.success || !built.json || !built.filename) {
-      return { success: false, error: built.error || 'Failed to build backup' };
+      return { success: false, error: built.error || tr('system.backupBuildFailed', 'Failed to build backup') };
     }
 
     const directory = getBackupDirectory();
@@ -410,7 +411,7 @@ export async function readBackupFile(filePath: string): Promise<{ success: boole
   try {
     const exists = await RNFS.exists(filePath);
     if (!exists) {
-      return { success: false, error: 'Backup file not found' };
+      return { success: false, error: tr('system.backupNotFound', 'Backup file not found') };
     }
 
     const content = await RNFS.readFile(filePath, 'utf8');
@@ -418,7 +419,7 @@ export async function readBackupFile(filePath: string): Promise<{ success: boole
 
     // Validate backup structure
     if (!data.version || !data.settings || typeof data.settings !== 'object') {
-      return { success: false, error: 'Invalid backup file format' };
+      return { success: false, error: tr('system.backupInvalid', 'Invalid backup file format') };
     }
 
     return { success: true, data };
@@ -492,7 +493,7 @@ export async function importBackupFromContent(jsonContent: string, fileName?: st
 
     // Validate backup structure
     if (!data.version || !data.settings || typeof data.settings !== 'object') {
-      return { success: false, error: 'Invalid backup file format. Missing version or settings.' };
+      return { success: false, error: tr('system.backupInvalidMissing', 'Invalid backup file format. Missing version or settings.') };
     }
 
     let warning: string | undefined;
@@ -537,7 +538,7 @@ export function parseBackupContent(jsonContent: string): { success: boolean; dat
   try {
     const data = JSON.parse(jsonContent) as BackupData;
     if (!data.version || !data.settings || typeof data.settings !== 'object') {
-      return { success: false, error: 'Invalid backup file format' };
+      return { success: false, error: tr('system.backupInvalid', 'Invalid backup file format') };
     }
     return { success: true, data };
   } catch (error) {
@@ -552,7 +553,7 @@ export async function deleteBackupFile(filePath: string): Promise<{ success: boo
   try {
     const exists = await RNFS.exists(filePath);
     if (!exists) {
-      return { success: false, error: 'File not found' };
+      return { success: false, error: tr('system.fileNotFound', 'File not found') };
     }
 
     await RNFS.unlink(filePath);

@@ -1482,5 +1482,47 @@
       "installFailedTitle": "Mise à jour non installée",
       "installFailedMessage": "La mise à jour a été téléchargée, mais Android a refusé de l'installer : {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Date non valide",
+    "dateBeforeStart": "La date ne peut pas être antérieure à la date de début",
+    "timeInvalid": "Format d’heure non valide (utilisez HH:MM)",
+    "daysNone": "Aucun jour",
+    "daysEvery": "Tous les jours",
+    "daysWeekdays": "Jours de semaine",
+    "daysWeekends": "Week-ends",
+    "regionNew": "Nouvelle région",
+    "regionNameRequired": "Le nom de la région est obligatoire",
+    "regionXStartRange": "X début doit être entre 0 et 100",
+    "regionYStartRange": "Y début doit être entre 0 et 100",
+    "regionXEndRange": "X fin doit être entre 0 et 100",
+    "regionYEndRange": "Y fin doit être entre 0 et 100",
+    "regionXOrder": "X début doit être inférieur à X fin",
+    "regionYOrder": "Y début doit être inférieur à Y fin",
+    "storagePermissionTitle": "Autorisation de stockage",
+    "storagePermissionMessage": "FreeKiosk a besoin d’accéder au stockage pour enregistrer et charger les sauvegardes.",
+    "askLater": "Plus tard",
+    "cancel": "Annuler",
+    "backupStorageDenied": "Autorisation de stockage refusée",
+    "backupBuildFailed": "Impossible de créer la sauvegarde",
+    "backupNotFound": "Fichier de sauvegarde introuvable",
+    "backupInvalid": "Format de sauvegarde non valide",
+    "backupInvalidMissing": "Format de sauvegarde non valide. Version ou réglages manquants.",
+    "fileNotFound": "Fichier introuvable",
+    "pinLockedRetry": "Trop de tentatives échouées. Réessayez dans {{minutes}} minutes.",
+    "pinLocked15": "Trop de tentatives échouées. Verrouillé pendant 15 minutes.",
+    "pinIncorrect": "PIN incorrect",
+    "pinVerifyError": "Erreur lors de la vérification du PIN",
+    "cloudCannotReach": "Impossible de joindre le serveur",
+    "cloudEnrollFailed": "Échec de l’enrôlement",
+    "dayAbbr": {
+      "0": "Dim",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Jeu",
+      "5": "Ven",
+      "6": "Sam"
+    }
   }
 }

@@ -568,10 +568,10 @@ class KioskWatchdogService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Kiosk Watchdog",
+                "Giám sát chế độ kiosk",
                 NotificationManager.IMPORTANCE_MIN   // silent, no badge
             ).apply {
-                description = "Keeps FreeKiosk running in kiosk mode"
+                description = "Giữ FreeKiosk luôn chạy ở chế độ kiosk"
                 setShowBadge(false)
             }
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -584,7 +584,7 @@ class KioskWatchdogService : Service() {
             .setContentTitle("FreeKiosk")
             // Keep-alive now covers MQTT and cloud enrolment, so name what it does rather
             // than one of the two features that ask for it.
-            .setContentText(if (keepAliveOnly) "Staying connected" else "Kiosk mode active")
+            .setContentText(if (keepAliveOnly) "Đang giữ kết nối" else "Chế độ kiosk đang bật")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
