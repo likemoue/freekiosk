@@ -1,0 +1,84 @@
+name: freekiosk-manager
+
+x-hardening: &hardening
+  init: true
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+
+x-api-env: &api-env
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    API_PORT: 3000
+    DATA_DIR: /data
+    DATABASE_URL: postgresql://${POSTGRES_USER:?Chạy deploy/init-env.sh trước}:${POSTGRES_PASSWORD:?Chạy deploy/init-env.sh trước}@database:5432/${POSTGRES_DB:?Chạy deploy/init-env.sh trước}
+
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    <<: [*hardening, *api-env]
+    image: freekiosk-manager-migrate:latest
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: migrate
+    depends_on:
+      database: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    <<: [*hardening, *api-env]
+    image: freekiosk-manager-api:latest
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: api
+    volumes:
+      - app-data:/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  web:
+    <<: *hardening
+    image: freekiosk-manager-web:latest
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: web
+    ports:
+      # Nginx Proxy Manager runs on another VM: this has to be reachable from the LAN.
+      # Put the LAN address of this VM in BIND_ADDRESS, and see docs/TRIEN-KHAI.md for the firewall
+      - "${BIND_ADDRESS:-127.0.0.1}:${GATEWAY_PORT:-8090}:8080"
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  app-data:

@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/dist-test
+**/.test-data
+apps/api/src/generated
+.env
+.env.*
+!.env.example
+backups
+data
+docs
+*.md

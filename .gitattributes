@@ -9,3 +9,8 @@
 # Files pushed to an Android device must keep LF. A CRLF shebang ("#!/system/bin/sh\r")
 # is not a valid interpreter path, and init refuses to parse a CRLF .rc file.
 scripts/device/* text eol=lf
+
+# Run on the Ubuntu VM: a CRLF shebang or config line would break them.
+cloud/deploy/*.sh text eol=lf
+cloud/deploy/nginx.conf text eol=lf
+cloud/compose.yaml text eol=lf

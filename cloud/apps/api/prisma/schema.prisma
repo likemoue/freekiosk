@@ -1,0 +1,385 @@
+// FreeKiosk Manager: một tổ chức, nhiều người dùng, nhiều thiết bị.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "cjs"
+  generatedFileExtension = "ts"
+  importFileExtension    = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum CommandStatus {
+  PENDING
+  SENT
+  SUCCESS
+  ERROR
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               Role      @default(OPERATOR)
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  totpSecretEnc      String?
+  totpEnabled        Boolean   @default(false)
+  recoveryCodes      String[]  @default([])
+  failedLogins       Int       @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  sessions           Session[]
+}
+
+model Session {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tokenHash  String   @unique
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model EnrollmentToken {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  label        String?
+  tokenHash    String    @unique
+  tokenEnc     String
+  groupId      String?   @db.Uuid
+  group        Group?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  profileId    String?   @db.Uuid
+  profile      ConfigProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  maxUses      Int       @default(1)
+  usedCount    Int       @default(0)
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdById  String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+  devices      Device[]
+
+  @@index([expiresAt])
+}
+
+model Group {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique
+  description String?
+  color       String?
+  profileId   String?  @db.Uuid
+  profile     ConfigProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  playlistId  String?  @db.Uuid
+  playlist    Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  devices     Device[]
+  tokens      EnrollmentToken[]
+  rules       ScheduleRule[]
+}
+
+model ConfigProfile {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  name         String   @unique
+  description  String?
+  config       Json     @default("{}")
+  sensitiveEnc String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  devices      Device[]
+  groups       Group[]
+  tokens       EnrollmentToken[]
+}
+
+model Device {
+  id                     String    @id @default(uuid(7)) @db.Uuid
+  name                   String
+  notes                  String?
+  apiKeyHash             String    @unique
+  groupId                String?   @db.Uuid
+  group                  Group?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  profileId              String?   @db.Uuid
+  profile                ConfigProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  playlistId             String?   @db.Uuid
+  playlist               Playlist? @relation(fields: [playlistId], references: [id], onDelete: SetNull)
+  enrollmentTokenId      String?   @db.Uuid
+  enrollmentToken        EnrollmentToken? @relation(fields: [enrollmentTokenId], references: [id], onDelete: SetNull)
+
+  model                  String?
+  manufacturer           String?
+  androidVersion         String?
+  appVersion             String?
+  serialNumber           String?
+  formFactor             String    @default("tablet")
+  capabilities           String[]  @default([])
+
+  online                 Boolean   @default(false)
+  lastSeenAt             DateTime?
+  publicIp               String?
+  batteryLevel           Int?
+  batteryCharging        Boolean?
+  screenOn               Boolean?
+  brightness             Float?
+  wifiSsid               String?
+  wifiSignalDbm          Int?
+  ethernet               Boolean?
+  ipAddress              String?
+  currentUrl             String?
+  kioskMode              Boolean?
+  deviceOwner            Boolean?
+  freeStorageMb          Int?
+  freeMemoryMb           Int?
+  uptimeSeconds          Int?
+  timezone               String?
+  utcOffsetMinutes       Int?
+  telemetry              Json?
+  // null: ứng dụng chưa từng báo cáo (phiên bản cũ); chuỗi rỗng: không có danh sách phát
+  signagePlaylistVersion String?
+
+  reportedConfig         Json?
+  reportedConfigVersion  Int       @default(0)
+  reportedConfigAt       DateTime?
+  reportedSensitiveEnc   String?
+  configVersion          Int       @default(0)
+  pendingConfig          Json?
+  pendingSensitiveEnc    String?
+  configSyncedAt         DateTime?
+
+  forceUnenroll          Boolean   @default(false)
+  enrolledAt             DateTime  @default(now())
+  // Đã rời khỏi hệ thống: giữ lại để còn xem lịch sử, cho tới khi người quản trị xóa
+  unenrolledAt           DateTime?
+  updatedAt              DateTime  @updatedAt
+
+  commands               Command[]
+  screenshots            Screenshot[]
+  alerts                 Alert[]
+  rules                  ScheduleRule[]
+
+  @@index([groupId])
+  @@index([lastSeenAt])
+}
+
+model Command {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  deviceId     String        @db.Uuid
+  device       Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type         String
+  params       Json          @default("{}")
+  // Tham số bí mật (mật khẩu Wi-Fi): chỉ giải mã khi giao cho thiết bị, xóa ngay sau đó
+  secretEnc    String?
+  status       CommandStatus @default(PENDING)
+  result       Json?
+  errorMessage String?
+  batchId      String?       @db.Uuid
+  source       String        @default("manual")
+  createdById  String?       @db.Uuid
+  createdBy    String?
+  createdAt    DateTime      @default(now())
+  sentAt       DateTime?
+  completedAt  DateTime?
+  expiresAt    DateTime
+
+  @@index([deviceId, status])
+  @@index([createdAt])
+  @@index([batchId])
+}
+
+model ScheduledTask {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  name        String
+  enabled     Boolean   @default(true)
+  commandType String
+  params      Json      @default("{}")
+  targetType  String
+  groupId     String?   @db.Uuid
+  deviceIds   String[]  @default([])
+  days        Int[]
+  time        String
+  timezone    String    @default("Asia/Ho_Chi_Minh")
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([enabled, nextRunAt])
+}
+
+model Screenshot {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  deviceId   String   @db.Uuid
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  storageKey String
+  sizeBytes  Int
+  capturedAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+}
+
+model ApkPackage {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  fileName       String
+  storageKey     String
+  sizeBytes      BigInt
+  sha256Hex      String
+  checksumBase64 String
+  packageName    String?
+  versionName    String?
+  versionCode    Int?
+  notes          String?
+  isProvisioning Boolean  @default(false)
+  createdById    String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model MediaAsset {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  fileName   String
+  title      String
+  kind       String
+  mimeType   String
+  sizeBytes  BigInt
+  sha256Hex  String
+  storageKey String
+  createdAt  DateTime @default(now())
+  items      PlaylistItem[]
+
+  @@index([createdAt])
+}
+
+model Playlist {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       PlaylistItem[]
+  devices     Device[]
+  groups      Group[]
+  rules       ScheduleRule[]
+}
+
+model PlaylistItem {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  playlistId      String      @db.Uuid
+  playlist        Playlist    @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  position        Int
+  kind            String
+  url             String?
+  mediaAssetId    String?     @db.Uuid
+  mediaAsset      MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  title           String?
+  durationSeconds Int?
+  videoId         String?
+  warning         String?
+  createdAt       DateTime    @default(now())
+
+  @@index([playlistId, position])
+}
+
+model ScheduleRule {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  playlistId String    @db.Uuid
+  playlist   Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  deviceId   String?   @db.Uuid
+  device     Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  groupId    String?   @db.Uuid
+  group      Group?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  days       Int[]
+  start      String?
+  end        String?
+  from       String?
+  to         String?
+  priority   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([deviceId])
+  @@index([groupId])
+}
+
+model AlertChannel {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  name       String
+  type       String
+  configEnc  String
+  events     String[]  @default([])
+  enabled    Boolean   @default(true)
+  lastSentAt DateTime?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Alert {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  deviceId   String    @db.Uuid
+  device     Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type       String
+  severity   String    @default("warning")
+  message    String
+  openedAt   DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([deviceId, type, resolvedAt])
+  @@index([openedAt])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  createdAt  DateTime @default(now())
+  action     String
+  severity   String   @default("info")
+  message    String
+  // Không dùng khóa ngoại: nhật ký phải còn lại sau khi xóa thiết bị hoặc người dùng
+  deviceId   String?  @db.Uuid
+  deviceName String?
+  userId     String?  @db.Uuid
+  userEmail  String?
+  ip         String?
+  data       Json?
+
+  @@index([createdAt])
+  @@index([deviceId, createdAt])
+  @@index([action])
+}
+
+model Upload {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  fileName      String
+  sizeBytes     BigInt
+  receivedBytes BigInt    @default(0)
+  purpose       String
+  createdById   String?   @db.Uuid
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+}
