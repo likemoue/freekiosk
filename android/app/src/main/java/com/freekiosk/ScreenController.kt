@@ -77,7 +77,7 @@ object ScreenController {
                     val nm = appCtx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val channel = android.app.NotificationChannel(
-                            WAKE_CHANNEL_ID, "Screen wake", android.app.NotificationManager.IMPORTANCE_HIGH
+                            WAKE_CHANNEL_ID, "Đánh thức màn hình", android.app.NotificationManager.IMPORTANCE_HIGH
                         ).apply {
                             setSound(null, null)
                             enableVibration(false)
@@ -99,7 +99,7 @@ object ScreenController {
                     val notif = builder
                         .setSmallIcon(R.mipmap.ic_launcher)
                         .setContentTitle("FreeKiosk")
-                        .setContentText("Waking screen")
+                        .setContentText("Đang đánh thức màn hình")
                         .setCategory(android.app.Notification.CATEGORY_ALARM)
                         .setFullScreenIntent(pi, true)
                         .setAutoCancel(true)

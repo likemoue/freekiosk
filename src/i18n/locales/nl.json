@@ -1482,5 +1482,47 @@
       "installFailedTitle": "Update niet geïnstalleerd",
       "installFailedMessage": "De update is gedownload maar Android weigerde hem te installeren: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Ongeldige datum",
+    "dateBeforeStart": "De datum mag niet voor de startdatum liggen",
+    "timeInvalid": "Ongeldige tijdnotatie (gebruik HH:MM)",
+    "daysNone": "Geen dagen",
+    "daysEvery": "Elke dag",
+    "daysWeekdays": "Weekdagen",
+    "daysWeekends": "Weekenden",
+    "regionNew": "Nieuw gebied",
+    "regionNameRequired": "Gebiedsnaam is verplicht",
+    "regionXStartRange": "X-start moet tussen 0 en 100 liggen",
+    "regionYStartRange": "Y-start moet tussen 0 en 100 liggen",
+    "regionXEndRange": "X-einde moet tussen 0 en 100 liggen",
+    "regionYEndRange": "Y-einde moet tussen 0 en 100 liggen",
+    "regionXOrder": "X-start moet kleiner zijn dan X-einde",
+    "regionYOrder": "Y-start moet kleiner zijn dan Y-einde",
+    "storagePermissionTitle": "Opslagmachtiging",
+    "storagePermissionMessage": "FreeKiosk heeft opslagtoegang nodig om back-ups op te slaan en te laden.",
+    "askLater": "Later vragen",
+    "cancel": "Annuleren",
+    "backupStorageDenied": "Opslagmachtiging geweigerd",
+    "backupBuildFailed": "Back-up maken mislukt",
+    "backupNotFound": "Back-upbestand niet gevonden",
+    "backupInvalid": "Ongeldige back-upindeling",
+    "backupInvalidMissing": "Ongeldige back-upindeling. Versie of instellingen ontbreken.",
+    "fileNotFound": "Bestand niet gevonden",
+    "pinLockedRetry": "Te veel mislukte pogingen. Probeer het over {{minutes}} minuten opnieuw.",
+    "pinLocked15": "Te veel mislukte pogingen. 15 minuten vergrendeld.",
+    "pinIncorrect": "Onjuiste pincode",
+    "pinVerifyError": "Fout bij controleren van pincode",
+    "cloudCannotReach": "Server niet bereikbaar",
+    "cloudEnrollFailed": "Registratie mislukt",
+    "dayAbbr": {
+      "0": "Zo",
+      "1": "Ma",
+      "2": "Di",
+      "3": "Wo",
+      "4": "Do",
+      "5": "Vr",
+      "6": "Za"
+    }
   }
 }

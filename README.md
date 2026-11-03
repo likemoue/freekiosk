@@ -1,147 +1,107 @@
 <div align="center">
   <h1>FreeKiosk</h1>
-  <p><strong>Free open-source kiosk mode for Android tablets</strong></p>
-  <p>Alternative to Fully Kiosk Browser (<a href="https://freekiosk.app/vs-fully-kiosk/">see how they compare</a>)</p>
-  
+  <p><strong>Chế độ kiosk mã nguồn mở, miễn phí cho máy tính bảng Android</strong></p>
+  <p>Bản Việt hóa, kèm website quản lý tự vận hành</p>
+
   <p>
-    <a href="https://freekiosk.app">Website</a> •
-    <a href="#-install-in-60-seconds">Installation</a> •
-    <a href="docs/faq.md">FAQ</a> •
-    <a href="#-key-capabilities">Features</a>
+    <a href="#-cài-đặt-trong-60-giây">Cài đặt</a> •
+    <a href="cloud/README.md">Website quản lý</a> •
+    <a href="docs/vi/README.md">Tài liệu</a> •
+    <a href="README.en.md">English</a>
   </p>
-  
+
   <p>
-    <img src="https://img.shields.io/badge/Version-2.0.0-blue.svg" alt="Version 2.0.0">
-    <a href="https://github.com/rushb-fr/freekiosk/releases"><img src="https://img.shields.io/github/downloads/rushb-fr/freekiosk/total.svg" alt="Downloads"></a>
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="Giấy phép: MIT">
     <img src="https://img.shields.io/badge/Android-8.0%2B-green.svg" alt="Android 8.0+">
-    <img src="https://img.shields.io/badge/Device%20Owner-Supported-brightgreen" alt="Device Owner">
-    <img src="https://img.shields.io/badge/REST%20API-40%2B%20Endpoints-orange" alt="REST API">
-    <img src="https://img.shields.io/badge/MQTT-Home%20Assistant%20Discovery-41BDF5" alt="MQTT">
+    <img src="https://img.shields.io/badge/Device%20Owner-H%E1%BB%97%20tr%E1%BB%A3-brightgreen" alt="Hỗ trợ Device Owner">
+    <img src="https://img.shields.io/badge/REST%20API-40%2B%20endpoint-orange" alt="REST API hơn 40 endpoint">
+    <img src="https://img.shields.io/badge/MQTT-Home%20Assistant-41BDF5" alt="MQTT, Home Assistant">
   </p>
-  
-  <p><strong>A <a href="https://rushb.fr">Rushb</a> Project</strong></p>
 </div>
 
-FreeKiosk is an open-source kiosk platform for Android tablets, built for teams that want **full control without license costs**.
+Đây là bản fork của [FreeKiosk](https://github.com/RushB-fr/freekiosk) do [Rushb](https://rushb.fr) phát triển, giấy phép MIT. So với bản gốc:
+
+- **Tiếng Việt là ngôn ngữ mặc định**, trên toàn bộ giao diện ứng dụng, thông báo hệ thống và tài liệu. Vẫn đổi được sang ngôn ngữ khác trong Cài đặt.
+- **Có website quản lý tự vận hành** ở thư mục [`cloud/`](cloud/README.md), thay cho dịch vụ FreeKiosk Cloud trả phí, cùng giao thức nên ứng dụng dùng được ngay.
+- **Cập nhật ứng dụng** lấy từ các bản phát hành của repo này, không phải repo gốc.
+- **An toàn hơn khi có proxy phía trước:** trang chặn của Cloudflare hoặc Nginx Proxy Manager không còn khiến máy tự xóa đăng ký.
 
 <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.freekiosk"><img src="https://img.shields.io/badge/Google%20Play-Get%20it-34A853?logo=googleplay&logoColor=white" alt="Get it on Google Play"></a>
-  <a href="https://github.com/rushb-fr/freekiosk/releases/latest"><img src="https://img.shields.io/badge/APK-GitHub%20Releases-181717?logo=github&logoColor=white" alt="Download the APK from GitHub Releases"></a>
+  <img src="docs/screenshots/any-web-page-full-screen.png" alt="FreeKiosk hiển thị trang web toàn màn hình trên máy tính bảng (trang minh họa)" width="49%">
+  <img src="docs/screenshots/lock-it-down.png" alt="Cài đặt bảo mật của FreeKiosk với chế độ khóa đang bật (minh họa)" width="49%">
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/any-web-page-full-screen.png" alt="FreeKiosk showing a web page full screen on a tablet (demo page)" width="49%">
-  <img src="docs/screenshots/lock-it-down.png" alt="FreeKiosk Security settings with Lock Mode on (demo)" width="49%">
-</p>
+## ✨ Khả năng chính
 
-Instead of burying everything in one long page, this README gives you the essentials and points to complete docs in `docs/`.
-
-### Why teams choose it
-
-- ✅ Free and MIT licensed
-- ✅ Device Owner support for true lockdown
-- ✅ Works in WebView mode or External App mode
-- ✅ Native REST API and MQTT integration
-- ✅ Headless ADB provisioning for mass rollout
-- ✅ Privacy-first: no mandatory tracking layer
-- ✅ Available in English, French and Brazilian Portuguese
-
-## ✨ Key capabilities
-
-| Area | What you get | Deep dive |
+| Lĩnh vực | Có gì | Tìm hiểu thêm |
 |---|---|---|
-| Kiosk modes | Website (WebView), External App, Dashboard of pages, Media Player (videos and images) | [Features and Modes](docs/features-and-modes.md) |
-| Device control | Lock task, boot behavior, status bar policies, PIN access | [Installation](docs/installation.md) |
-| Automation | 40+ REST endpoints, MQTT discovery for Home Assistant | [Integrations](docs/INTEGRATIONS.md) |
-| Provisioning | ADB command-based configuration and scripting | [ADB Configuration](docs/adb-configuration.md) |
-| Fleet management | Optional FreeKiosk Cloud (open beta): remote config, commands, groups, alerts, QR enrollment | See [FreeKiosk Cloud](#-freekiosk-cloud-open-beta) below |
-| Digital signage (beta) | Playlists of videos, images, web pages and YouTube videos built in the cloud, with schedules and offline playback; Android TV, Google TV and Fire TV | [Digital signage](docs/digital-signage.md), [Android TV](docs/android-tv.md) |
+| Chế độ kiosk | Trang web (WebView), ứng dụng ngoài, bảng điều khiển nhiều trang, trình phát video và ảnh | [Tính năng và chế độ](docs/vi/features-and-modes.md) |
+| Điều khiển thiết bị | Lock task, hành vi khi khởi động, thanh trạng thái, mã PIN | [Hướng dẫn cài đặt](docs/vi/installation.md) |
+| Tự động hóa | Hơn 40 endpoint REST, MQTT tự khám phá cho Home Assistant | [Tích hợp](docs/vi/INTEGRATIONS.md) |
+| Cấp phát | Cấu hình bằng lệnh ADB và script | [Cấu hình ADB](docs/vi/adb-configuration.md) |
+| Quản lý cả đội máy | Website tự vận hành: cấu hình từ xa, lệnh, nhóm, cảnh báo, đăng ký bằng QR | [Website quản lý](cloud/README.md) |
+| Bảng hiệu số (beta) | Danh sách phát video, ảnh, trang web, YouTube, có lịch và phát ngoại tuyến; chạy cả trên Android TV, Google TV, Fire TV | [Bảng hiệu số](docs/vi/digital-signage.md), [Android TV](docs/vi/android-tv.md) |
 
-## 📦 Install in 60 seconds
+## 📦 Cài đặt trong 60 giây
 
-1. Install FreeKiosk from [Google Play](https://play.google.com/store/apps/details?id=com.freekiosk), or download the latest APK from [Releases](https://github.com/rushb-fr/freekiosk/releases).
-2. Install on Android 8.0+ tablet.
-3. Configure URL/app + PIN.
-4. Start kiosk mode.
+1. Build APK theo [hướng dẫn](cloud/docs/TRIEN-KHAI.md#6-build-ứng-dụng-android), hoặc tải về từ website quản lý của bạn.
+2. Cài lên máy tính bảng Android 8.0 trở lên.
+3. Đặt URL hoặc ứng dụng, và mã PIN.
+4. Bật chế độ kiosk.
 
-For production lockdown, use Device Owner mode:
+Khi triển khai thật, hãy dùng chế độ Device Owner:
 
 ```bash
 adb shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver
 ```
 
-👉 Full setup guide: [docs/installation.md](docs/installation.md)
+👉 Hướng dẫn đầy đủ: [docs/vi/installation.md](docs/vi/installation.md)
 
-## 🧩 Docs map
+## 🖥️ Website quản lý
 
-| I want to... | Go to |
+Trang quản lý theo dõi và điều khiển mọi thiết bị từ một nơi: trạng thái trực tiếp, cấu hình đẩy xuống máy hoặc nhóm, lệnh từ xa, ảnh màn hình, phân phối APK, bảng hiệu số, cảnh báo qua email, webhook và ntfy, nhiều tài khoản với xác thực hai lớp.
+
+Chạy bằng Docker Compose. Triển khai qua Nginx Proxy Manager và Cloudflare Tunnel: [cloud/docs/TRIEN-KHAI.md](cloud/docs/TRIEN-KHAI.md).
+
+Ứng dụng vẫn chạy độc lập: mọi tính năng kiosk, REST API và MQTT hoạt động không cần website, và không dữ liệu nào rời khỏi máy cho tới khi bạn đăng ký.
+
+## 🧩 Bản đồ tài liệu
+
+| Tôi muốn... | Xem |
 |---|---|
-| Deploy tablets correctly | [Installation Guide](docs/installation.md) |
-| Understand display/kiosk modes | [Features and Modes](docs/features-and-modes.md) |
-| Integrate with Home Assistant | [Integrations Overview](docs/INTEGRATIONS.md) |
-| Manage a fleet from a dashboard | [FreeKiosk Cloud](docs/cloud.md) |
-| Use API endpoints | [REST API Docs](docs/rest-api.md) |
-| Configure MQTT topics/discovery | [MQTT Docs](docs/MQTT.md) |
-| Provision with scripts | [ADB Configuration](docs/adb-configuration.md) |
-| Follow release direction | [Roadmap and Changelog](docs/roadmap-and-changelog.md) |
-| Contribute code | [Development Guide](docs/development.md) |
+| Triển khai máy tính bảng đúng cách | [Hướng dẫn cài đặt](docs/vi/installation.md) |
+| Hiểu các chế độ hiển thị và kiosk | [Tính năng và chế độ](docs/vi/features-and-modes.md) |
+| Tích hợp Home Assistant | [Tổng quan tích hợp](docs/vi/INTEGRATIONS.md) |
+| Dựng website quản lý | [Triển khai](cloud/docs/TRIEN-KHAI.md) |
+| Dùng API trên thiết bị | [REST API](docs/vi/rest-api.md) |
+| Cấu hình topic MQTT | [MQTT](docs/vi/MQTT.md) |
+| Cấp phát bằng script | [Cấu hình ADB](docs/vi/adb-configuration.md) |
+| Câu hỏi thường gặp | [FAQ](docs/vi/faq.md) |
+| Đóng góp mã nguồn | [Hướng dẫn phát triển](docs/vi/development.md) |
 
-## ☁️ FreeKiosk Cloud (open beta)
+Tài liệu tiếng Anh gốc vẫn ở [docs/](docs/README.md). Nhật ký thay đổi [CHANGELOG.md](CHANGELOG.md) giữ nguyên tiếng Anh.
 
-**FreeKiosk Cloud** is a companion service that manages a fleet from a web dashboard: live status, configuration pushed to devices or groups, remote commands and screenshots. A tablet can be enrolled by scanning a QR code, and a factory-reset tablet can be provisioned end to end from the Android setup wizard.
+## 🛠️ Công nghệ
 
-**The cloud is in open beta, with self-service sign-up** at [cloud.freekiosk.app](https://cloud.freekiosk.app): the first device is free, then it is priced per device (see [freekiosk.app/cloud](https://freekiosk.app/cloud) and the [cloud guide](docs/cloud.md)). The free device has the whole service except APK distribution, remote screenshots, the scheduler, renaming the organization and additional team members, which come with the first paid licence. The app itself, `v2.0.0`, is stable. Some cloud paths (over-the-air app updates, QR provisioning, Lock Mode behaviour on every model) have not been proven across enough real hardware for us to call the cloud finished.
+- React Native và TypeScript
+- Module native Kotlin (chính sách Android và điều khiển hệ thống)
+- Android SDK 26 trở lên (Android 8 trở lên)
+- Website quản lý: NestJS, Prisma, PostgreSQL, React, Vite
 
-**Digital signage is in beta** on both sides: build a playlist of videos, images, web pages and YouTube videos in the dashboard and a screen plays it, with schedules and from an offline cache (web pages and YouTube need the network). It needs the app `v2.1.0-beta.1`, a [GitHub pre-release](https://github.com/RushB-fr/freekiosk/releases) (Google Play still has `2.0.0`), and also runs on Android TV, Google TV and Fire TV, **tested on emulators only so far**. Details and limits: [Digital signage](docs/digital-signage.md).
+## 🔄 Cập nhật từ bản gốc
 
-**The app itself is unaffected.** FreeKiosk stays free and MIT licensed, and the cloud is entirely opt-in: nothing leaves the device until you enroll it. Every kiosk feature, the REST API and the MQTT integration work exactly as before without a cloud account, and always will.
+Repo có remote `upstream` trỏ về bản gốc. Tiếng Việt nằm ở các tệp riêng để việc gộp ít xung đột:
 
-> [!NOTE]
-> **The management server will be released as open source in 2027, so you can self-host it.**
-> That is the intended end state, not an afterthought: a kiosk platform you cannot host yourself is only half free. We are holding it back until it is stable and feature-complete rather than publishing something that would be painful to run.
+```bash
+git fetch upstream && git merge upstream/main
+```
 
-## 🛠️ Tech stack
+Khi bản gốc thêm chuỗi mới, kiểm thử `LocalesParity` sẽ báo khóa còn thiếu trong `src/i18n/locales/vi.json`.
 
-- React Native + TypeScript
-- Kotlin native modules (Android policy and system control)
-- Android SDK 26+ (Android 8+)
+## 📄 Giấy phép
 
-## 🗺️ Roadmap snapshot
-
-- `v1.2.x`: reliability and operational hardening (shipped)
-- `v2.0.0`: stable app, with optional cloud enrollment (shipped)
-- FreeKiosk Cloud: open beta, until the OTA update path, QR provisioning and Lock Mode behaviour are proven on real fleets
-- 2027: the management server released as open source for self-hosting
-
-Detailed notes: [docs/roadmap-and-changelog.md](docs/roadmap-and-changelog.md)
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-- Guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Issues: [GitHub Issues](https://github.com/rushb-fr/freekiosk/issues)
-- Discussions: [GitHub Discussions](https://github.com/rushb-fr/freekiosk/discussions)
-
----
-
-## 📄 License
-
-MIT License. See [LICENSE](LICENSE).
+MIT. Xem [LICENSE](LICENSE). Giữ nguyên ghi nhận tác giả gốc khi phân phối lại.
 
 <div align="center">
-  <img src="https://img.shields.io/github/stars/rushb-fr/freekiosk?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/forks/rushb-fr/freekiosk?style=social" alt="Forks">
-  <img src="https://img.shields.io/github/issues/rushb-fr/freekiosk" alt="Issues">
-  <img src="https://img.shields.io/github/license/rushb-fr/freekiosk" alt="License">
-</div>
-
-<div align="center">
-  <p><strong>Made with ❤️ in France by Rushb</strong></p>
-  <p>
-    <a href="https://freekiosk.app">Website</a> •
-    <a href="https://github.com/rushb-fr/freekiosk">GitHub</a> •
-    <a href="mailto:support@freekiosk.app">Contact</a>
-  </p>
+  <p>Dựa trên <a href="https://github.com/RushB-fr/freekiosk">FreeKiosk</a> của <a href="https://rushb.fr">Rushb</a></p>
 </div>

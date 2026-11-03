@@ -1,3 +1,4 @@
+import { tr } from '../i18n/tr';
 /**
  * FreeKiosk - Blocking Overlay Types
  * 
@@ -74,7 +75,7 @@ export const DEFAULT_BLOCKING_CONFIG: BlockingOverlaysConfig = {
 export function createDefaultRegion(): BlockingRegion {
   return {
     id: `region_${Date.now()}`,
-    name: 'New Region',
+    name: tr('system.regionNew', 'New Region'),
     enabled: true,
     xStart: 0,
     yStart: 0,
@@ -90,25 +91,25 @@ export function createDefaultRegion(): BlockingRegion {
  */
 export function validateRegion(region: BlockingRegion): { valid: boolean; error?: string } {
   if (region.xStart < 0 || region.xStart > 100) {
-    return { valid: false, error: 'X Start must be between 0 and 100' };
+    return { valid: false, error: tr('system.regionXStartRange', 'X Start must be between 0 and 100') };
   }
   if (region.yStart < 0 || region.yStart > 100) {
-    return { valid: false, error: 'Y Start must be between 0 and 100' };
+    return { valid: false, error: tr('system.regionYStartRange', 'Y Start must be between 0 and 100') };
   }
   if (region.xEnd < 0 || region.xEnd > 100) {
-    return { valid: false, error: 'X End must be between 0 and 100' };
+    return { valid: false, error: tr('system.regionXEndRange', 'X End must be between 0 and 100') };
   }
   if (region.yEnd < 0 || region.yEnd > 100) {
-    return { valid: false, error: 'Y End must be between 0 and 100' };
+    return { valid: false, error: tr('system.regionYEndRange', 'Y End must be between 0 and 100') };
   }
   if (region.xStart >= region.xEnd) {
-    return { valid: false, error: 'X Start must be less than X End' };
+    return { valid: false, error: tr('system.regionXOrder', 'X Start must be less than X End') };
   }
   if (region.yStart >= region.yEnd) {
-    return { valid: false, error: 'Y Start must be less than Y End' };
+    return { valid: false, error: tr('system.regionYOrder', 'Y Start must be less than Y End') };
   }
   if (!region.name.trim()) {
-    return { valid: false, error: 'Region name is required' };
+    return { valid: false, error: tr('system.regionNameRequired', 'Region name is required') };
   }
   return { valid: true };
 }

@@ -134,7 +134,7 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                 touchLoggerRemainingSeconds = durationSeconds
                 
                 val infoText = TextView(reactApplicationContext).apply {
-                    text = "Touch Logger Active (${durationSeconds}s)\nTap anywhere to see coordinates"
+                    text = "Trình ghi chạm đang bật (${durationSeconds}s)\nChạm vào bất kỳ đâu để xem tọa độ"
                     setTextColor(Color.WHITE)
                     textSize = 14f
                     setBackgroundColor(Color.argb(200, 0, 0, 0))
@@ -157,9 +157,9 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                         if (touchLoggerRemainingSeconds > 0) {
                             touchLoggerRemainingSeconds--
                             if (lastTouchInfo.isEmpty()) {
-                                infoText.text = "Touch Logger Active (${touchLoggerRemainingSeconds}s)\nTap anywhere to see coordinates"
+                                infoText.text = "Trình ghi chạm đang bật (${touchLoggerRemainingSeconds}s)\nChạm vào bất kỳ đâu để xem tọa độ"
                             } else {
-                                infoText.text = "$lastTouchInfo\n\n⏱ ${touchLoggerRemainingSeconds}s remaining"
+                                infoText.text = "$lastTouchInfo\n\n⏱ còn ${touchLoggerRemainingSeconds}s"
                             }
                             mainHandler.postDelayed(this, 1000)
                         } else {
@@ -179,14 +179,14 @@ class BlockingOverlayModule(reactContext: ReactApplicationContext) :
                         val yPercent = (event.y / screenHeight * 100).toInt()
                         
                         lastTouchInfo = """
-                            |Touch Detected:
+                            |Phát hiện chạm:
                             |X: ${event.x.toInt()}px ($xPercent%)
                             |Y: ${event.y.toInt()}px ($yPercent%)
                             |
-                            |Screen: ${screenWidth.toInt()} × ${screenHeight.toInt()}
+                            |Màn hình: ${screenWidth.toInt()} × ${screenHeight.toInt()}
                         """.trimMargin()
                         
-                        infoText.text = "$lastTouchInfo\n\n⏱ ${touchLoggerRemainingSeconds}s remaining"
+                        infoText.text = "$lastTouchInfo\n\n⏱ còn ${touchLoggerRemainingSeconds}s"
                     }
                     false // Allow touch to pass through
                 }

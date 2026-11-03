@@ -1483,5 +1483,47 @@
       "installFailedTitle": "Aggiornamento non installato",
       "installFailedMessage": "L'aggiornamento è stato scaricato ma Android ha rifiutato di installarlo: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Data non valida",
+    "dateBeforeStart": "La data non può precedere quella di inizio",
+    "timeInvalid": "Formato orario non valido (usa HH:MM)",
+    "daysNone": "Nessun giorno",
+    "daysEvery": "Ogni giorno",
+    "daysWeekdays": "Giorni feriali",
+    "daysWeekends": "Fine settimana",
+    "regionNew": "Nuova regione",
+    "regionNameRequired": "Il nome della regione è obbligatorio",
+    "regionXStartRange": "X iniziale deve essere tra 0 e 100",
+    "regionYStartRange": "Y iniziale deve essere tra 0 e 100",
+    "regionXEndRange": "X finale deve essere tra 0 e 100",
+    "regionYEndRange": "Y finale deve essere tra 0 e 100",
+    "regionXOrder": "X iniziale deve essere minore di X finale",
+    "regionYOrder": "Y iniziale deve essere minore di Y finale",
+    "storagePermissionTitle": "Permesso di archiviazione",
+    "storagePermissionMessage": "FreeKiosk ha bisogno dell’accesso all’archiviazione per salvare e caricare i backup.",
+    "askLater": "Chiedi più tardi",
+    "cancel": "Annulla",
+    "backupStorageDenied": "Permesso di archiviazione negato",
+    "backupBuildFailed": "Impossibile creare il backup",
+    "backupNotFound": "File di backup non trovato",
+    "backupInvalid": "Formato del backup non valido",
+    "backupInvalidMissing": "Formato del backup non valido. Mancano la versione o le impostazioni.",
+    "fileNotFound": "File non trovato",
+    "pinLockedRetry": "Troppi tentativi falliti. Riprova tra {{minutes}} minuti.",
+    "pinLocked15": "Troppi tentativi falliti. Bloccato per 15 minuti.",
+    "pinIncorrect": "PIN errato",
+    "pinVerifyError": "Errore durante la verifica del PIN",
+    "cloudCannotReach": "Impossibile raggiungere il server",
+    "cloudEnrollFailed": "Registrazione non riuscita",
+    "dayAbbr": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Gio",
+      "5": "Ven",
+      "6": "Sab"
+    }
   }
 }

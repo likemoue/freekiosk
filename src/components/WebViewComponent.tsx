@@ -30,15 +30,16 @@ import { useNavigation } from '@react-navigation/native';
 import PrintModule from '../utils/PrintModule';
 import SilentPrintModule from '../utils/SilentPrintModule';
 import { CLOUD_ENABLED } from '../config/features';
-import { CloudSyncService, PROVISIONING_STATUS_EVENT } from '../utils/CloudSyncService';
+import { CloudSyncService, PROVISIONING_STATUS_EVENT, cloudErrorText } from '../utils/CloudSyncService';
 import type { ProvisioningStatus } from '../utils/CloudSyncService';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTranslation } from 'react-i18next';
+import { DEFAULT_CLOUD_URL } from '../config/features';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const CLOUD_URL = 'https://cloud.freekiosk.app';
+const CLOUD_URL = DEFAULT_CLOUD_URL;
 
 interface WebViewComponentProps {
   url: string;
@@ -1399,7 +1400,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                     ? t('components.webView.provisioningEnrolling', { attempts: provisioning.attempts })
                     : provisioning.state === 'retrying'
                       ? t('components.webView.provisioningRetrying', { attempts: provisioning.attempts })
-                      : t('components.webView.provisioningFailed', { error: provisioning.error })}
+                      : t('components.webView.provisioningFailed', { error: cloudErrorText(provisioning.error) })}
                 </Text>
               </View>
             )}

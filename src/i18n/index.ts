@@ -1,6 +1,5 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { I18nManager, NativeModules, Platform } from 'react-native';
 import { StorageService } from '../utils/storage';
 import en from './locales/en.json';
 import de from './locales/de.json';
@@ -9,9 +8,11 @@ import fr from './locales/fr.json';
 import itIT from './locales/it.json';
 import nl from './locales/nl.json';
 import ptBR from './locales/pt-BR.json';
+import vi from './locales/vi.json';
 
 // Each language is named in itself: someone who cannot read the current one must still find theirs.
 export const LANGUAGE_OPTIONS = [
+  { value: 'vi', label: 'Tiếng Việt' },
   { value: 'en', label: 'English' },
   { value: 'de', label: 'Deutsch' },
   { value: 'es', label: 'Español' },
@@ -23,15 +24,9 @@ export const LANGUAGE_OPTIONS = [
 export type SupportedLanguage = (typeof LANGUAGE_OPTIONS)[number]['value'];
 export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = LANGUAGE_OPTIONS.map((o) => o.value);
 
-function getDeviceLocale(): string {
-  const locale =
-    Platform.OS === 'ios'
-      ? NativeModules.SettingsManager?.settings?.AppleLocale ||
-        NativeModules.SettingsManager?.settings?.AppleLanguages?.[0]
-      : // NativeModules.I18nManager has no constant fields under the New Architecture.
-        I18nManager.getConstants().localeIdentifier;
-  return typeof locale === 'string' ? locale : 'en';
-}
+// This build is made for Vietnam: Vietnamese whatever the language of the tablet, until
+// someone picks another one in Settings (loadStoredLanguage then applies it).
+export const DEFAULT_LANGUAGE: SupportedLanguage = 'vi';
 
 export function resolveSupportedLanguage(code: string | null | undefined): SupportedLanguage {
   if (code && (SUPPORTED_LANGUAGES as readonly string[]).includes(code)) {
@@ -53,8 +48,9 @@ i18next.use(initReactI18next).init({
     it: { translation: itIT },
     nl: { translation: nl },
     'pt-BR': { translation: ptBR },
+    vi: { translation: vi },
   },
-  lng: resolveSupportedLanguage(getDeviceLocale()),
+  lng: DEFAULT_LANGUAGE,
   fallbackLng: 'en',
   interpolation: {
     escapeValue: false,

@@ -1,3 +1,4 @@
+import { tr } from '../i18n/tr';
 /**
  * FreeKiosk v1.2 - URL Planner Types
  * Hybrid scheduling: recurring weekly + one-time dated events
@@ -138,9 +139,9 @@ export const getActiveEvent = (events: ScheduledEvent[]): ScheduledEvent | null 
 
 // Get days display string
 export const getDaysDisplayString = (days: number[]): string => {
-  if (days.length === 7) return 'Every day';
-  if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
-  if (days.length === 2 && days.includes(0) && days.includes(6)) return 'Weekends';
+  if (days.length === 7) return tr('system.daysEvery', 'Every day');
+  if (days.length === 5 && !days.includes(0) && !days.includes(6)) return tr('system.daysWeekdays', 'Weekdays');
+  if (days.length === 2 && days.includes(0) && days.includes(6)) return tr('system.daysWeekends', 'Weekends');
   
-  return days.sort((a, b) => a - b).map(d => DAY_NAMES_SHORT[d]).join(', ');
+  return days.sort((a, b) => a - b).map(d => tr(`system.dayAbbr.${d}`, DAY_NAMES_SHORT[d])).join(', ');
 };

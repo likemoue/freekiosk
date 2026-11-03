@@ -2,6 +2,7 @@ import * as Keychain from 'react-native-keychain';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
 import { StorageService } from './storage';
+import { tr } from '../i18n/tr';
 
 const { KioskModule } = NativeModules;
 
@@ -300,7 +301,7 @@ export async function verifySecurePin(inputPin: string): Promise<{
       return {
         success: false,
         lockoutTimeRemaining: lockoutStatus.timeRemaining ?? undefined,
-        message: `Too many failed attempts. Try again in ${Math.ceil((lockoutStatus.timeRemaining || 0) / 60000)} minutes.`,
+        message: tr('system.pinLockedRetry', 'Too many failed attempts. Try again in {{minutes}} minutes.', { minutes: Math.ceil((lockoutStatus.timeRemaining || 0) / 60000) }),
       };
     }
 
@@ -332,13 +333,13 @@ export async function verifySecurePin(inputPin: string): Promise<{
           return {
             success: false,
             lockoutTimeRemaining: LOCKOUT_DURATION,
-            message: `Too many failed attempts. Locked for 15 minutes.`,
+            message: tr('system.pinLocked15', 'Too many failed attempts. Locked for 15 minutes.'),
           };
         }
         return {
           success: false,
           attemptsRemaining: maxAttempts - attempts.count,
-          message: 'Incorrect PIN',
+          message: tr('system.pinIncorrect', 'Incorrect PIN'),
         };
       }
 
@@ -366,14 +367,14 @@ export async function verifySecurePin(inputPin: string): Promise<{
             return {
               success: false,
               lockoutTimeRemaining: LOCKOUT_DURATION,
-              message: `Too many failed attempts. Locked for 15 minutes.`,
+              message: tr('system.pinLocked15', 'Too many failed attempts. Locked for 15 minutes.'),
             };
           }
 
           return {
             success: false,
             attemptsRemaining: maxAttempts - attempts.count,
-            message: 'Incorrect PIN',
+            message: tr('system.pinIncorrect', 'Incorrect PIN'),
           };
         }
       }
@@ -389,7 +390,7 @@ export async function verifySecurePin(inputPin: string): Promise<{
         return {
           success: false,
           attemptsRemaining: maxAttempts - attempts.count,
-          message: 'Incorrect PIN',
+          message: tr('system.pinIncorrect', 'Incorrect PIN'),
         };
       }
     }
@@ -414,21 +415,21 @@ export async function verifySecurePin(inputPin: string): Promise<{
         return {
           success: false,
           lockoutTimeRemaining: LOCKOUT_DURATION,
-          message: `Too many failed attempts. Locked for 15 minutes.`,
+          message: tr('system.pinLocked15', 'Too many failed attempts. Locked for 15 minutes.'),
         };
       }
 
       return {
         success: false,
         attemptsRemaining: maxAttempts - attempts.count,
-        message: 'Incorrect PIN',
+        message: tr('system.pinIncorrect', 'Incorrect PIN'),
       };
     }
   } catch (error) {
     console.error('[SecureStorage] Error verifying PIN:', error);
     return {
       success: false,
-      message: 'Error verifying PIN',
+      message: tr('system.pinVerifyError', 'Error verifying PIN'),
     };
   }
 }

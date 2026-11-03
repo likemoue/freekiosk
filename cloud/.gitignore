@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-test/
+.env
+.env.test
+data/
+.test-data/
+apps/api/src/generated/
+apps/web/dist/
+*.log

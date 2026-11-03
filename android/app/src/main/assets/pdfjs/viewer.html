@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
-<title>PDF Viewer</title>
+<title>Trình xem PDF</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
@@ -202,31 +202,31 @@
 <!-- Loading Overlay -->
 <div id="loadingOverlay">
   <div class="spinner"></div>
-  <div id="loadingText">Loading PDF...</div>
+  <div id="loadingText">Đang tải PDF...</div>
 </div>
 
 <!-- Error Overlay -->
 <div id="errorOverlay">
   <div id="errorIcon">⚠️</div>
-  <div id="errorTitle">Cannot Load PDF</div>
-  <div id="errorMessage">The PDF file could not be loaded.</div>
-  <button id="retryBtn" onclick="retryLoad()">🔄 Retry</button>
-  <button id="goBackBtn" onclick="goBack()">← Go Back</button>
+  <div id="errorTitle">Không tải được PDF</div>
+  <div id="errorMessage">Không thể tải tệp PDF.</div>
+  <button id="retryBtn" onclick="retryLoad()">🔄 Thử lại</button>
+  <button id="goBackBtn" onclick="goBack()">← Quay lại</button>
 </div>
 
 <!-- Toolbar -->
 <div id="toolbar">
-  <button id="closeBtn" onclick="goBack()" title="Close">✕</button>
+  <button id="closeBtn" onclick="goBack()" title="Đóng">✕</button>
   <div class="spacer"></div>
-  <button id="prevBtn" onclick="prevPage()" title="Previous Page">◀</button>
+  <button id="prevBtn" onclick="prevPage()" title="Trang trước">◀</button>
   <span id="pageInfo">-- / --</span>
-  <button id="nextBtn" onclick="nextPage()" title="Next Page">▶</button>
+  <button id="nextBtn" onclick="nextPage()" title="Trang sau">▶</button>
   <div class="spacer"></div>
-  <button id="zoomOutBtn" onclick="zoomOut()" title="Zoom Out">−</button>
-  <button id="zoomFitBtn" onclick="zoomFit()" title="Fit Width" style="font-size:13px;">⊡</button>
-  <button id="zoomInBtn" onclick="zoomIn()" title="Zoom In">+</button>
+  <button id="zoomOutBtn" onclick="zoomOut()" title="Thu nhỏ">−</button>
+  <button id="zoomFitBtn" onclick="zoomFit()" title="Vừa chiều rộng" style="font-size:13px;">⊡</button>
+  <button id="zoomInBtn" onclick="zoomIn()" title="Phóng to">+</button>
   <div class="spacer"></div>
-  <button id="downloadBtn" onclick="downloadPdf()" title="Download PDF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M12 16l-5-5M12 16l5-5M4 21h16"/></svg></button>
+  <button id="downloadBtn" onclick="downloadPdf()" title="Tải PDF về"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M12 16l-5-5M12 16l5-5M4 21h16"/></svg></button>
 </div>
 
 <!-- PDF Pages -->
@@ -258,7 +258,7 @@
   var pdfUrl = params.get('file');
 
   if (!pdfUrl) {
-    showError('No PDF URL provided.');
+    showError('Chưa có URL của tệp PDF.');
     return;
   }
 
@@ -488,9 +488,9 @@
       var msg = 'Unable to load PDF.';
       if (error && error.message) {
         if (error.message.indexOf('Missing PDF') !== -1) {
-          msg = 'Invalid PDF file or URL.\n\nThe server may be returning an HTML page instead of a PDF (WAF challenge, 403, or redirect).';
+          msg = 'Tệp PDF hoặc URL không hợp lệ.\n\nMáy chủ có thể đang trả về trang HTML thay vì PDF (thử thách WAF, lỗi 403 hoặc chuyển hướng).';
         } else if (error.message.indexOf('network') !== -1 || error.message.indexOf('fetch') !== -1) {
-          msg = 'Network error. Check your connection.';
+          msg = 'Lỗi mạng. Hãy kiểm tra kết nối.';
         } else {
           msg = error.message;
         }

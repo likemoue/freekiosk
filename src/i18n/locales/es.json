@@ -1483,5 +1483,47 @@
       "installFailedTitle": "Actualización no instalada",
       "installFailedMessage": "La actualización se descargó, pero Android se negó a instalarla: {{message}}"
     }
+  },
+  "system": {
+    "dateInvalid": "Fecha no válida",
+    "dateBeforeStart": "La fecha no puede ser anterior a la de inicio",
+    "timeInvalid": "Formato de hora no válido (usa HH:MM)",
+    "daysNone": "Ningún día",
+    "daysEvery": "Todos los días",
+    "daysWeekdays": "Entre semana",
+    "daysWeekends": "Fines de semana",
+    "regionNew": "Nueva región",
+    "regionNameRequired": "El nombre de la región es obligatorio",
+    "regionXStartRange": "X inicial debe estar entre 0 y 100",
+    "regionYStartRange": "Y inicial debe estar entre 0 y 100",
+    "regionXEndRange": "X final debe estar entre 0 y 100",
+    "regionYEndRange": "Y final debe estar entre 0 y 100",
+    "regionXOrder": "X inicial debe ser menor que X final",
+    "regionYOrder": "Y inicial debe ser menor que Y final",
+    "storagePermissionTitle": "Permiso de almacenamiento",
+    "storagePermissionMessage": "FreeKiosk necesita acceso al almacenamiento para guardar y cargar copias de seguridad.",
+    "askLater": "Preguntar más tarde",
+    "cancel": "Cancelar",
+    "backupStorageDenied": "Permiso de almacenamiento denegado",
+    "backupBuildFailed": "No se pudo crear la copia de seguridad",
+    "backupNotFound": "No se encontró la copia de seguridad",
+    "backupInvalid": "Formato de copia de seguridad no válido",
+    "backupInvalidMissing": "Formato de copia de seguridad no válido. Falta la versión o los ajustes.",
+    "fileNotFound": "Archivo no encontrado",
+    "pinLockedRetry": "Demasiados intentos fallidos. Inténtalo de nuevo en {{minutes}} minutos.",
+    "pinLocked15": "Demasiados intentos fallidos. Bloqueado durante 15 minutos.",
+    "pinIncorrect": "PIN incorrecto",
+    "pinVerifyError": "Error al verificar el PIN",
+    "cloudCannotReach": "No se puede conectar con el servidor",
+    "cloudEnrollFailed": "Error en la inscripción",
+    "dayAbbr": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb"
+    }
   }
 }

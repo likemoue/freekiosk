@@ -179,7 +179,7 @@ class MainActivity : ReactActivity() {
     )
 
     /** Where a cloud_token enrolls when the command does not say. */
-    const val DEFAULT_CLOUD_URL = "https://cloud.freekiosk.app"
+    const val DEFAULT_CLOUD_URL = "https://kiosk.ism.io.vn"
 
     /** Never log these values: they are credentials, not settings. */
     val ADB_SENSITIVE_KEYS = setOf(
@@ -1638,7 +1638,7 @@ class MainActivity : ReactActivity() {
       // First setup - PIN is REQUIRED to be set
       if (pin.isNullOrEmpty()) {
         android.util.Log.w("FreeKiosk-ADB", "Rejected: PIN required for first setup")
-        showAdbToast("❌ ADB Config rejected: PIN required for first setup")
+        showAdbToast("❌ Từ chối cấu hình ADB: cần PIN cho lần thiết lập đầu")
         return false
       }
       // Save the new PIN (hashed for ADB verification AND in AsyncStorage for UI)
@@ -1649,13 +1649,13 @@ class MainActivity : ReactActivity() {
       // Already configured - verify PIN
       if (pin.isNullOrEmpty()) {
         android.util.Log.w("FreeKiosk-ADB", "Rejected: PIN required")
-        showAdbToast("❌ ADB Config rejected: PIN required")
+        showAdbToast("❌ Từ chối cấu hình ADB: cần PIN")
         return false
       }
       
       if (!verifyAdbPin(pin)) {
         android.util.Log.w("FreeKiosk-ADB", "Rejected: Invalid PIN")
-        showAdbToast("❌ ADB Config rejected: Invalid PIN")
+        showAdbToast("❌ Từ chối cấu hình ADB: PIN không đúng")
         return false
       }
     }
@@ -1678,7 +1678,7 @@ class MainActivity : ReactActivity() {
           applyJsonConfigToPrefs(editor, config)
         } catch (e: Exception) {
           android.util.Log.e("FreeKiosk-ADB", "Invalid JSON: ${e.message}")
-          showAdbToast("❌ ADB Config: Invalid JSON")
+          showAdbToast("❌ Cấu hình ADB: JSON không hợp lệ")
           return false
         }
       }
@@ -1701,7 +1701,7 @@ class MainActivity : ReactActivity() {
     val unknownExtras = intent.extras?.keySet()?.filter { isUnknownAdbExtra(it) } ?: emptyList()
     if (unknownExtras.isNotEmpty()) {
       android.util.Log.w("FreeKiosk-ADB", "Ignored unknown config keys: ${unknownExtras.joinToString(", ")}")
-      showAdbToast("⚠️ ADB Config: ignored ${unknownExtras.size} unknown key(s): ${unknownExtras.take(3).joinToString(", ")}")
+      showAdbToast("⚠️ Cấu hình ADB: đã bỏ qua ${unknownExtras.size} khóa không xác định: ${unknownExtras.take(3).joinToString(", ")}")
     }
 
     // Handle individual parameters (override JSON if both provided)
@@ -1718,7 +1718,7 @@ class MainActivity : ReactActivity() {
         editor.putString("@kiosk_display_mode", "external_app")
       } catch (e: Exception) {
         android.util.Log.w("FreeKiosk-ADB", "Package not found: $lockPackage")
-        showAdbToast("❌ ADB Config: Package not found: $lockPackage")
+        showAdbToast("❌ Cấu hình ADB: không tìm thấy gói $lockPackage")
         return false
       }
     }
@@ -1825,7 +1825,7 @@ class MainActivity : ReactActivity() {
         }
       } catch (e: Exception) {
         android.util.Log.e("FreeKiosk-ADB", "Invalid managed_apps JSON: ${e.message}")
-        showAdbToast("❌ ADB Config: Invalid managed_apps JSON")
+        showAdbToast("❌ Cấu hình ADB: JSON managed_apps không hợp lệ")
       }
     }
     
@@ -1845,7 +1845,7 @@ class MainActivity : ReactActivity() {
       if (normalized != null) {
         editor.putString("@kiosk_dashboard_tiles", normalized)
       } else {
-        showAdbToast("❌ ADB Config: Invalid dashboard_tiles JSON")
+        showAdbToast("❌ Cấu hình ADB: JSON dashboard_tiles không hợp lệ")
       }
     }
 
@@ -1887,19 +1887,19 @@ class MainActivity : ReactActivity() {
     
     } catch (e: Exception) {
       android.util.Log.e("FreeKiosk-ADB", "Error applying config: ${e.message}")
-      showAdbToast("❌ ADB Config: Error: ${e.message}")
+      showAdbToast("❌ Cấu hình ADB: lỗi: ${e.message}")
       return false
     }
     
     // Show success toast
     val configType = when {
-      lockPackage != null -> "app: $lockPackage"
+      lockPackage != null -> "ứng dụng: $lockPackage"
       url != null -> "URL: $url"
-      configJson != null -> "full config"
-      else -> "settings"
+      configJson != null -> "cấu hình đầy đủ"
+      else -> "cài đặt"
     }
     android.util.Log.i("FreeKiosk-ADB", "Config applied: $configType")
-    showAdbToast("✅ ADB Config applied: $configType")
+    showAdbToast("✅ Đã áp dụng cấu hình ADB: $configType")
     
     // Broadcast that config is saved (before restart)
     sendBroadcast(Intent("com.freekiosk.ADB_CONFIG_SAVED").apply {

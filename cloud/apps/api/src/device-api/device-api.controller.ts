@@ -1,0 +1,116 @@
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { randomUUID } from 'node:crypto';
+import { diskStorage } from 'multer';
+import { join } from 'node:path';
+import type { Device } from '../generated/prisma/client';
+import { AuthedRequest, clientIp, CurrentDevice, Public, sendStoredFile } from '../common/http';
+import { rateLimit } from '../common/rate-limit';
+import { env } from '../config/env';
+import { SignageService } from '../signage/signage.service';
+import { DeviceApiService } from './device-api.service';
+import { DeviceGuard } from './device.guard';
+
+const screenshotUpload = () =>
+  FileInterceptor('image', {
+    limits: { fileSize: 20 * 1024 * 1024 },
+    storage: diskStorage({
+      destination: (_req, _file, done) => done(null, join(env().dataDir, 'tmp')),
+      filename: (_req, _file, done) => done(null, `screenshot-${randomUUID()}.png`),
+    }),
+  });
+
+/** What the FreeKiosk app calls. The paths and the fields are the app's, not ours to change */
+@ApiTags('API thiết bị')
+@Controller('api/v1')
+export class DeviceApiController {
+  constructor(
+    private readonly service: DeviceApiService,
+    private readonly signage: SignageService,
+  ) {}
+
+  @Public()
+  @Post('devices/enroll')
+  @ApiOperation({ summary: 'Đăng ký thiết bị bằng mã token dùng một lần' })
+  enroll(@Body() body: Record<string, unknown>, @Req() req: AuthedRequest) {
+    const ip = clientIp(req);
+    rateLimit(`enroll:${ip ?? 'unknown'}`, 30, 60_000, 'Quá nhiều yêu cầu đăng ký. Thử lại sau một phút.');
+    return this.service.enroll(body ?? {}, ip);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/heartbeat')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Tín hiệu định kỳ 30 giây: trạng thái, cấu hình, lệnh chờ' })
+  heartbeat(@CurrentDevice() device: Device, @Body() body: Record<string, unknown>, @Req() req: AuthedRequest) {
+    return this.service.heartbeat(device, body ?? {}, clientIp(req));
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/unenroll')
+  @HttpCode(200)
+  async unenroll(@CurrentDevice() device: Device, @Req() req: AuthedRequest) {
+    await this.service.unenroll(device, clientIp(req));
+    return { status: 'ok' };
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Get('devices/:deviceId/commands')
+  commands(@CurrentDevice() device: Device) {
+    return this.service.takeCommands(device);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Get('devices/:deviceId/updates')
+  updates(@CurrentDevice() device: Device) {
+    return this.service.takeUpdates(device);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('commands/:commandId/result')
+  @HttpCode(200)
+  async result(
+    @CurrentDevice() device: Device,
+    @Param('commandId', ParseUUIDPipe) commandId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    await this.service.recordResult(device, commandId, body ?? {});
+    return { status: 'ok' };
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/screenshot')
+  @UseInterceptors(screenshotUpload())
+  async screenshot(
+    @CurrentDevice() device: Device,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body('captured_at') capturedAt: unknown,
+  ) {
+    await this.service.saveScreenshot(device, file, capturedAt);
+    return { status: 'ok' };
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Get('devices/:deviceId/playlist')
+  playlist(@CurrentDevice() device: Device) {
+    return this.signage.manifestFor(device.id);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Get('devices/:deviceId/apk/:apkId')
+  async apk(@Param('apkId', ParseUUIDPipe) apkId: string, @Res() res: Response) {
+    const file = await this.service.apkFile(apkId);
+    res.type('application/vnd.android.package-archive');
+    sendStoredFile(res, file.path);
+  }
+}
