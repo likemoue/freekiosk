@@ -261,6 +261,11 @@ cd cloud && docker compose up -d --build
 Migration chạy tự động trước khi API khởi động. Tablet không bị ảnh hưởng trong lúc cập nhật: chúng tiếp tục
 chạy, và báo cáo lại khi máy chủ lên.
 
+**Cập nhật ứng dụng trên tablet:** tăng `versionCode` trong `android/app/build.gradle`, build bản `assembleRelease` rồi tải
+lên mục **Ứng dụng (APK)**. Sau đó nhấn **Cài đặt** để đẩy xuống từng máy hoặc cả nhóm, hoặc trên tablet vào **Nâng cao**,
+**Kiểm tra cập nhật**. Cả hai đều cài im lặng nên cần Device Owner. Bản này không phát hành trên GitHub, nên tablet chưa
+đăng ký sẽ báo chưa có bản phát hành.
+
 ## Sao lưu và khôi phục
 
 Sao lưu cơ sở dữ liệu và `.env` giữ 14 bản, tệp đã tải lên giữ 1 bản vì nặng. Chạy lúc 2 giờ sáng giờ Việt Nam (VM đang dùng giờ UTC). Bản sao lưu nằm cùng đĩa với dữ liệu nên không cứu được khi hỏng cả VM: hãy chép `/var/backups/freekiosk` sang nơi khác.

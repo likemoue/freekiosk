@@ -36,7 +36,12 @@
       "durationLabel": "Duración en pantalla (segundos)",
       "durationHint": "Déjalo vacío para usar la duración predeterminada",
       "addUrlEntry": "Agregar URL",
-      "emptyWarning": "Agrega al menos un elemento multimedia para usar el reproductor"
+      "emptyWarning": "Agrega al menos un elemento multimedia para usar el reproductor",
+      "removeAll": "Quitar todo",
+      "removeAllTitle": "¿Quitar todos los elementos?",
+      "removeAllMessage": "La lista de reproducción se vaciará. Los archivos copiados en el dispositivo se eliminan al guardar.",
+      "removeAllCancel": "Cancelar",
+      "removeAllConfirm": "Quitar todo"
     },
     "playback": {
       "cache": "Reproducir desde el dispositivo (caché sin conexión)",
@@ -100,6 +105,10 @@
       "enableHint": "Alternar automáticamente entre varias URL",
       "interval": "Intervalo de rotación (segundos)",
       "intervalHint": "Tiempo entre cada cambio de URL (mínimo 5 segundos)",
+      "pauseOnTouch": "Pausar mientras alguien usa la página",
+      "pauseOnTouchHint": "Detiene la rotación mientras se toca la página o se escribe en ella",
+      "resumeDelay": "Reanudar tras (segundos)",
+      "resumeDelayHint": "Segundos sin tocar antes de que la rotación continúe (mínimo 5)",
       "needTwoUrls": "Agrega al menos 2 URL para activar la rotación"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Recarga automática",
       "reloadOnError": "Recargar si hay un error",
-      "reloadOnErrorHint": "Recargar automáticamente la página si hay un error de red"
+      "reloadOnErrorHint": "Recargar automáticamente la página si hay un error de red",
+      "hideUrl": "Ocultar la URL en la pantalla de error",
+      "hideUrlHint": "Muestra solo el mensaje de error cuando una página no carga, sin su dirección"
     },
     "pdfViewer": {
       "title": "Visor de PDF",
@@ -409,6 +420,15 @@
       "intercom": "Modo de audio bidireccional (intercomunicador)",
       "intercomHint": "Actívalo para audio bidireccional WebRTC / respuesta por voz (p. ej., una tarjeta de intercomunicador de timbre de Home Assistant / go2rtc). Mientras la página web usa activamente el micrófono, FreeKiosk cambia el dispositivo al modo de audio de comunicación para que el canal de retorno del micrófono transmita, y luego restablece el audio normal cuando dejas de hablar. Déjalo desactivado para la navegación normal: solo se activa mientras el micrófono está en uso."
     },
+    "orientation": {
+      "title": "Orientación de la pantalla",
+      "hint": "Bloquea la pantalla de FreeKiosk en una orientación o sigue al dispositivo. No se aplica a una app externa.",
+      "auto": "Seguir el dispositivo",
+      "portrait": "Vertical",
+      "landscape": "Horizontal",
+      "reversePortrait": "Vertical (invertida)",
+      "reverseLandscape": "Horizontal (invertida)"
+    },
     "keyboard": {
       "title": "Modo de teclado",
       "hint": "Controla qué teclado aparece en los campos de entrada",
@@ -417,7 +437,9 @@
       "forceNumeric": "Forzar numérico",
       "forceNumericHint": "Todos los campos muestran el teclado numérico",
       "smart": "Detección inteligente",
-      "smartHint": "Detecta y convierte solo los campos numéricos"
+      "smartHint": "Detecta y convierte solo los campos numéricos",
+      "none": "Sin teclado en pantalla",
+      "noneHint": "No mostrar nunca el teclado; un lector de códigos de barras sigue escribiendo en los campos"
     }
   },
   "security": {
@@ -612,7 +634,8 @@
       "checkForUpdates": "Buscar actualizaciones",
       "downloadInstall": "Descargar e instalar",
       "hintOwner": "Modo Device Owner: actualizaciones manuales a través de GitHub.",
-      "hintNonOwner": "Descarga e instala las actualizaciones desde GitHub."
+      "hintNonOwner": "Descarga e instala las actualizaciones desde GitHub.",
+      "hintManaged": "Esta tableta recibe las actualizaciones del sitio de gestión: sube allí el nuevo APK y luego comprueba aquí."
     },
     "certificates": {
       "title": "Certificados SSL aceptados",
@@ -1386,7 +1409,11 @@
       "upToDateTitle": "Actualizado",
       "upToDateMessage": "Ya tienes la última versión ({{version}})",
       "checkUpdateFailed": "No se pudieron buscar actualizaciones: {{error}}",
+      "noReleasesTitle": "Ninguna versión publicada",
+      "noReleasesMessage": "El repositorio de GitHub de esta compilación aún no ha publicado ninguna versión, así que no hay nada que descargar. Estás en la versión {{version}}.\n\nUna tableta inscrita en un sitio de gestión recibe las actualizaciones de ese sitio.",
       "downloadUrlUnavailable": "URL de descarga no disponible.",
+      "installingFromServer": "Descargando e instalando la actualización. La aplicación se reinicia sola al terminar.",
+      "installNeedsDeviceOwner": "Solo un Device Owner puede instalar una actualización desde el sitio de gestión. Instala la versión {{version}} por USB.",
       "permissionRequiredTitle": "Permiso necesario",
       "permissionRequiredMessage": "FreeKiosk necesita permiso para instalar actualizaciones.\n\nActiva \"Permitir desde esta fuente\" en la siguiente pantalla y luego vuelve para intentar la actualización de nuevo.",
       "settingsUnavailableTitle": "Configuración no disponible",

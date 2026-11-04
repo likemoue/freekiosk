@@ -129,7 +129,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         // /releases returns an array — pick the first one (most recent, beta or stable)
                         val releasesArray = org.json.JSONArray(response)
                         if (releasesArray.length() == 0) {
-                            promise.reject("ERROR", "No releases found")
+                            promise.reject("NO_RELEASES", "No releases published")
                             connection.disconnect()
                             return@Thread
                         }
@@ -182,6 +182,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                     
                     android.util.Log.d("UpdateModule", "Update available: $tagName at $apkUrl (prerelease=$isPrerelease)")
                     promise.resolve(result)
+                } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                    // /releases/latest answers 404 when the repository has no stable release
+                    promise.reject("NO_RELEASES", "No releases published")
                 } else {
                     promise.reject("ERROR", "GitHub API returned code: $responseCode")
                 }

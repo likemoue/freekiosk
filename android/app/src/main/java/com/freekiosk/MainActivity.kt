@@ -100,10 +100,12 @@ class MainActivity : ReactActivity() {
       "media_player_unattended" to "@kiosk_media_player_unattended",
       "media_player_cache_limit_mb" to "@kiosk_media_player_cache_limit_mb",
       "auto_reload" to "@kiosk_auto_reload",
+      "hide_error_url" to "@kiosk_hide_error_url",
       "auto_relaunch" to "@kiosk_auto_relaunch_app",
       "auto_relaunch_app" to "@kiosk_auto_relaunch_app",
       "keep_screen_on" to "@kiosk_keep_screen_on",
       "keyboard_mode" to "@kiosk_keyboard_mode",
+      "screen_orientation" to "@kiosk_screen_orientation",
       "pin_max_attempts" to "@kiosk_pin_max_attempts",
       "back_button_timer_delay" to "@kiosk_back_button_timer_delay",
       "status_bar_enabled" to "@kiosk_status_bar_enabled",
@@ -128,6 +130,8 @@ class MainActivity : ReactActivity() {
       "url_rotation_enabled" to "@kiosk_url_rotation_enabled",
       "url_rotation_list" to "@kiosk_url_rotation_list",
       "url_rotation_interval" to "@kiosk_url_rotation_interval",
+      "url_rotation_pause_on_touch" to "@kiosk_url_rotation_pause_on_touch",
+      "url_rotation_resume_delay" to "@kiosk_url_rotation_resume_delay",
       "url_planner_enabled" to "@kiosk_url_planner_enabled",
       "url_planner_events" to "@kiosk_url_planner_events",
       "url_filter_enabled" to "@kiosk_url_filter_enabled",
@@ -796,6 +800,9 @@ class MainActivity : ReactActivity() {
     super.onPause()
     cookieFlushHandler.removeCallbacks(cookieFlushRunnable)
     flushCookies()
+    // Still visible here, so still allowed to start the camera service: this is the moment an
+    // external app comes in front, and settings changed inside the app have no onResume.
+    syncCameraForegroundService()
   }
 
   override fun onResume() {
@@ -805,6 +812,8 @@ class MainActivity : ReactActivity() {
     cookieFlushHandler.postDelayed(cookieFlushRunnable, COOKIE_FLUSH_INTERVAL_MS)
 
     readExternalAppConfig()
+    syncCameraForegroundService()
+    applyScreenOrientation()
     
     // Re-register screen state receiver in case it was lost
     if (screenStateReceiver == null) {
@@ -1364,12 +1373,12 @@ class MainActivity : ReactActivity() {
   }
   // ===== END #180 native tap-to-settings fallback =====
 
-  // Left as it is on purpose. Measured on an Android 15 emulator (release build): pressing Back
-  // does not reach this method there, and Back still works (React Native's BackHandler gets it);
-  // on Android 16 React Native calls it from its own back callback (ReactActivity), and below
-  // Android 13 the platform does. For the three valid modes the body ends in super.onBackPressed(),
-  // so it only differs from the default for an unknown back_button_mode set by hand over ADB.
-  // Moving it to an OnBackPressedCallback would change what Back does on Android 13 to 15.
+  // Every Back reaches this method: below Android 16 the platform calls it (the manifest leaves
+  // enableOnBackInvokedCallback out for that, see the comment there, #221), and on Android 16
+  // React Native calls it from its own back callback (ReactActivity). super.onBackPressed() hands
+  // Back to React Native's BackHandler, where the kiosk screen consumes it. For the three valid
+  // modes the body ends in super.onBackPressed(), so it only differs from the default for an
+  // unknown back_button_mode set by hand over ADB.
   @SuppressLint("GestureBackNavigation")
   override fun onBackPressed() {
     val prefs = getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
@@ -1572,6 +1581,33 @@ class MainActivity : ReactActivity() {
     } catch (e: Exception) {
       DebugLog.d("MainActivity", "Error starting KioskWatchdogService: ${e.message}")
     }
+  }
+
+  /**
+   * Applies the Screen Orientation setting (#189) to this activity. Read here, before React
+   * Native has loaded, so a locked kiosk does not show the other orientation first.
+   */
+  private fun applyScreenOrientation() {
+    try {
+      // Not behind an external app, where the setting is not offered (KioskScreen does the same).
+      val mode = if (getAsyncStorageValue("@kiosk_display_mode", "webview") == "external_app") "auto"
+        else getAsyncStorageValue("@kiosk_screen_orientation", "auto")
+      requestedOrientation = RotationControlModule.orientationFor(mode)
+    } catch (e: Exception) {
+      DebugLog.d("MainActivity", "Could not apply the screen orientation: ${e.message}")
+    }
+  }
+
+  /**
+   * Runs CameraForegroundService while a remote camera feature is on: the REST API (photo and
+   * stream) or MQTT camera snapshots. Without it Android refuses the camera to FreeKiosk as soon
+   * as another app is in front. No-op in Play Store builds.
+   */
+  private fun syncCameraForegroundService() {
+    val wanted = getAsyncStorageValue("@kiosk_rest_api_enabled", "false") == "true" ||
+      (getAsyncStorageValue("@kiosk_mqtt_enabled", "false") == "true" &&
+        getAsyncStorageValue("@kiosk_mqtt_camera_enabled", "false") == "true")
+    CameraForegroundService.sync(this, wanted)
   }
 
   /**

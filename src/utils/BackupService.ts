@@ -13,6 +13,7 @@ import { tr } from '../i18n/tr';
 const BACKUP_KEYS = [
   '@kiosk_url',
   '@kiosk_auto_reload',
+  '@kiosk_hide_error_url',
   '@kiosk_enabled',
   '@kiosk_auto_launch',
   '@screensaver_enabled',
@@ -42,12 +43,15 @@ const BACKUP_KEYS = [
   '@kiosk_back_button_mode',
   '@kiosk_back_button_timer_delay',
   '@kiosk_keyboard_mode',
+  '@kiosk_screen_orientation',
   // PIN Mode
   '@kiosk_pin_mode',
   // URL Rotation
   '@kiosk_url_rotation_enabled',
   '@kiosk_url_rotation_list',
   '@kiosk_url_rotation_interval',
+  '@kiosk_url_rotation_pause_on_touch',
+  '@kiosk_url_rotation_resume_delay',
   // URL Planner
   '@kiosk_url_planner_enabled',
   '@kiosk_url_planner_events',

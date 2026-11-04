@@ -12,11 +12,11 @@
 
 ## Mục lục
 
-- [Tổng quan](#tổng-quan)
-- [Cấu hình](#cấu-hình)
-- [Bắt đầu](#bắt-đầu)
-- [Tính năng](#tính-năng)
-- [Khắc phục sự cố](#khắc-phục-sự-cố)
+- [Các bản phát hành mới nhất](#các-bản-phát-hành-mới-nhất)
+- [Lộ trình sản phẩm](#lộ-trình-sản-phẩm)
+- [Tiến độ tính năng chi tiết](#tiến-độ-tính-năng-chi-tiết)
+- [Tiến độ phát triển](#tiến-độ-phát-triển)
+- [Cách tác động đến lộ trình](#cách-tác-động-đến-lộ-trình)
 - [Tài nguyên liên quan](#tài-nguyên-liên-quan)
 
 
@@ -25,47 +25,14 @@
 > [!IMPORTANT]
 > Các ưu tiên trong lộ trình có thể thay đổi; hãy xem issue và thảo luận để nắm thông tin lập kế hoạch mới nhất.
 
-## Các bản phát hành ổn định mới nhất
+## Các bản phát hành mới nhất
 
-### v1.2.17 (tháng 3/2026)
+| Phiên bản | Ngày | Kênh | Điểm nổi bật |
+|---|---|---|---|
+| **v2.1.0-beta.1** | 2026-10-24 | Beta | Android TV, Google TV và Fire TV; danh sách phát biển hiệu kỹ thuật số từ FreeKiosk Cloud (có trang web và YouTube); tiếng Đức, Ý, Hà Lan và Tây Ban Nha |
+| **v2.0.0** | 2026-10-22 | Ổn định | FreeKiosk Cloud (beta mở), tablet dùng chung, tiếng Bồ Đào Nha (Brazil) |
 
-
-
-| Tính năng | Mô tả |
-|---|---|
-| **Chế độ trình phát đa phương tiện** | Tích hợp trình phát đa phương tiện gốc (native) |
-| **Chế độ bảng điều khiển** | Cải thiện lưới ô và điều hướng |
-| **Chế độ nhiều ứng dụng** | Activity khóa khi khởi động cho các ứng dụng ngoài |
-| **Kiosk Watchdog** | Tăng cường độ tin cậy và tự phục hồi |
-| **Duy trì kết nối MQTT** | Củng cố cách xử lý kết nối |
-
-
-
-### v1.2.16 (tháng 3/2026)
-
-
-
-| Tính năng | Mô tả |
-|---|---|
-| **Giữ màn hình luôn bật** | Tinh chỉnh hành vi và cài đặt |
-| **Kết nối lại MQTT** | Sửa lỗi khi chạy nền và tăng độ ổn định |
-| **Dự phòng Camera2** | Cải thiện độ tin cậy của camera |
-| **Thông tin thiết bị** | Bổ sung dữ liệu API/MQTT phong phú hơn |
-
-
-
-### v1.2.15 (tháng 2/2026)
-
-
-
-| Tính năng | Mô tả |
-|---|---|
-| **Điều khiển độ sáng** | Công tắc để app quản lý độ sáng |
-| **Kênh beta** | Cập nhật beta tùy chọn |
-| **Mật khẩu MQTT** | Cải thiện trải nghiệm người dùng và sửa lỗi |
-| **Phát hiện chuyển động** | Sửa lỗi độ tin cậy của camera key |
-
-
+Những gì đã sửa trên `main` nhưng chưa phát hành được liệt kê ở mục *Unreleased* trong [CHANGELOG](../../CHANGELOG.md).
 
 > [!NOTE]
 > Để xem lịch sử phát hành đầy đủ và ghi chú chi tiết, hãy tham khảo các bản phát hành trên GitHub:
@@ -108,11 +75,11 @@
 | **Lệnh** | Tải lại, bảo vệ màn hình, TTS, âm thanh, toast, JS, mở ứng dụng, khởi động lại, ảnh chụp màn hình |
 | **Cập nhật app** | Cài OTA có chữ ký, im lặng khi là Device Owner |
 
-Chưa được kiểm chứng, và là lý do 2.0.0 vẫn là bản pre-release: luồng cập nhật OTA,
+App đã phát hành 2.0.0 ổn định vào ngày 2026-10-22. Riêng FreeKiosk Cloud vẫn ở beta mở: luồng cập nhật OTA,
 mã QR cấp phát thực tế và hành vi của chế độ khóa còn ít được thử trên
 các phần cứng đa dạng.
 
-### v2.0.0 - Cloud ra khỏi beta
+### Tiếp theo - Cloud ra khỏi beta
 
 
 
@@ -192,16 +159,16 @@ máy chủ ổn định và đầy đủ tính năng, và **chưa đặt ngày**
 | **Quản lý ứng dụng** | Đã phát hành | Điều khiển ứng dụng ngoài, chế độ một ứng dụng và nhiều ứng dụng |
 | **Cấu hình từ xa** | Đã phát hành (beta mở) | Đẩy từ FreeKiosk Cloud, theo từng thiết bị hoặc nhóm |
 | **Đa ngôn ngữ** | Đã phát hành | Tiếng Anh, Pháp, Đức, Ý, Hà Lan, Tây Ban Nha và Bồ Đào Nha (Brazil); theo ngôn ngữ của thiết bị trừ khi chọn ngôn ngữ khác trong Cài đặt |
-| **Lọc nội dung** | Dự kiến | Danh sách cho phép và danh sách chặn URL |
+| **Lọc nội dung** | Đã phát hành (1.2.8) | Danh sách cho phép và danh sách chặn URL, ở chế độ Website |
 | **Phân tích nâng cao** | Dự kiến | Số liệu sử dụng vượt ra ngoài telemetry trực tiếp hiện có |
 | **Thông báo nâng cao** | Dự kiến | Cảnh báo tùy chỉnh |
 | **Giám sát mạng** | Dự kiến | Thống kê mạng nâng cao |
 | **Bảo mật nâng cao** | Dự kiến | Kiểm soát truy cập |
-| **Hỗ trợ chủ đề giao diện** | Dự kiến | Chủ đề giao diện tùy chỉnh |
+| **Hỗ trợ chủ đề giao diện** | Một phần | Chỉ thanh trạng thái sáng hoặc tối; app chưa có chủ đề giao diện |
 | **Chỉ số hiệu năng** | Dự kiến | Hiệu năng thiết bị |
-| **Sao lưu/Khôi phục** | Dự kiến | Đồng bộ cấu hình |
-| **Tác vụ theo lịch** | Dự kiến | Tự động hóa theo thời gian |
-| **Nhóm thiết bị** | Dự kiến | Quản lý đội thiết bị |
+| **Sao lưu/Khôi phục** | Đã phát hành (1.2.1) | Xuất và nhập cấu hình dưới dạng tệp |
+| **Tác vụ theo lịch** | Một phần | URL Planner (1.2.0), lịch tắt màn hình, danh sách phát biển hiệu theo lịch (2.1.0-beta.1); chưa có khởi động lại theo lịch |
+| **Nhóm thiết bị** | Đã phát hành (beta mở) | Trong FreeKiosk Cloud, mỗi thiết bị một nhóm |
 | **Console gỡ lỗi** | Dự kiến | Gỡ lỗi nâng cao |
 | **Nhật ký thời gian thực** | Dự kiến | Truyền trực tiếp nhật ký |
 | **Chế độ game** | Dự kiến | Tối ưu hóa cho game |
@@ -217,19 +184,19 @@ máy chủ ổn định và đầy đủ tính năng, và **chưa đặt ngày**
 
 | Tính năng | Trạng thái | Mô tả |
 |---|---|---|
-| **Quản lý Cloud** | Dự kiến | Điều khiển đội thiết bị trên nền web |
+| **Quản lý Cloud** | Đã phát hành (beta mở) | FreeKiosk Cloud, xem [cloud.md](cloud.md) |
 | **Tính năng doanh nghiệp** | Dự kiến | Công cụ triển khai cho doanh nghiệp |
 | **Tích hợp nâng cao** | Dự kiến | Hỗ trợ nền tảng bên thứ ba |
-| **Bản địa hóa** | Dự kiến | Quốc tế hóa đầy đủ |
+| **Bản địa hóa** | Đã phát hành | 7 ngôn ngữ trong app (2.1.0-beta.1) |
 | **Nền tảng phân tích** | Dự kiến | Thông tin chi tiết toàn diện |
 | **Bảo mật doanh nghiệp** | Dự kiến | Xác thực nâng cao |
 | **Tính năng AI** | Dự kiến | Tự động hóa thông minh |
 | **Đa nền tảng** | Dự kiến | Nghiên cứu hỗ trợ iOS |
 | **API cho nhà phát triển** | Dự kiến | Phát triển có thể mở rộng |
 | **Trí tuệ kinh doanh (BI)** | Dự kiến | Phân tích mức sử dụng |
-| **Trang quản lý web** | Dự kiến | Giao diện quản lý |
+| **Trang quản lý web** | Đã phát hành (beta mở) | Trang quản lý FreeKiosk Cloud |
 | **Công cụ tự động hóa** | Dự kiến | Tự động hóa dựa trên quy tắc |
-| **Mẫu thiết bị** | Dự kiến | Mẫu cấu hình |
+| **Mẫu thiết bị** | Đã phát hành (beta mở) | Hồ sơ cấu hình trong FreeKiosk Cloud, theo từng thiết bị hoặc nhóm |
 | **Chế độ bảo trì** | Dự kiến | Quản lý dịch vụ |
 | **Tối ưu hóa hiệu năng** | Dự kiến | Cải tiến hệ thống |
 | **Quy trình tùy chỉnh** | Dự kiến | Quy trình do người dùng định nghĩa |
@@ -251,7 +218,7 @@ máy chủ ổn định và đầy đủ tính năng, và **chưa đặt ngày**
 | **Endpoint API** | 40+ | 50+ | Đúng tiến độ |
 | **Entity MQTT** | 42 | 50+ | Đúng tiến độ |
 | **Nền tảng hỗ trợ** | Android 8+ | Android 7+ | Đang nghiên cứu |
-| **Ngôn ngữ** | EN | EN, FR, DE, ES | Đang thực hiện |
+| **Ngôn ngữ** | 7 (EN, FR, DE, ES, IT, NL, PT-BR) | EN, FR, DE, ES | Hoàn tất |
 | **Kiểu máy thiết bị** | 20+ | 50+ | Đúng tiến độ |
 | **Độ bao phủ kiểm thử** | 70% | 85% | Dự kiến |
 | **Tài liệu** | 95% | 100% | Hoàn tất |

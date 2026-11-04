@@ -12,6 +12,7 @@ Mọi lời gọi trừ đăng ký đều gửi `Authorization: Bearer <api_key>
 | `POST /api/v1/devices/{id}/unenroll/` | Tự hủy đăng ký | `CloudSyncService._tellCloudWeLeft` |
 | `GET /api/v1/devices/{id}/commands/` | Khi `pending_commands > 0` | `CloudCommandService.pollCommands` |
 | `GET /api/v1/devices/{id}/updates/` | Khi `pending_commands > 0` | `CloudCommandService.pollUpdates` |
+| `GET /api/v1/devices/{id}/app-update/` | Nhấn **Kiểm tra cập nhật** trong ứng dụng | `AppUpdateCheck.findLatestUpdate` |
 | `POST /api/v1/commands/{id}/result/` | Báo kết quả lệnh | `CloudCommandService.postResult` |
 | `POST /api/v1/devices/{id}/screenshot/` | Lệnh chụp màn hình, multipart | `CloudCommandService.captureAndUploadScreenshot` |
 | `GET /api/v1/devices/{id}/playlist/` | Khi `playlist_version` đổi | `SignagePlaylist.sync` |
@@ -39,11 +40,16 @@ Máy chủ trả:
   "sensitive_config": null,
   "config_version": 3,
   "force_unenroll": false,
-  "playlist_version": null
+  "playlist_version": null,
+  "device_name": "samsung SM-X210"
 }
 ```
 
 Không có khóa `battery` nghĩa là TV hoặc hộp không có pin. Ứng dụng chịu được tín hiệu không có trạng thái.
+
+`device_name` do bản fork này đặt ra: là tên máy trên trang quản lý, ứng dụng hiện thay cho chữ FreeKiosk ở màn hình chính
+(`DeviceDisplayName.ts`). Tên chỉ thuộc về một máy nên không nằm trong `config`: hồ sơ lấy từ máy này không đổi tên máy khác.
+Máy chủ không gửi khóa này thì ứng dụng giữ nguyên.
 
 ## Đồng bộ cấu hình
 
@@ -57,6 +63,10 @@ Không có khóa `battery` nghĩa là TV hoặc hộp không có pin. Ứng dụ
 `GET commands` trả `{ commands: [{ id, type, params, created_at, expires_at }] }` và chuyển lệnh sang trạng thái đã gửi, nên
 mỗi lệnh chỉ giao một lần. `install_apk` đi riêng qua `GET updates`:
 `[{ command_id, package_name, version_name, download_url }]`, tải bằng cùng khóa Bearer.
+
+`GET app-update` do bản fork này đặt ra, nên máy chủ khác không có: nhận 404 thì ứng dụng hỏi GitHub. Lời gọi trả bản FreeKiosk có
+`versionCode` cao nhất đã tải lên, `{ update: { version, version_code, notes, published_at, download_url } }`, hoặc `{ update: null }`.
+Một phiên bản có cả hai bản dựng thì trả bản không có `cloudprovi` trong tên tệp. Ứng dụng tự so mã phiên bản và cài bằng cùng đường với `install_apk`.
 
 Kết quả: `{ status: "success" | "error", result, error_message }`. Mã 4xx báo cho ứng dụng thôi gửi lại.
 

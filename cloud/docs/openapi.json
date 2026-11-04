@@ -93,6 +93,26 @@
         ]
       }
     },
+    "/api/v1/devices/{deviceId}/app-update": {
+      "get": {
+        "operationId": "DeviceApiController_appUpdate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bản FreeKiosk mới nhất đã tải lên, cho nút Kiểm tra cập nhật trong ứng dụng",
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
     "/api/v1/commands/{commandId}/result": {
       "post": {
         "operationId": "DeviceApiController_result",
@@ -2329,6 +2349,10 @@
           },
           "sensitive": {
             "$ref": "#/components/schemas/SensitiveDto"
+          },
+          "copySecretsFromDeviceId": {
+            "type": "string",
+            "description": "Chép thông tin bí mật thiết bị này đã báo cáo vào hồ sơ. Giá trị trong sensitive được ưu tiên."
           }
         },
         "required": [

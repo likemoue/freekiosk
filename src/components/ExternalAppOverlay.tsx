@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, FlatList, 
 import StatusBar from './StatusBar';
 import Icon from './Icon';
 import AppLauncherModule, { AppInfo } from '../utils/AppLauncherModule';
+import { useDisplayName } from '../utils/DeviceDisplayName';
 import { ManagedApp } from '../types/managedApps';
 import { useTranslation } from 'react-i18next';
 
@@ -61,6 +62,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   onLaunchApp,
 }) => {
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   // Window dimensions must be reactive — `Dimensions.get('window')` is evaluated once
   // at module load, so tile widths captured in landscape stay wrong after rotation to portrait.
   const { width: windowWidth } = useWindowDimensions();
@@ -240,7 +242,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
             style={styles.miniLogo}
             resizeMode="contain"
           />
-          <Text style={styles.multiAppTitle}>FreeKiosk</Text>
+          <Text style={styles.multiAppTitle} numberOfLines={1}>{displayName}</Text>
         </View>
         <FlatList
           data={homeScreenApps}
@@ -309,7 +311,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>FreeKiosk</Text>
+          <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>{displayName}</Text>
           <Text style={styles.subtitle}>{t('components.externalAppOverlay.subtitle')}</Text>
 
           {/* Status Message */}
@@ -545,6 +547,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   multiAppTitle: {
+    flexShrink: 1,
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',

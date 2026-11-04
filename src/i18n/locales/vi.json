@@ -36,7 +36,12 @@
       "durationLabel": "Thời gian hiển thị (giây)",
       "durationHint": "Để trống để dùng thời gian mặc định",
       "addUrlEntry": "Thêm mục URL",
-      "emptyWarning": "Thêm ít nhất một mục đa phương tiện để dùng trình phát đa phương tiện"
+      "emptyWarning": "Thêm ít nhất một mục đa phương tiện để dùng trình phát đa phương tiện",
+      "removeAll": "Xóa tất cả",
+      "removeAllTitle": "Xóa mọi mục?",
+      "removeAllMessage": "Thao tác này làm trống danh sách phát. Các tệp đã sao chép vào thiết bị sẽ bị xóa khi bạn lưu.",
+      "removeAllCancel": "Hủy",
+      "removeAllConfirm": "Xóa tất cả"
     },
     "playback": {
       "cache": "Phát từ thiết bị (bộ nhớ đệm ngoại tuyến)",
@@ -100,6 +105,10 @@
       "enableHint": "Tự động luân phiên giữa nhiều URL",
       "interval": "Khoảng thời gian xoay vòng (giây)",
       "intervalHint": "Thời gian giữa các lần đổi URL (tối thiểu 5 giây)",
+      "pauseOnTouch": "Tạm dừng khi có người dùng trang",
+      "pauseOnTouchHint": "Giữ nguyên trang trong lúc có người chạm hoặc nhập liệu",
+      "resumeDelay": "Tiếp tục sau (giây)",
+      "resumeDelayHint": "Số giây không có thao tác chạm trước khi xoay vòng tiếp tục (tối thiểu 5)",
       "needTwoUrls": "Thêm ít nhất 2 URL để bật xoay vòng"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Tự động tải lại",
       "reloadOnError": "Tải lại khi có lỗi",
-      "reloadOnErrorHint": "Tự động tải lại trang khi gặp lỗi mạng"
+      "reloadOnErrorHint": "Tự động tải lại trang khi gặp lỗi mạng",
+      "hideUrl": "Ẩn URL trên màn hình lỗi",
+      "hideUrlHint": "Khi trang không tải được, chỉ hiện thông báo lỗi, không hiện địa chỉ"
     },
     "pdfViewer": {
       "title": "Trình xem PDF",
@@ -409,6 +420,15 @@
       "intercom": "Chế độ âm thanh 2 chiều (intercom)",
       "intercomHint": "Bật cho âm thanh 2 chiều / phản hồi bằng giọng nói qua WebRTC (ví dụ thẻ intercom chuông cửa của Home Assistant / go2rtc). Khi trang web đang dùng micrô, FreeKiosk chuyển thiết bị sang chế độ âm thanh giao tiếp để kênh micrô truyền ngược hoạt động, rồi khôi phục âm thanh bình thường khi ngừng nói. Nên tắt khi duyệt web thông thường — chế độ này chỉ kích hoạt khi micrô đang được dùng."
     },
+    "orientation": {
+      "title": "Hướng màn hình",
+      "hint": "Khóa màn hình FreeKiosk theo một hướng hoặc để theo thiết bị. Không áp dụng cho ứng dụng bên ngoài.",
+      "auto": "Theo thiết bị",
+      "portrait": "Dọc",
+      "landscape": "Ngang",
+      "reversePortrait": "Dọc (lật ngược)",
+      "reverseLandscape": "Ngang (đảo chiều)"
+    },
     "keyboard": {
       "title": "Chế độ bàn phím",
       "hint": "Chọn loại bàn phím hiển thị cho các ô nhập liệu",
@@ -417,7 +437,9 @@
       "forceNumeric": "Bắt buộc bàn phím số",
       "forceNumericHint": "Mọi ô đều hiện bàn phím số",
       "smart": "Phát hiện thông minh",
-      "smartHint": "Chỉ phát hiện và chuyển đổi các ô nhập số"
+      "smartHint": "Chỉ phát hiện và chuyển đổi các ô nhập số",
+      "none": "Không dùng bàn phím trên màn hình",
+      "noneHint": "Không bao giờ hiện bàn phím; máy quét mã vạch vẫn nhập được vào các ô"
     }
   },
   "security": {
@@ -612,7 +634,8 @@
       "checkForUpdates": "Kiểm tra cập nhật",
       "downloadInstall": "Tải xuống & cài đặt",
       "hintOwner": "Chế độ Device Owner: cập nhật thủ công qua GitHub.",
-      "hintNonOwner": "Tải xuống và cài đặt bản cập nhật từ GitHub."
+      "hintNonOwner": "Tải xuống và cài đặt bản cập nhật từ GitHub.",
+      "hintManaged": "Tablet này lấy bản cập nhật từ website quản lý: tải APK mới lên mục Ứng dụng (APK) trên website rồi kiểm tra tại đây."
     },
     "certificates": {
       "title": "Chứng chỉ SSL đã chấp nhận",
@@ -1385,7 +1408,11 @@
       "upToDateTitle": "Đã là bản mới nhất",
       "upToDateMessage": "Đang dùng phiên bản mới nhất ({{version}})",
       "checkUpdateFailed": "Không kiểm tra được bản cập nhật: {{error}}",
+      "noReleasesTitle": "Chưa có bản phát hành",
+      "noReleasesMessage": "Kho GitHub của bản này chưa phát hành phiên bản nào nên không có gì để tải về. Bạn đang dùng phiên bản {{version}}.\n\nTablet đã đăng ký với website quản lý sẽ nhận bản cập nhật từ website đó.",
       "downloadUrlUnavailable": "Không có URL tải xuống.",
+      "installingFromServer": "Đang tải và cài bản cập nhật. Ứng dụng sẽ tự khởi động lại khi xong.",
+      "installNeedsDeviceOwner": "Chỉ Device Owner mới cài được bản cập nhật từ website quản lý. Hãy cài phiên bản {{version}} qua USB.",
       "permissionRequiredTitle": "Cần cấp quyền",
       "permissionRequiredMessage": "FreeKiosk cần được cấp quyền để cài đặt bản cập nhật.\n\nHãy bật \"Cho phép từ nguồn này\" ở màn hình tiếp theo, sau đó quay lại và thử cập nhật lại.",
       "settingsUnavailableTitle": "Cài đặt không khả dụng",

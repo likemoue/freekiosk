@@ -81,6 +81,7 @@ export default function Apps() {
       />
       <Notice className="mb-5">
         Cấp phát bằng QR cần bản <code>assembleRelease -Pcloudprovi</code>: bản GitHub khai báo dịch vụ trợ năng nên bị Play Protect chặn giữa chừng. Bản GitHub vẫn dùng được khi cài qua ADB.
+        {' '}Nút Kiểm tra cập nhật trong ứng dụng tìm bản FreeKiosk có mã phiên bản cao nhất ở trang này; nếu một phiên bản có cả hai bản dựng, tablet nhận bản không có <code>cloudprovi</code> trong tên tệp.
       </Notice>
       <Card>
         {apks.isLoading ? <Loading /> : apks.error ? <div className="p-4"><ErrorBox error={apks.error} /></div> : !apks.data?.length ? (

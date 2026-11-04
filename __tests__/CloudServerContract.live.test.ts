@@ -78,6 +78,8 @@ const { CloudCommandService } = require('../src/utils/CloudCommandService');
 const { SignagePlaylist } = require('../src/utils/SignagePlaylist');
 const { StorageService } = require('../src/utils/storage');
 const { getCloudCredentials, verifySecurePin } = require('../src/utils/secureStorage');
+const { findLatestUpdate, installFromServer } = require('../src/utils/AppUpdateCheck');
+const { DeviceDisplayName } = require('../src/utils/DeviceDisplayName');
 
 let cookie = '';
 
@@ -252,6 +254,31 @@ const INFO = { model: 'SM-X210', manufacturer: 'Samsung', android_version: '16',
     expect(await SignagePlaylist.getActive()).toBeNull();
     expect(await StorageService.getDisplayMode()).toBe('webview');
     await admin('DELETE', `/api/admin/signage/playlists/${playlist.id}`);
+  });
+
+  it('takes the name given in the dashboard, at the next heartbeat', async () => {
+    await admin('PATCH', `/api/admin/devices/${deviceId}`, { name: 'Lớp 5A - Máy 1' });
+    await beat();
+    expect(await DeviceDisplayName.current()).toBe('Lớp 5A - Máy 1');
+  });
+
+  it('finds the newest FreeKiosk uploaded, and downloads it the way the installer does', async () => {
+    const apks = await admin<any[]>('GET', '/api/admin/apks');
+    const own = apks
+      .filter((apk) => apk.packageName === 'com.freekiosk' && apk.versionCode != null)
+      .sort((a, b) => b.versionCode - a.versionCode);
+
+    const update = await findLatestUpdate(false);
+    if (!own.length) {
+      expect(update).toBeNull();
+      return;
+    }
+    expect(update).toMatchObject({ version: own[0].versionName, versionCode: own[0].versionCode, fromServer: true });
+
+    await installFromServer(update);
+    const download = mockDownloads[mockDownloads.length - 1];
+    expect(download.status).toBe(200);
+    expect(download.bytes).toBe(Number(own[0].sizeBytes));
   });
 
   it('leaves when told to: credentials and settings go', async () => {

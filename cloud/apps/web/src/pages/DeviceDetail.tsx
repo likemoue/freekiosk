@@ -201,7 +201,7 @@ export default function DeviceDetail() {
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-2xl font-bold tracking-tight">{d.name}</h1>
                 {d.deviceOwner && <Badge tone="info" title="Toàn quyền: khởi động lại, cài im lặng, tắt màn hình thật"><ShieldCheck className="size-3" /> Device Owner</Badge>}
-                {can.operate && <button aria-label="Đổi tên" className="rounded-lg p-1 text-soft hover:bg-raised" onClick={() => setEditing(d.name)}><Pencil className="size-4" /></button>}
+                {can.operate && <button aria-label="Đổi tên" title="Đổi tên. Tablet hiện tên này ở màn hình chính sau tín hiệu kế tiếp, khoảng 30 giây." className="rounded-lg p-1 text-soft hover:bg-raised" onClick={() => setEditing(d.name)}><Pencil className="size-4" /></button>}
               </div>
             ) : (
               <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (editing.trim()) update.mutate({ name: editing }); setEditing(null); }}>

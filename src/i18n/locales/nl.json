@@ -36,7 +36,12 @@
       "durationLabel": "Weergaveduur (seconden)",
       "durationHint": "Laat leeg om de standaardduur te gebruiken",
       "addUrlEntry": "URL toevoegen",
-      "emptyWarning": "Voeg minstens één media-item toe om de mediaspeler te gebruiken"
+      "emptyWarning": "Voeg minstens één media-item toe om de mediaspeler te gebruiken",
+      "removeAll": "Alles verwijderen",
+      "removeAllTitle": "Alle items verwijderen?",
+      "removeAllMessage": "De afspeellijst wordt leeggemaakt. Bestanden die naar het apparaat zijn gekopieerd, worden verwijderd bij het opslaan.",
+      "removeAllCancel": "Annuleren",
+      "removeAllConfirm": "Alles verwijderen"
     },
     "playback": {
       "cache": "Afspelen vanaf het apparaat (offline cache)",
@@ -100,6 +105,10 @@
       "enableHint": "Automatisch door meerdere URL's bladeren",
       "interval": "Rotatie-interval (seconden)",
       "intervalHint": "Tijd tussen elke URL-wissel (minimaal 5 seconden)",
+      "pauseOnTouch": "Pauzeren terwijl iemand de pagina gebruikt",
+      "pauseOnTouchHint": "Houdt de rotatie aan zolang de pagina wordt aangeraakt of erin wordt getypt",
+      "resumeDelay": "Hervatten na (seconden)",
+      "resumeDelayHint": "Seconden zonder aanraking voordat de rotatie verdergaat (minimaal 5)",
       "needTwoUrls": "Voeg minstens 2 URL's toe om rotatie in te schakelen"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Automatisch herladen",
       "reloadOnError": "Herladen bij fout",
-      "reloadOnErrorHint": "De pagina automatisch herladen bij een netwerkfout"
+      "reloadOnErrorHint": "De pagina automatisch herladen bij een netwerkfout",
+      "hideUrl": "URL verbergen op het foutscherm",
+      "hideUrlHint": "Toont alleen de foutmelding als een pagina niet laadt, niet het adres"
     },
     "pdfViewer": {
       "title": "PDF-viewer",
@@ -409,6 +420,15 @@
       "intercom": "Modus voor tweeweg-audio (intercom)",
       "intercomHint": "Inschakelen voor WebRTC tweeweg-audio / terugspreken (bijv. een Home Assistant / go2rtc-deurbelintercomkaart). Zolang de webpagina actief de microfoon gebruikt, zet FreeKiosk het apparaat in de communicatie-audiomodus zodat het terugkanaal van de microfoon verzendt, en herstelt daarna de normale audio zodra je stopt met praten. Laat uitgeschakeld voor normaal browsen: het wordt alleen actief terwijl de microfoon in gebruik is."
     },
+    "orientation": {
+      "title": "Schermoriëntatie",
+      "hint": "Vergrendelt het scherm van FreeKiosk in één oriëntatie, of volgt het apparaat. Geldt niet voor een externe app.",
+      "auto": "Apparaat volgen",
+      "portrait": "Staand",
+      "landscape": "Liggend",
+      "reversePortrait": "Staand (ondersteboven)",
+      "reverseLandscape": "Liggend (omgekeerd)"
+    },
     "keyboard": {
       "title": "Toetsenbordmodus",
       "hint": "Bepaal welk toetsenbord verschijnt bij invoervelden",
@@ -417,7 +437,9 @@
       "forceNumeric": "Numeriek forceren",
       "forceNumericHint": "Alle velden tonen een numeriek toetsenbord",
       "smart": "Slimme detectie",
-      "smartHint": "Detecteert en converteert alleen numerieke velden"
+      "smartHint": "Detecteert en converteert alleen numerieke velden",
+      "none": "Geen schermtoetsenbord",
+      "noneHint": "Toon nooit het toetsenbord; een barcodescanner typt nog steeds in de velden"
     }
   },
   "security": {
@@ -612,7 +634,8 @@
       "checkForUpdates": "Op updates controleren",
       "downloadInstall": "Downloaden en installeren",
       "hintOwner": "Device Owner-modus: handmatige updates via GitHub.",
-      "hintNonOwner": "Download en installeer updates via GitHub."
+      "hintNonOwner": "Download en installeer updates via GitHub.",
+      "hintManaged": "Deze tablet krijgt updates van de beheerwebsite: upload daar de nieuwe APK en controleer dan hier."
     },
     "certificates": {
       "title": "Geaccepteerde SSL-certificaten",
@@ -1385,7 +1408,11 @@
       "upToDateTitle": "Up-to-date",
       "upToDateMessage": "Je gebruikt de nieuwste versie ({{version}})",
       "checkUpdateFailed": "Controleren op updates niet mogelijk: {{error}}",
+      "noReleasesTitle": "Geen versie gepubliceerd",
+      "noReleasesMessage": "De GitHub-repository van deze build heeft nog geen versie gepubliceerd, dus er valt niets te downloaden. Je gebruikt versie {{version}}.\n\nEen tablet die bij een beheerwebsite is aangemeld, krijgt zijn updates van die website.",
       "downloadUrlUnavailable": "Download-URL niet beschikbaar.",
+      "installingFromServer": "De update wordt gedownload en geïnstalleerd. De app start daarna vanzelf opnieuw.",
+      "installNeedsDeviceOwner": "Alleen een Device Owner kan een update van de beheerwebsite installeren. Installeer versie {{version}} via USB.",
       "permissionRequiredTitle": "Machtiging vereist",
       "permissionRequiredMessage": "FreeKiosk heeft machtiging nodig om updates te installeren.\n\nSchakel \"Toestaan vanuit deze bron\" in op het volgende scherm, kom daarna terug en probeer de update opnieuw.",
       "settingsUnavailableTitle": "Instellingen niet beschikbaar",
