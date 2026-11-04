@@ -11,6 +11,10 @@ export class ApiError extends Error {
 const CSRF = { 'X-Requested-With': 'freekiosk-manager' };
 
 async function parseError(response: Response): Promise<ApiError> {
+  // Cloudflare's challenge page, which fetch cannot pass: the request never reached this server
+  if (response.headers.get('cf-mitigated')) {
+    return new ApiError('Cloudflare đã chặn yêu cầu này trước khi tới máy chủ. Nếu bạn đang đăng nhập, có thể mật khẩu vừa nhập nằm trong danh sách mật khẩu đã bị lộ.', response.status);
+  }
   let message = `Lỗi máy chủ (HTTP ${response.status})`;
   let code: string | undefined;
   try {

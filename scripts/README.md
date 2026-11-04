@@ -2,6 +2,7 @@
 
 | Script | Platform | Purpose |
 | --- | --- | --- |
+| `cai-tablet-usb/` | Windows | Program with a window: plug in a tablet with USB debugging on, it installs, sets Device Owner and enrolls it on the website. See its `README.md` |
 | `deploy_mac.zsh` | macOS | Install the APK and set Device Owner in one guided run |
 | `set-device-owner.ps1` | Windows | Diagnose *why* Device Owner provisioning fails, then set it |
 | `install-boot-autostart.ps1` | Windows | Make FreeKiosk start at boot on ROMs that drop `BOOT_COMPLETED` |

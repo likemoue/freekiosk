@@ -4,4 +4,4 @@ export const CLOUD_ENABLED = true;
 
 // The management server this build enrolls with unless told otherwise (self-hosted, see cloud/README.md).
 // MainActivity.kt holds the same address for `adb ... --es cloud_token`.
-export const DEFAULT_CLOUD_URL = 'https://kiosk.ism.io.vn';
+export const DEFAULT_CLOUD_URL = 'https://mdm.ism.io.vn';

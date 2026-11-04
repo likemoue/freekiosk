@@ -1997,15 +1997,11 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 @Suppress("DEPRECATION")
                 connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)?.isConnected == true
             }
-            val wifiInfoObj: WifiInfo? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && capabilities != null) {
-                capabilities.transportInfo as? WifiInfo
-            } else {
-                val wifiManager = reactApplicationContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                @Suppress("DEPRECATION")
-                wifiManager.connectionInfo
+            var wifiInfoObj: WifiInfo? = WifiConnection.info(reactApplicationContext)
+            if (isConnected && !WifiConnection.hasName(wifiInfoObj?.ssid) && WifiConnection.enableLocationIfOwner(reactApplicationContext)) {
+                wifiInfoObj = WifiConnection.info(reactApplicationContext)
             }
-            val rawSsid = wifiInfoObj?.ssid?.replace("\"", "")?.trim() ?: ""
-            val ssid = if (rawSsid.isNotEmpty() && rawSsid != "<unknown ssid>" && rawSsid != "0x") rawSsid else ""
+            val ssid = if (WifiConnection.hasName(wifiInfoObj?.ssid)) wifiInfoObj?.ssid?.replace("\"", "")?.trim().orEmpty() else ""
             val rssi = wifiInfoObj?.rssi ?: -100
             val map = Arguments.createMap()
             map.putString("ssid", ssid)

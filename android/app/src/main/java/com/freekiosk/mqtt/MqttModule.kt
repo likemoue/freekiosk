@@ -37,6 +37,7 @@ import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.freekiosk.CameraPhotoModule
 import com.freekiosk.ScreenController
+import com.freekiosk.WifiConnection
 import org.json.JSONObject
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -842,14 +843,7 @@ class MqttModule(private val reactContext: ReactApplicationContext) :
                 connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)?.isConnected == true
             }
 
-            // API 31+: use transportInfo from NetworkCapabilities — connectionInfo returns <unknown ssid> on Android 12+
-            val wifiInfoObj: WifiInfo? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && capabilities != null) {
-                capabilities.transportInfo as? WifiInfo
-            } else {
-                val wifiManager = reactContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                @Suppress("DEPRECATION")
-                wifiManager.connectionInfo
-            }
+            val wifiInfoObj: WifiInfo? = WifiConnection.info(reactContext)
 
             val ssid = getSsidSafe(wifiInfoObj?.ssid)
             val rssi = wifiInfoObj?.rssi ?: -100

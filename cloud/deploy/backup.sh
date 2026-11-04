@@ -1,12 +1,14 @@
 #!/bin/sh
-# Sao lưu cơ sở dữ liệu và tệp đã tải lên. Ví dụ cron chạy lúc 2 giờ sáng, giữ 14 bản:
+# Sao lưu cơ sở dữ liệu và tệp đã tải lên. Ví dụ cron chạy mỗi đêm, giữ 14 bản cơ sở dữ liệu:
 #   0 2 * * * cd /opt/freekiosk/cloud && sh deploy/backup.sh /var/backups/freekiosk 14
+# Tệp media có thể rất nặng và không đổi sau khi tải lên, nên chỉ giữ 1 bản (đổi bằng tham số thứ ba).
 set -eu
 
 cd "$(dirname "$0")/.."
 
 target="${1:-./backups}"
 keep="${2:-14}"
+keep_files="${3:-1}"
 stamp="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$target"
 
@@ -15,9 +17,11 @@ docker compose run --rm --no-deps -T --entrypoint sh api -c 'tar -C /data -cf - 
 cp .env "$target/env-$stamp"
 chmod 600 "$target/env-$stamp"
 
-# Giữ lại `keep` bản mới nhất của mỗi loại
-for kind in db files env; do
-  ls -1t "$target/$kind-"* 2>/dev/null | tail -n +"$((keep + 1))" | while read -r old; do rm -f "$old"; done
-done
+prune() {
+  ls -1t "$target/$1-"* 2>/dev/null | tail -n +"$(($2 + 1))" | while read -r old; do rm -f "$old"; done
+}
+prune db "$keep"
+prune env "$keep"
+prune files "$keep_files"
 
 echo "Đã sao lưu vào $target ($stamp)"

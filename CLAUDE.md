@@ -104,6 +104,12 @@ This repository is a Vietnamese fork. `src/i18n/index.ts` starts in Vietnamese (
 
 The contract is defined by the app (`CloudSyncService.ts`, `CloudCommandService.ts`, `SignagePlaylist.ts`), so a change there may need one in `cloud/apps/api/src/device-api/`. `__tests__/CloudServerContract.live.test.ts` runs the app's real code against a running server (skipped unless `FREEKIOSK_LIVE_URL` is set).
 
+### Installing tablets
+
+`scripts/cai-tablet-usb` is a C# Windows program (`build.ps1` compiles it with the `csc.exe` every Windows has, into `release-builds/CaiTablet-USB`, with `adb` and the `assembleRelease` APK): plug in a tablet with USB debugging on and it installs the app, sets Device Owner and enrolls it. It learns how things ended from logcat, so the `[CloudSync] Queued enrollment ...` lines in `CloudSyncService.ts`, the `[BackupService] Provisioning backup ...` lines in `BackupService.ts` and the `PIN saved` line in `KioskScreen.tsx` are its contract (`__tests__/CloudSyncServiceQueuedEnrollment.test.ts` and `BackupServiceProvisioning.test.ts` pin the first two groups). A backup file chosen in the tool is pushed to `provisioning-backup.json` in the app's external files folder after enrollment, because enrolling wipes settings; the app applies and deletes it on its next start. "Lấy từ website" signs in to the admin API (`WebsiteClient.cs`) to make an enrollment code with a group and profile: that path needs TLS 1.3, so Windows 11.
+
+QR provisioning does not work on a Samsung SM-X210 on Android 16: the tablet downloads the APK, then shows "Something went wrong" without ever starting the app (checked with an instrumented build). That matches Google's approved-DPC allowlist (support.google.com/work/android/answer/16694822), which this app is not on, so it is not expected to be fixable in code. USB is the way to install until Google approves the app.
+
 ### Dependency Patches
 
 `patches/` contains patch-package patches applied via `postinstall`. Do not upgrade patched dependencies without verifying the patches still apply.

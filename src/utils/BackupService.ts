@@ -532,6 +532,30 @@ export async function importBackupFromContent(jsonContent: string, fileName?: st
 }
 
 /**
+ * Applies the backup the USB install tool (scripts/cai-tablet-usb) left in this app's files
+ * folder, if there is one, then removes the file so it is only applied once. The tool reads the
+ * two log lines to know how it went. Never throws: this runs on the way to the kiosk.
+ */
+export async function applyProvisioningBackup(): Promise<void> {
+  const path = `${RNFS.ExternalDirectoryPath}/provisioning-backup.json`;
+  try {
+    if (!(await RNFS.exists(path))) return;
+    try {
+      const result = await importBackupFromContent(await RNFS.readFile(path, 'utf8'));
+      if (result.success) {
+        console.log('[BackupService] Provisioning backup applied');
+      } else {
+        console.warn(`[BackupService] Provisioning backup refused: ${result.error}`);
+      }
+    } finally {
+      await RNFS.unlink(path);
+    }
+  } catch (error) {
+    console.warn(`[BackupService] Provisioning backup refused: ${String(error)}`);
+  }
+}
+
+/**
  * Parse and validate backup content from raw JSON string (for preview).
  */
 export function parseBackupContent(jsonContent: string): { success: boolean; data?: BackupData; error?: string } {

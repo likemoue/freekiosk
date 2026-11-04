@@ -1,6 +1,6 @@
 #!/bin/sh
 # Tạo tệp .env với các khóa ngẫu nhiên. Không bao giờ ghi đè tệp đã có.
-# Cách dùng: sh deploy/init-env.sh https://kiosk.ism.io.vn 172.16.8.186 admin@ism.io.vn
+# Cách dùng: sh deploy/init-env.sh https://mdm.ism.io.vn 0.0.0.0 admin@ism.io.vn
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -10,7 +10,7 @@ if [ -e .env ]; then
   exit 1
 fi
 
-public_url="${1:-https://kiosk.ism.io.vn}"
+public_url="${1:-https://mdm.ism.io.vn}"
 bind_address="${2:-127.0.0.1}"
 admin_email="${3:-admin@ism.io.vn}"
 

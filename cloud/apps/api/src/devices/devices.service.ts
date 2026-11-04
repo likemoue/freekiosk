@@ -9,13 +9,14 @@ import { ConfigSyncService, SensitiveValues } from './config-sync.service';
 import { UpdateDeviceDto } from './devices.dto';
 
 type DeviceWithRelations = Device & {
-  group?: { id: string; name: string; color: string | null } | null;
+  group?: { id: string; name: string; color: string | null; profile?: { id: string; name: string } | null } | null;
   profile?: { id: string; name: string } | null;
   playlist?: { id: string; name: string } | null;
 };
 
 const RELATIONS = {
-  group: { select: { id: true, name: true, color: true } },
+  // The group's profile too: it is what a device with no profile of its own is using
+  group: { select: { id: true, name: true, color: true, profile: { select: { id: true, name: true } } } },
   profile: { select: { id: true, name: true } },
   playlist: { select: { id: true, name: true } },
 } satisfies Prisma.DeviceInclude;

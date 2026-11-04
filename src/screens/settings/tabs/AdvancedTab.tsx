@@ -27,7 +27,7 @@ import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { Colors, Spacing, Typography } from '../../../theme';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_CLOUD_URL } from '../../../config/features';
-import { cloudErrorText } from '../../../utils/CloudSyncService';
+import { cloudErrorText, enrollmentDeviceInfo } from '../../../utils/CloudSyncService';
 
 const { KioskModule } = NativeModules;
 
@@ -151,14 +151,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           style: 'destructive',
           onPress: async () => {
             setEnrolling(true);
-            const PC = NativeModules.PlatformConstants as any;
-            const result = await CloudSyncService.enroll(cloudUrl.trim(), enrollToken.trim(), {
-              model: PC?.Model ?? '',
-              manufacturer: PC?.Manufacturer ?? '',
-              android_version: PC?.Release ?? '',
-              app_version: PC?.appVersion ?? '',
-              serial_number: '',
-            });
+            const result = await CloudSyncService.enroll(cloudUrl.trim(), enrollToken.trim(), enrollmentDeviceInfo());
             setEnrolling(false);
             if (result.success) {
               setIsEnrolled(true);

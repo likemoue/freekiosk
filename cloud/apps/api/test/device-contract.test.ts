@@ -229,6 +229,52 @@ describe('the contract of the FreeKiosk app', () => {
       assert.deepEqual(next.data.config, { general: { url: 'https://moi.edu.vn/' } });
     });
 
+    it('tells the dashboard which profile a device gets through its group', async () => {
+      const profile = await admin.json('POST', '/api/admin/profiles', { name: 'Hồ sơ của nhóm', config: { general: { url: 'https://nhom.edu.vn/' } } });
+      const group = await admin.json('POST', '/api/admin/groups', { name: 'Cơ sở có hồ sơ', profileId: profile.id });
+      const member = new FakeTablet(server.base);
+      await member.enroll((await newToken(admin, { groupId: group.id })).token);
+
+      const detail = await admin.json('GET', `/api/admin/devices/${member.deviceId}`);
+      assert.equal(detail.profile, null);
+      assert.equal(detail.group.profile.name, 'Hồ sơ của nhóm');
+    });
+
+    it('makes a profile from what a device reported, for new tablets to receive', async () => {
+      const source = new FakeTablet(server.base);
+      await source.enroll((await newToken(admin)).token);
+      await source.heartbeat();
+      const { reported } = await admin.json('GET', `/api/admin/devices/${source.deviceId}/config`);
+
+      const plain = await admin.json('POST', '/api/admin/profiles', { name: 'Không kèm bí mật', config: reported });
+      assert.equal(plain.secrets.mqttPassword, false);
+
+      // What is typed in the form wins over what is copied, and the tablet never reports its PIN
+      const copied = await admin.json('POST', '/api/admin/profiles', { name: 'Kèm bí mật', config: reported, copySecretsFromDeviceId: source.deviceId, sensitive: { pin: '5678', restApiKey: 'typed-key' } });
+      assert.deepEqual(copied.secrets, { pin: true, mqttPassword: true, restApiKey: true, httpBasicAuthPassword: false });
+
+      const fresh = new FakeTablet(server.base);
+      await fresh.enroll((await newToken(admin, { profileId: copied.id })).token);
+      const first = await fresh.heartbeat();
+      assert.equal(first.data.sync_action, 'apply');
+      assert.deepEqual(first.data.config, reported);
+      assert.equal(first.data.sensitive_config.mqttPassword, 'mqtt-secret');
+      assert.equal(first.data.sensitive_config.restApiKey, 'typed-key');
+      assert.equal(first.data.sensitive_config.pin, '5678');
+    });
+
+    it('keeps the secrets of a profile that are left empty when saving it', async () => {
+      const profile = await admin.json('POST', '/api/admin/profiles', { name: 'Giữ bí mật', config: {}, sensitive: { mqttPassword: 'giu-nguyen' } });
+      const saved = await admin.json('PUT', `/api/admin/profiles/${profile.id}`, { name: 'Giữ bí mật', config: {}, sensitive: { pin: '5678' } });
+      assert.deepEqual(saved.secrets, { pin: true, mqttPassword: true, restApiKey: false, httpBasicAuthPassword: false });
+    });
+
+    it('refuses to copy the secrets of a device that does not exist', async () => {
+      const response = await admin.request('POST', '/api/admin/profiles', { name: 'Không có nguồn', config: {}, copySecretsFromDeviceId: '00000000-0000-4000-8000-000000000000' });
+      assert.equal(response.status, 404);
+      assert.equal((await admin.json('GET', '/api/admin/profiles')).some((p: any) => p.name === 'Không có nguồn'), false);
+    });
+
     it('sends a change to a whole group at once', async () => {
       const group = await admin.json('POST', '/api/admin/groups', { name: 'Cơ sở 2' });
       const a = new FakeTablet(server.base);
