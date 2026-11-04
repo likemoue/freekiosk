@@ -19,6 +19,7 @@ const { HttpServerModule } = NativeModules;
 
 import KioskModule from '../utils/KioskModule';
 import UpdateModule from '../utils/UpdateModule';
+import { useDisplayName } from '../utils/DeviceDisplayName';
 import Icon, { IconName } from './Icon';
 import RNFS from 'react-native-fs';
 import { WebView } from 'react-native-webview';
@@ -138,6 +139,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   onRenderProcessGone,
 }, ref) => {
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   const navigation = useNavigation<NavigationProp>();
   const webViewRef = useRef<WebView>(null);
   // #190 — Host-view ref for pauseMedia/resumeMedia. react-native-webview's ref is a
@@ -1424,7 +1426,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             </View>
 
             {/* Title */}
-            <Text style={styles.welcomeTitle}>FreeKiosk</Text>
+            <Text style={styles.welcomeTitle} numberOfLines={2} adjustsFontSizeToFit>{displayName}</Text>
             <Text style={styles.welcomeSubtitle}>
               {t('components.webView.welcomeSubtitle')}
             </Text>

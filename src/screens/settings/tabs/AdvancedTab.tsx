@@ -349,20 +349,23 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           </SettingsInfoBox>
         )}
 
-        <View style={styles.betaRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.betaLabel}>{t('advanced.updates.betaUpdates')}</Text>
-            <Text style={styles.betaHint}>{t('advanced.updates.betaUpdatesHint')}</Text>
+        {/* The beta channel is a GitHub matter: on an enrolled tablet the website decides */}
+        {!isEnrolled && (
+          <View style={styles.betaRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.betaLabel}>{t('advanced.updates.betaUpdates')}</Text>
+              <Text style={styles.betaHint}>{t('advanced.updates.betaUpdatesHint')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.betaToggle, betaUpdatesEnabled && styles.betaToggleActive]}
+              onPress={() => onBetaUpdatesChange(!betaUpdatesEnabled)}
+            >
+              <Text style={[styles.betaToggleText, betaUpdatesEnabled && styles.betaToggleTextActive]}>
+                {betaUpdatesEnabled ? t('advanced.updates.on') : t('advanced.updates.off')}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.betaToggle, betaUpdatesEnabled && styles.betaToggleActive]}
-            onPress={() => onBetaUpdatesChange(!betaUpdatesEnabled)}
-          >
-            <Text style={[styles.betaToggleText, betaUpdatesEnabled && styles.betaToggleTextActive]}>
-              {betaUpdatesEnabled ? t('advanced.updates.on') : t('advanced.updates.off')}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         <SettingsButton
           title={checkingUpdate ? t('advanced.updates.checking') : downloading ? t('advanced.updates.downloading') : t('advanced.updates.checkForUpdates')}
@@ -385,7 +388,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
         )}
 
         <Text style={styles.hint}>
-          {isDeviceOwner ? t('advanced.updates.hintOwner') : t('advanced.updates.hintNonOwner')}
+          {isEnrolled ? t('advanced.updates.hintManaged') : isDeviceOwner ? t('advanced.updates.hintOwner') : t('advanced.updates.hintNonOwner')}
         </Text>
       </SettingsSection>
       )}

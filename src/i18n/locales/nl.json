@@ -634,7 +634,8 @@
       "checkForUpdates": "Op updates controleren",
       "downloadInstall": "Downloaden en installeren",
       "hintOwner": "Device Owner-modus: handmatige updates via GitHub.",
-      "hintNonOwner": "Download en installeer updates via GitHub."
+      "hintNonOwner": "Download en installeer updates via GitHub.",
+      "hintManaged": "Deze tablet krijgt updates van de beheerwebsite: upload daar de nieuwe APK en controleer dan hier."
     },
     "certificates": {
       "title": "Geaccepteerde SSL-certificaten",
@@ -1407,7 +1408,11 @@
       "upToDateTitle": "Up-to-date",
       "upToDateMessage": "Je gebruikt de nieuwste versie ({{version}})",
       "checkUpdateFailed": "Controleren op updates niet mogelijk: {{error}}",
+      "noReleasesTitle": "Geen versie gepubliceerd",
+      "noReleasesMessage": "De GitHub-repository van deze build heeft nog geen versie gepubliceerd, dus er valt niets te downloaden. Je gebruikt versie {{version}}.\n\nEen tablet die bij een beheerwebsite is aangemeld, krijgt zijn updates van die website.",
       "downloadUrlUnavailable": "Download-URL niet beschikbaar.",
+      "installingFromServer": "De update wordt gedownload en geïnstalleerd. De app start daarna vanzelf opnieuw.",
+      "installNeedsDeviceOwner": "Alleen een Device Owner kan een update van de beheerwebsite installeren. Installeer versie {{version}} via USB.",
       "permissionRequiredTitle": "Machtiging vereist",
       "permissionRequiredMessage": "FreeKiosk heeft machtiging nodig om updates te installeren.\n\nSchakel \"Toestaan vanuit deze bron\" in op het volgende scherm, kom daarna terug en probeer de update opnieuw.",
       "settingsUnavailableTitle": "Instellingen niet beschikbaar",

@@ -74,6 +74,14 @@ export class DeviceApiController {
 
   @UseGuards(DeviceGuard)
   @ApiBearerAuth()
+  @Get('devices/:deviceId/app-update')
+  @ApiOperation({ summary: 'Bản FreeKiosk mới nhất đã tải lên, cho nút Kiểm tra cập nhật trong ứng dụng' })
+  appUpdate(@CurrentDevice() device: Device) {
+    return this.service.latestAppUpdate(device);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
   @Post('commands/:commandId/result')
   @HttpCode(200)
   async result(

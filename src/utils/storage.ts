@@ -234,6 +234,8 @@ export const KEYS = {
   CONFIG_UPDATED_AT: '@cloud_config_updated_at',
   CONFIG_VERSION: '@cloud_config_version',
   LAST_SENT_CONFIG_HASH: '@cloud_last_sent_hash',
+  // The name on the management website (DeviceDisplayName.ts): not a setting, never exported
+  DEVICE_DISPLAY_NAME: '@cloud_device_display_name',
   // Full raw config last received from the cloud. Used to preserve fields this app
   // version doesn't model yet, so unknown settings survive an export round-trip
   // (prevents an older app from stripping newer settings when it echoes to the cloud).

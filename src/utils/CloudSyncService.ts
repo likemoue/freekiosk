@@ -8,6 +8,7 @@ import { getCapabilities } from './capabilities';
 import { getMediaCacheReport } from './MediaCacheReport';
 import { SignagePlaylist } from './SignagePlaylist';
 import { ServerClock } from './ServerClock';
+import { DeviceDisplayName } from './DeviceDisplayName';
 import { deviceTimeZone } from './DeviceTimeZone';
 import KioskModule from './KioskModule';
 import { tr } from '../i18n/tr';
@@ -133,6 +134,8 @@ interface HeartbeatResponse {
   force_unenroll: boolean;
   // Digital signage: absent from an older cloud, null when the device has no playlist
   playlist_version?: string | null;
+  // The name on the management website: absent from any other cloud
+  device_name?: string;
 }
 
 /** The server answers a refusal in JSON; a proxy answers with an HTML page or says it stepped in */
@@ -372,6 +375,8 @@ class CloudSyncServiceClass {
         return;
       }
 
+      await DeviceDisplayName.observe(data.device_name).catch(() => {});
+
       if (data.sync_action === 'apply' && data.config) {
         await StorageService.importConfig(data.config);
         if (data.sensitive_config) {
@@ -428,6 +433,7 @@ class CloudSyncServiceClass {
 
       // Wipe all local settings before applying cloud config
       await AsyncStorage.multiRemove(Object.values(KEYS));
+      DeviceDisplayName.forget();
       await SignagePlaylist.clear();
       await Promise.all([
         clearSecurePin(),
@@ -623,6 +629,7 @@ class CloudSyncServiceClass {
 
     // Clear all AsyncStorage settings, and the refusal window that led here
     await AsyncStorage.multiRemove([...Object.values(KEYS), AUTH_FAILURE_KEY]);
+    DeviceDisplayName.forget();
     await SignagePlaylist.clear();
 
     // Clear all Keychain secrets

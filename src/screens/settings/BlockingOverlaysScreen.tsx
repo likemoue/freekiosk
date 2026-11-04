@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  BackHandler,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +60,16 @@ const BlockingOverlaysScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // Settings stays mounted under this screen with its own Back handler, which would offer to
+  // leave Settings altogether. Handlers run newest first, so this one closes just this screen.
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      navigation.goBack();
+      return true;
+    });
+    return () => backHandler.remove();
+  }, [navigation]);
 
   // Save settings (without applying - overlays only active on KioskScreen)
   const saveSettings = useCallback(async (newEnabled: boolean, newRegions: BlockingRegion[]) => {

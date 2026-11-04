@@ -104,6 +104,10 @@ This repository is a Vietnamese fork. `src/i18n/index.ts` starts in Vietnamese (
 
 The contract is defined by the app (`CloudSyncService.ts`, `CloudCommandService.ts`, `SignagePlaylist.ts`), so a change there may need one in `cloud/apps/api/src/device-api/`. `__tests__/CloudServerContract.live.test.ts` runs the app's real code against a running server (skipped unless `FREEKIOSK_LIVE_URL` is set).
 
+Each heartbeat answer carries `device_name`, and the app shows that name where it would say "FreeKiosk" on its home screens (`src/utils/DeviceDisplayName.ts`). It is kept out of `exportConfig` and backups on purpose: a profile taken from one tablet must not rename the others.
+
+This fork publishes no GitHub releases. **Check for updates** on an enrolled tablet asks its server instead (`src/utils/AppUpdateCheck.ts`, `GET devices/{id}/app-update`) and installs through `ManagedAppInstaller`, the path a push from the website takes; only a tablet that is not enrolled reaches GitHub, and gets `NO_RELEASES`.
+
 ### Installing tablets
 
 `scripts/cai-tablet-usb` is a C# Windows program (`build.ps1` compiles it with the `csc.exe` every Windows has, into `release-builds/CaiTablet-USB`, with `adb` and the `assembleRelease` APK): plug in a tablet with USB debugging on and it installs the app, sets Device Owner and enrolls it. It learns how things ended from logcat, so the `[CloudSync] Queued enrollment ...` lines in `CloudSyncService.ts`, the `[BackupService] Provisioning backup ...` lines in `BackupService.ts` and the `PIN saved` line in `KioskScreen.tsx` are its contract (`__tests__/CloudSyncServiceQueuedEnrollment.test.ts` and `BackupServiceProvisioning.test.ts` pin the first two groups). A backup file chosen in the tool is pushed to `provisioning-backup.json` in the app's external files folder after enrollment, because enrolling wipes settings; the app applies and deletes it on its next start. "Lấy từ website" signs in to the admin API (`WebsiteClient.cs`) to make an enrollment code with a group and profile: that path needs TLS 1.3, so Windows 11.

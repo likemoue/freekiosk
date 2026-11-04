@@ -634,7 +634,8 @@
       "checkForUpdates": "Check for Updates",
       "downloadInstall": "Download & Install",
       "hintOwner": "Device Owner mode: Manual updates via GitHub.",
-      "hintNonOwner": "Download and install updates from GitHub."
+      "hintNonOwner": "Download and install updates from GitHub.",
+      "hintManaged": "This tablet gets its updates from the management website: upload the new APK there, then check here."
     },
     "certificates": {
       "title": "Accepted SSL Certificates",
@@ -1407,7 +1408,11 @@
       "upToDateTitle": "Up to Date",
       "upToDateMessage": "You are using the latest version ({{version}})",
       "checkUpdateFailed": "Unable to check for updates: {{error}}",
+      "noReleasesTitle": "No release published",
+      "noReleasesMessage": "This build's GitHub repository has not published a version yet, so there is nothing to download. You are on version {{version}}.\n\nA tablet enrolled on a management website gets its updates from that website.",
       "downloadUrlUnavailable": "Download URL not available.",
+      "installingFromServer": "Downloading and installing the update. The app restarts by itself when it is done.",
+      "installNeedsDeviceOwner": "Only a Device Owner can install an update from the management website. Install version {{version}} over USB instead.",
       "permissionRequiredTitle": "Permission Required",
       "permissionRequiredMessage": "FreeKiosk needs permission to install updates.\n\nPlease enable \"Allow from this source\" on the next screen, then come back and try the update again.",
       "settingsUnavailableTitle": "Settings Unavailable",

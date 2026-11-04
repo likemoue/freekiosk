@@ -634,7 +634,8 @@
       "checkForUpdates": "Kiểm tra cập nhật",
       "downloadInstall": "Tải xuống & cài đặt",
       "hintOwner": "Chế độ Device Owner: cập nhật thủ công qua GitHub.",
-      "hintNonOwner": "Tải xuống và cài đặt bản cập nhật từ GitHub."
+      "hintNonOwner": "Tải xuống và cài đặt bản cập nhật từ GitHub.",
+      "hintManaged": "Tablet này lấy bản cập nhật từ website quản lý: tải APK mới lên mục Ứng dụng (APK) trên website rồi kiểm tra tại đây."
     },
     "certificates": {
       "title": "Chứng chỉ SSL đã chấp nhận",
@@ -1407,7 +1408,11 @@
       "upToDateTitle": "Đã là bản mới nhất",
       "upToDateMessage": "Đang dùng phiên bản mới nhất ({{version}})",
       "checkUpdateFailed": "Không kiểm tra được bản cập nhật: {{error}}",
+      "noReleasesTitle": "Chưa có bản phát hành",
+      "noReleasesMessage": "Kho GitHub của bản này chưa phát hành phiên bản nào nên không có gì để tải về. Bạn đang dùng phiên bản {{version}}.\n\nTablet đã đăng ký với website quản lý sẽ nhận bản cập nhật từ website đó.",
       "downloadUrlUnavailable": "Không có URL tải xuống.",
+      "installingFromServer": "Đang tải và cài bản cập nhật. Ứng dụng sẽ tự khởi động lại khi xong.",
+      "installNeedsDeviceOwner": "Chỉ Device Owner mới cài được bản cập nhật từ website quản lý. Hãy cài phiên bản {{version}} qua USB.",
       "permissionRequiredTitle": "Cần cấp quyền",
       "permissionRequiredMessage": "FreeKiosk cần được cấp quyền để cài đặt bản cập nhật.\n\nHãy bật \"Cho phép từ nguồn này\" ở màn hình tiếp theo, sau đó quay lại và thử cập nhật lại.",
       "settingsUnavailableTitle": "Cài đặt không khả dụng",

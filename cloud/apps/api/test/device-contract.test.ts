@@ -91,6 +91,14 @@ describe('the contract of the FreeKiosk app', () => {
       assert.equal(data.config_version, 0);
       assert.equal(data.force_unenroll, false);
       assert.equal(data.playlist_version, null);
+      assert.equal(typeof data.device_name, 'string');
+    });
+
+    it('gives the tablet its name, and a new one as soon as it is renamed', async () => {
+      await admin.json('PATCH', `/api/admin/devices/${tablet.deviceId}`, { name: 'Lớp 5A - Máy 1' });
+      assert.equal((await tablet.heartbeat()).data.device_name, 'Lớp 5A - Máy 1');
+      await admin.json('PATCH', `/api/admin/devices/${tablet.deviceId}`, { name: 'Lớp 5B - Máy 1' });
+      assert.equal((await tablet.heartbeat()).data.device_name, 'Lớp 5B - Máy 1');
     });
 
     it('accepts the path with and without the trailing slash the app uses', async () => {
@@ -631,6 +639,43 @@ describe('the contract of the FreeKiosk app', () => {
       const download = await fetch(`${server.base}/dpc-apk-download/`);
       assert.equal(download.status, 200);
       assert.equal(await download.text(), 'apk');
+    });
+
+    it('offers the newest FreeKiosk to the update check, and only with the device key', async () => {
+      const tablet = new FakeTablet(server.base);
+      await tablet.enroll((await newToken(admin)).token, ['silent_install']);
+      const upload = (fileName: string, packageName: string, versionName: string, versionCode: number) =>
+        server.prisma.apkPackage.create({
+          data: { fileName, storageKey: 'apk/test.apk', sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName, versionName, versionCode },
+        });
+      const check = async () => ((await (await tablet.get('app-update')).json()) as any).update;
+
+      assert.equal((await fetch(`${server.base}/api/v1/devices/${tablet.deviceId}/app-update/`)).status, 401);
+      // An upload whose version could not be read is not offered: there is nothing to compare
+      assert.equal(await check(), null);
+
+      await upload('other.apk', 'com.example.app', '9.9.9', 999);
+      await upload('FreeKiosk-2.1.0-beta.1.apk', 'com.freekiosk', '2.1.0-beta.1', 53);
+      await upload('FreeKiosk-2.1.0-beta.2.apk', 'com.freekiosk', '2.1.0-beta.2', 54);
+      let update = await check();
+      assert.equal(update.version, '2.1.0-beta.2');
+      assert.equal(update.version_code, 54);
+      assert.ok(update.published_at);
+
+      const path = new URL(update.download_url).pathname;
+      assert.equal((await fetch(`${server.base}${path}`)).status, 401);
+      const download = await fetch(`${server.base}${path}`, { headers: tablet.auth() });
+      assert.equal(await download.text(), 'apk');
+
+      // Both builds of a version, the -cloudprovi one uploaded last: a USB tablet keeps its service
+      const full = await upload('FreeKiosk-2.1.0-beta.3.apk', 'com.freekiosk', '2.1.0-beta.3', 55);
+      await upload('FreeKiosk-2.1.0-beta.3-cloudprovi.apk', 'com.freekiosk', '2.1.0-beta.3', 55);
+      update = await check();
+      assert.ok(update.download_url.includes(full.id));
+
+      // A newer version in the -cloudprovi build only is still the newest
+      const only = await upload('FreeKiosk-2.1.0-beta.4-cloudprovi.apk', 'com.freekiosk', '2.1.0-beta.4', 56);
+      assert.ok((await check()).download_url.includes(only.id));
     });
 
     it('refuses an upload that is not a real APK', async () => {

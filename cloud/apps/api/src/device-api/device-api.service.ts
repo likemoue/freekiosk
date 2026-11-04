@@ -12,6 +12,7 @@ import { SensitiveValues } from '../devices/config-sync.service';
 import { SignageService } from '../signage/signage.service';
 
 const SCREENSHOTS_KEPT_PER_DEVICE = 30;
+const OWN_PACKAGE = 'com.freekiosk';
 
 type Json = Record<string, unknown>;
 
@@ -264,6 +265,7 @@ export class DeviceApiService {
       config_version: Math.max(device.configVersion, deviceVersion),
       force_unenroll: device.forceUnenroll,
       playlist_version: await this.signage.versionFor(device.id),
+      device_name: device.name,
     };
   }
 
@@ -372,6 +374,36 @@ export class DeviceApiService {
       await this.prisma.screenshot.deleteMany({ where: { id: { in: old.map((s) => s.id) } } });
       await Promise.all(old.map((s) => this.storage.remove(s.storageKey)));
     }
+  }
+
+  /**
+   * The newest FreeKiosk uploaded here. Unlike install_apk nobody chose this file for this tablet,
+   * so the app compares version codes and asks before installing. Of two builds of one version
+   * the one that is not -cloudprovi wins: that build has its accessibility service stripped, and
+   * a tablet installed over USB would lose it.
+   */
+  async latestAppUpdate(device: Device) {
+    const newest = await this.prisma.apkPackage.findFirst({
+      where: { packageName: OWN_PACKAGE, versionCode: { not: null } },
+      orderBy: { versionCode: 'desc' },
+      select: { versionCode: true },
+    });
+    if (!newest) return { update: null };
+
+    const builds = await this.prisma.apkPackage.findMany({
+      where: { packageName: OWN_PACKAGE, versionCode: newest.versionCode },
+      orderBy: { createdAt: 'desc' },
+    });
+    const apk = builds.find((build) => !/cloudprovi/i.test(build.fileName)) ?? builds[0];
+    return {
+      update: {
+        version: apk.versionName,
+        version_code: apk.versionCode,
+        notes: apk.notes,
+        published_at: apk.createdAt.toISOString(),
+        download_url: `${env().publicUrl}/api/v1/devices/${device.id}/apk/${apk.id}/`,
+      },
+    };
   }
 
   async apkFile(apkId: string): Promise<{ path: string; fileName: string }> {

@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   NativeModules,
   Alert,
-  Platform,
   Linking,
   FlatList,
   Modal,
@@ -33,6 +32,7 @@ import AppLauncherModule, { AppInfo } from '../../utils/AppLauncherModule';
 import OverlayPermissionModule from '../../utils/OverlayPermissionModule';
 import LauncherModule from '../../utils/LauncherModule';
 import UpdateModule, { ENABLE_SELF_UPDATE } from '../../utils/UpdateModule';
+import { findLatestUpdate, installFromServer } from '../../utils/AppUpdateCheck';
 import AutoBrightnessModule from '../../utils/AutoBrightnessModule';
 import { httpServer } from '../../utils/HttpServerModule';
 import { hasSettingsAccess, revokeSettingsAccess } from '../../utils/authState';
@@ -283,6 +283,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [downloading, setDownloading] = useState<boolean>(false);
+  // ManagedAppInstaller reports no progress and cannot be stopped, unlike the GitHub download
+  const [serverInstallRunning, setServerInstallRunning] = useState<boolean>(false);
   // #274: live state of the update download, so the dialog shows progress or what it waits for
   const [downloadProgress, setDownloadProgress] = useState<{
     status: string;
@@ -373,28 +375,26 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Block Android back gesture/button on Settings screen to prevent PIN bypass (#93)
+  // Back must not walk the stack down to the PIN screen or the kiosk with access still granted
+  // (#93). It asks first, since unsaved changes would be lost, then leaves the way "Back to
+  // Kiosk" does: access revoked and the stack reset, so the PIN is asked again next time.
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // Prevent back navigation — user must use Save or explicit back-to-kiosk buttons.
-      // On a TV the remote has no other way out, so Back offers to leave without saving.
-      if (Platform.isTV) {
-        Alert.alert(
-          t('screens.settingsMain.exitTitle'),
-          t('screens.settingsMain.exitMessage'),
-          [
-            { text: t('screens.settingsMain.exitStay'), style: 'cancel' },
-            {
-              text: t('screens.settingsMain.exitDiscard'),
-              style: 'destructive',
-              onPress: () => {
-                revokeSettingsAccess();
-                navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] });
-              },
+      Alert.alert(
+        t('screens.settingsMain.exitTitle'),
+        t('screens.settingsMain.exitMessage'),
+        [
+          { text: t('screens.settingsMain.exitStay'), style: 'cancel' },
+          {
+            text: t('screens.settingsMain.exitDiscard'),
+            style: 'destructive',
+            onPress: () => {
+              revokeSettingsAccess();
+              navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] });
             },
-          ],
-        );
-      }
+          },
+        ],
+      );
       return true;
     });
     return () => backHandler.remove();
@@ -1249,19 +1249,24 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setCheckingUpdate(true);
     setUpdateAvailable(false);
     setUpdateInfo(null);
-    
+    let currentVer = '';
+
     try {
       const currentVersionInfo = await UpdateModule.getCurrentVersion();
-      const latestUpdate = await UpdateModule.checkForUpdatesWithChannel(betaUpdatesEnabled);
-      const currentVer = currentVersionInfo.versionName;
-      const latestVer = latestUpdate.version;
-      
+      currentVer = currentVersionInfo.versionName;
+      const currentCode = currentVersionInfo.versionCode;
+      const latestUpdate = await findLatestUpdate(betaUpdatesEnabled);
+      const latestVer = latestUpdate?.version;
+
       console.log(`Version comparison: current=${currentVer}, latest=${latestVer}, beta=${betaUpdatesEnabled}`);
-      
-      // Use semantic version comparison instead of simple string equality
-      const versionComparison = compareVersions(latestVer, currentVer);
-      
-      if (versionComparison > 0) {
+
+      // The management server gives a version code, which needs no reading of version names.
+      // GitHub only has the tag: semantic comparison instead of simple string equality.
+      const isNewer = !!latestUpdate && (latestUpdate.versionCode != null
+        ? latestUpdate.versionCode > currentCode
+        : compareVersions(latestUpdate.version, currentVer) > 0);
+
+      if (latestUpdate && isNewer) {
         // Latest version is newer than current
         setUpdateAvailable(true);
         setUpdateInfo(latestUpdate);
@@ -1282,7 +1287,11 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         Alert.alert(t('screens.settingsMain.upToDateTitle'), t('screens.settingsMain.upToDateMessage', { version: currentVer }));
       }
     } catch (error: any) {
-      Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.checkUpdateFailed', { error: error.message || error.toString() }));
+      if (error?.code === 'NO_RELEASES') {
+        Alert.alert(t('screens.settingsMain.noReleasesTitle'), t('screens.settingsMain.noReleasesMessage', { version: currentVer }));
+      } else {
+        Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.checkUpdateFailed', { error: error.message || error.toString() }));
+      }
     } finally {
       setCheckingUpdate(false);
     }
@@ -1328,6 +1337,25 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     
     if (!updateData || !updateData.downloadUrl) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.downloadUrlUnavailable'));
+      return;
+    }
+
+    if (updateData.fromServer) {
+      setServerInstallRunning(true);
+      setDownloading(true);
+      try {
+        await installFromServer(updateData);
+      } catch (error: any) {
+        Alert.alert(
+          t('screens.settingsMain.error'),
+          error?.code === 'NOT_DEVICE_OWNER'
+            ? t('screens.settingsMain.installNeedsDeviceOwner', { version: updateData.version })
+            : t('screens.settingsMain.downloadFailed', { error: error?.message || t('advanced.cloud.unknownError') }),
+        );
+      } finally {
+        setDownloading(false);
+        setServerInstallRunning(false);
+      }
       return;
     }
 
@@ -2432,18 +2460,21 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
           <View style={settingsStyles.modalContent}>
             <Text style={settingsStyles.modalTitle}>{t('screens.settingsMain.downloading')}</Text>
             <Text style={settingsStyles.modalText}>
-              {downloadStatusText()}
+              {serverInstallRunning ? t('screens.settingsMain.installingFromServer') : downloadStatusText()}
             </Text>
             <Text style={settingsStyles.modalHint}>
               {t('screens.settingsMain.doNotCloseApp')}
             </Text>
-            {/* #274: the dialog could not be closed, so a stalled download trapped the screen */}
-            <TouchableOpacity
-              style={settingsStyles.modalCancelButton}
-              onPress={() => { UpdateModule.cancelDownload().catch(() => {}); }}
-            >
-              <Text style={settingsStyles.modalCancelText}>{t('screens.settingsMain.cancel')}</Text>
-            </TouchableOpacity>
+            {/* #274: the dialog could not be closed, so a stalled download trapped the screen.
+                The install from the server ends by itself: its download has timeouts. */}
+            {!serverInstallRunning && (
+              <TouchableOpacity
+                style={settingsStyles.modalCancelButton}
+                onPress={() => { UpdateModule.cancelDownload().catch(() => {}); }}
+              >
+                <Text style={settingsStyles.modalCancelText}>{t('screens.settingsMain.cancel')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>

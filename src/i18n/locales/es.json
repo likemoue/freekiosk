@@ -634,7 +634,8 @@
       "checkForUpdates": "Buscar actualizaciones",
       "downloadInstall": "Descargar e instalar",
       "hintOwner": "Modo Device Owner: actualizaciones manuales a través de GitHub.",
-      "hintNonOwner": "Descarga e instala las actualizaciones desde GitHub."
+      "hintNonOwner": "Descarga e instala las actualizaciones desde GitHub.",
+      "hintManaged": "Esta tableta recibe las actualizaciones del sitio de gestión: sube allí el nuevo APK y luego comprueba aquí."
     },
     "certificates": {
       "title": "Certificados SSL aceptados",
@@ -1408,7 +1409,11 @@
       "upToDateTitle": "Actualizado",
       "upToDateMessage": "Ya tienes la última versión ({{version}})",
       "checkUpdateFailed": "No se pudieron buscar actualizaciones: {{error}}",
+      "noReleasesTitle": "Ninguna versión publicada",
+      "noReleasesMessage": "El repositorio de GitHub de esta compilación aún no ha publicado ninguna versión, así que no hay nada que descargar. Estás en la versión {{version}}.\n\nUna tableta inscrita en un sitio de gestión recibe las actualizaciones de ese sitio.",
       "downloadUrlUnavailable": "URL de descarga no disponible.",
+      "installingFromServer": "Descargando e instalando la actualización. La aplicación se reinicia sola al terminar.",
+      "installNeedsDeviceOwner": "Solo un Device Owner puede instalar una actualización desde el sitio de gestión. Instala la versión {{version}} por USB.",
       "permissionRequiredTitle": "Permiso necesario",
       "permissionRequiredMessage": "FreeKiosk necesita permiso para instalar actualizaciones.\n\nActiva \"Permitir desde esta fuente\" en la siguiente pantalla y luego vuelve para intentar la actualización de nuevo.",
       "settingsUnavailableTitle": "Configuración no disponible",
