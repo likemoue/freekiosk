@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 
 import { StorageService, KEYS } from './storage';
 import DeviceControlService from '../services/DeviceControlService';
@@ -27,6 +27,22 @@ import {
 
 /** What kind of screen this is, so the cloud can label a TV and drop what a TV does not have */
 const formFactor = (): 'tv' | 'tablet' => (Platform.isTV ? 'tv' : 'tablet');
+
+/**
+ * What a device says about itself when enrolling. The app version arrives with the first
+ * heartbeat. Read from Platform.constants: NativeModules.PlatformConstants is empty on the
+ * new architecture, which made every tablet enroll under the name "Thiết bị mới".
+ */
+export function enrollmentDeviceInfo(): Record<string, string> {
+  const constants = Platform.constants as unknown as Record<string, string | undefined>;
+  return {
+    model: constants.Model ?? '',
+    manufacturer: constants.Manufacturer ?? '',
+    android_version: constants.Release ?? '',
+    app_version: '',
+    serial_number: '',
+  };
+}
 
 export const CONFIG_UPDATED_EVENT = 'FREEKIOSK_CONFIG_UPDATED';
 export const FORCE_UNENROLL_EVENT = 'FREEKIOSK_FORCE_UNENROLL';
@@ -472,6 +488,13 @@ class CloudSyncServiceClass {
     }
     try {
       if (await this.isEnrolled()) {
+        // Left queued, a token from running the USB tool on an enrolled tablet would enroll
+        // it again the moment an administrator removes it.
+        const stale = await KioskModule.getPendingCloudEnrollment?.();
+        if (stale?.enroll_token) {
+          console.log('[CloudSync] Queued enrollment discarded: already enrolled');
+          await KioskModule.clearPendingCloudEnrollment?.();
+        }
         this.setProvisioningStatus({ state: 'none' });
         return;
       }
@@ -481,14 +504,7 @@ class CloudSyncServiceClass {
       this.provisioningAttempts += 1;
       this.setProvisioningStatus({ state: 'enrolling', attempts: this.provisioningAttempts });
 
-      const PC = (NativeModules as any).PlatformConstants;
-      const result = await this.enroll(pending.cloud_url, pending.enroll_token, {
-        model: PC?.Model ?? '',
-        manufacturer: PC?.Manufacturer ?? '',
-        android_version: PC?.Release ?? '',
-        app_version: PC?.appVersion ?? '',
-        serial_number: '',
-      });
+      const result = await this.enroll(pending.cloud_url, pending.enroll_token, enrollmentDeviceInfo());
       if (result.success) {
         // A device provisioned via the setup-wizard QR is a Device Owner kiosk:
         // pin FreeKiosk as the persistent Home launcher so the "choose launcher"
@@ -503,10 +519,13 @@ class CloudSyncServiceClass {
         await KioskModule.clearPendingCloudEnrollment?.();
       }
 
+      // scripts/cai-tablet-usb reads these three lines from logcat to know how it ended
       if (result.success) {
+        console.log('[CloudSync] Queued enrollment accepted');
         this.provisioningAttempts = 0;
         this.setProvisioningStatus({ state: 'none' });
       } else if (result.error === 'Cannot reach server') {
+        console.warn('[CloudSync] Queued enrollment could not reach the server, will retry');
         this.setProvisioningStatus({
           state: 'retrying', attempts: this.provisioningAttempts, error: result.error,
         });
@@ -517,6 +536,7 @@ class CloudSyncServiceClass {
       } else {
         // Refused for good (expired or already used token, device limit reached...).
         // The token is gone, so say why instead of leaving a silent welcome screen.
+        console.warn(`[CloudSync] Queued enrollment refused: ${result.error ?? 'Enrollment failed'}`);
         this.setProvisioningStatus({ state: 'failed', error: result.error ?? 'Enrollment failed' });
       }
     } catch {
