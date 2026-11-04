@@ -179,7 +179,7 @@ class MainActivity : ReactActivity() {
     )
 
     /** Where a cloud_token enrolls when the command does not say. */
-    const val DEFAULT_CLOUD_URL = "https://kiosk.ism.io.vn"
+    const val DEFAULT_CLOUD_URL = "https://mdm.ism.io.vn"
 
     /** Never log these values: they are credentials, not settings. */
     val ADB_SENSITIVE_KEYS = setOf(

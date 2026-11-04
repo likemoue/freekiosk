@@ -413,7 +413,7 @@ của chính ứng dụng ghi ra, nên một quy tắc tạo trên máy tính b�
 | Tham số | Kiểu | Mô tả |
 |-----------|------|-------------|
 | `--es cloud_token "TOKEN"` | String | Mã token đăng ký dùng một lần, lấy từ trang *Thêm thiết bị* của FreeKiosk Cloud. Máy tính bảng tự đăng ký khi ứng dụng đang chạy |
-| `--es cloud_url "https://..."` | String | Địa chỉ máy chủ quản lý. Không bắt buộc: mặc định là `https://kiosk.ism.io.vn` (`DEFAULT_CLOUD_URL` trong `MainActivity.kt`), chỉ cần khi dùng máy chủ khác |
+| `--es cloud_url "https://..."` | String | Địa chỉ máy chủ quản lý. Không bắt buộc: mặc định là `https://mdm.ism.io.vn` (`DEFAULT_CLOUD_URL` trong `MainActivity.kt`), chỉ cần khi dùng máy chủ khác |
 
 ```bash
 adb shell am start -n com.freekiosk/.MainActivity --es pin "1234" --es cloud_token "TOKEN"
