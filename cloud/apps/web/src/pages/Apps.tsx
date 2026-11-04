@@ -95,6 +95,7 @@ export default function Apps() {
                   <td className={td}>
                     <span className="font-semibold">{apk.fileName}</span>
                     {apk.isProvisioning && <Badge tone="ok" className="ml-2"><QrCode className="size-3" /> APK cấp phát</Badge>}
+                    {apk.incomplete && <Badge tone="bad" className="ml-2" title="Tệp chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được. Hãy xóa tệp này và tải lên bản APK đầy đủ (universal APK).">Thiếu phần, không cài được</Badge>}
                     <span className="block font-mono text-[11px] text-faint" title="SHA-256">{apk.sha256Hex.slice(0, 16)}…</span>
                   </td>
                   <td className={clsx(td, 'font-mono text-xs text-soft')}>{apk.packageName ?? '—'}</td>
@@ -102,7 +103,7 @@ export default function Apps() {
                   <td className={clsx(td, 'tabular-nums text-soft')}>{bytes(apk.sizeBytes)}</td>
                   <td className={clsx(td, 'text-soft')}>{dateTime(apk.createdAt)}</td>
                   <td className={clsx(td, 'text-right whitespace-nowrap')}>
-                    {can.operate && <Button size="sm" variant="outline" onClick={() => setDeploying(apk)}><Rocket className="size-3.5" /> Cài đặt</Button>}
+                    {can.operate && <Button size="sm" variant="outline" disabled={apk.incomplete} onClick={() => setDeploying(apk)}><Rocket className="size-3.5" /> Cài đặt</Button>}
                     {can.admin && apk.packageName === 'com.freekiosk' && !apk.isProvisioning && <Button size="sm" variant="ghost" className="ml-1" onClick={() => provisioning.mutate(apk.id)}><QrCode className="size-3.5" /> Đặt làm APK cấp phát</Button>}
                     {apk.isProvisioning && <a href="/dpc-apk-download/" className="ml-1 inline-flex"><Button size="sm" variant="ghost"><Download className="size-3.5" /> Tải về</Button></a>}
                     {can.admin && (

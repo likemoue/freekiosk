@@ -1,15 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { ApkPackage, User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
 import { deepMerge } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
-import { installCommandData } from './catalog';
+import { ApkInspector } from '../files/apk-inspector';
+import { HOME_APPS_COMMAND, installCommandData } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
 import { editHomeApps, generalOf, homeCount, isMultiApp, ManagedApp, managedAppsOf } from './home-apps';
 
 const OWN_PACKAGE = 'com.freekiosk';
+const HISTORY_DAYS = 7;
 
 const DEVICE_FIELDS = { id: true, name: true, capabilities: true, installedApps: true, reportedConfig: true, pendingConfig: true } satisfies Prisma.DeviceSelect;
 type TargetDevice = Prisma.DeviceGetPayload<{ select: typeof DEVICE_FIELDS }>;
@@ -29,12 +32,19 @@ const canInstall = (device: TargetDevice) => device.capabilities.length === 0 ||
 /** The name an uploaded APK goes by until a tablet has it installed and says what it is really called */
 const apkLabel = (apk: ApkPackage) => apk.fileName.replace(/\.apk$/i, '');
 
+/** What was uploaded, for each package: what can be installed, and what cannot be on its own */
+interface Uploads {
+  installable: Map<string, ApkPackage>;
+  incomplete: Map<string, ApkPackage>;
+}
+
 @Injectable()
 export class HomeAppsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configSync: ConfigSyncService,
     private readonly activity: ActivityService,
+    private readonly inspector: ApkInspector,
   ) {}
 
   private async devices(target: TargetDto): Promise<TargetDevice[]> {
@@ -43,23 +53,31 @@ export class HomeAppsService {
     return this.prisma.device.findMany({ where, select: DEVICE_FIELDS });
   }
 
-  /** For each package, the newest upload: what gets installed on a tablet that does not have it */
-  private async apks(): Promise<Map<string, ApkPackage>> {
+  /** For each package the newest upload that can be installed: a broken newer one does not hide it */
+  private async uploads(): Promise<Uploads> {
     const rows = await this.prisma.apkPackage.findMany({
       where: { packageName: { not: null } },
       orderBy: [{ versionCode: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     });
-    const newest = new Map<string, ApkPackage>();
+    const installable = new Map<string, ApkPackage>();
+    const incomplete = new Map<string, ApkPackage>();
     for (const apk of rows) {
-      if (apk.packageName && apk.packageName !== OWN_PACKAGE && !newest.has(apk.packageName)) newest.set(apk.packageName, apk);
+      const packageName = apk.packageName;
+      if (!packageName || packageName === OWN_PACKAGE || installable.has(packageName)) continue;
+      if (await this.inspector.isIncomplete(apk)) {
+        if (!incomplete.has(packageName)) incomplete.set(packageName, apk);
+      } else {
+        installable.set(packageName, apk);
+        incomplete.delete(packageName);
+      }
     }
-    return newest;
+    return { installable, incomplete };
   }
 
   /** A readable name for every package: what a tablet said first, then what is known from elsewhere */
-  private async labels(devices: TargetDevice[], apks: Map<string, ApkPackage>): Promise<Map<string, { label: string; hasIcon: boolean; version: number }>> {
+  private async labels(devices: TargetDevice[], uploads: Uploads): Promise<Map<string, { label: string; hasIcon: boolean; version: number }>> {
     const known = new Map<string, { label: string; hasIcon: boolean; version: number }>();
-    for (const [packageName, apk] of apks) known.set(packageName, { label: apkLabel(apk), hasIcon: false, version: 0 });
+    for (const [packageName, apk] of [...uploads.incomplete, ...uploads.installable]) known.set(packageName, { label: apkLabel(apk), hasIcon: false, version: 0 });
     for (const device of devices) {
       for (const app of managedAppsOf(generalOf(device))) {
         if (app.displayName && !known.has(app.packageName)) known.set(app.packageName, { label: app.displayName, hasIcon: false, version: 0 });
@@ -77,18 +95,28 @@ export class HomeAppsService {
     return known;
   }
 
+  /** The installs still under way on these tablets, as "device/package" */
+  private async installsUnderWay(deviceIds: string[]): Promise<Set<string>> {
+    const rows = await this.prisma.command.findMany({
+      where: { deviceId: { in: deviceIds }, type: 'install_apk', status: { in: ['PENDING', 'SENT'] } },
+      select: { deviceId: true, params: true },
+    });
+    return new Set(rows.map((row) => `${row.deviceId}/${String(obj(row.params).package_name)}`));
+  }
+
   /** What the picker shows: every app it can offer for these tablets, and where each one is now */
   async preview(target: TargetDto) {
     const devices = await this.devices(target);
-    const apks = await this.apks();
-    const labels = await this.labels(devices, apks);
+    const uploads = await this.uploads();
+    const labels = await this.labels(devices, uploads);
+    const underWay = await this.installsUnderWay(devices.map((device) => device.id));
 
     const generals = devices.map((device) => generalOf(device));
-    const apps = new Map<string, { onHome: number; installed: number }>();
+    const apps = new Map<string, { onHome: number; installed: number; installing: number }>();
     const entry = (packageName: string) => {
       const found = apps.get(packageName);
       if (found) return found;
-      const fresh = { onHome: 0, installed: 0 };
+      const fresh = { onHome: 0, installed: 0, installing: 0 };
       apps.set(packageName, fresh);
       return fresh;
     };
@@ -98,7 +126,11 @@ export class HomeAppsService {
       }
       for (const packageName of installedOf(device) ?? []) entry(packageName).installed += 1;
     });
-    for (const packageName of apks.keys()) entry(packageName);
+    for (const packageName of [...uploads.installable.keys(), ...uploads.incomplete.keys()]) entry(packageName);
+    for (const key of underWay) {
+      const packageName = key.slice(key.indexOf('/') + 1);
+      if (apps.has(packageName)) entry(packageName).installing += 1;
+    }
     apps.delete(OWN_PACKAGE);
 
     return {
@@ -114,7 +146,8 @@ export class HomeAppsService {
             packageName,
             label: known?.label ?? packageName,
             iconUrl: known?.hasIcon ? `/api/admin/home-apps/icons/${packageName}?v=${known.version}` : null,
-            canInstall: apks.has(packageName),
+            canInstall: uploads.installable.has(packageName),
+            apkIncomplete: uploads.incomplete.has(packageName),
             ...counts,
           };
         })
@@ -127,50 +160,106 @@ export class HomeAppsService {
     if (!add.length && !remove.length && !switchToMulti) throw new BadRequestException('Chưa chọn ứng dụng nào');
 
     const devices = await this.devices(target);
-    const apks = await this.apks();
-    const labels = await this.labels(devices, apks);
+    const uploads = await this.uploads();
+    const labels = await this.labels(devices, uploads);
     const labelOf = (packageName: string) => labels.get(packageName)?.label ?? packageName;
+    const underWay = await this.installsUnderWay(devices.map((device) => device.id));
+
+    const now = new Date();
+    const batchId = randomUUID();
+    const expiresAt = new Date(now.getTime() + HISTORY_DAYS * 86_400_000);
+    // A push is not a command for the tablet to run, but it is something the history must show
+    const history: Prisma.CommandCreateManyInput[] = [];
+    const record = (deviceId: string, params: Json, errorMessage?: string) => {
+      history.push({
+        deviceId,
+        type: HOME_APPS_COMMAND,
+        params: params as Prisma.InputJsonValue,
+        status: errorMessage ? 'ERROR' : 'SENT',
+        errorMessage,
+        batchId,
+        createdById: actor.id,
+        createdBy: actor.email,
+        sentAt: now,
+        completedAt: errorMessage ? now : null,
+        expiresAt,
+      });
+    };
+
+    const whyNot = (packageName: string) => {
+      if (uploads.incomplete.has(packageName)) return `Chưa cài ${labelOf(packageName)}: APK đã tải lên chỉ là một phần của ứng dụng, cần bản APK đầy đủ`;
+      if (uploads.installable.has(packageName)) return `Chưa cài ${labelOf(packageName)}: thiết bị không phải Device Owner nên không cài tự động được`;
+      return `Chưa cài ${labelOf(packageName)} và chưa có APK để cài`;
+    };
 
     let sent = 0;
     const installs: Prisma.CommandCreateManyInput[] = [];
     const skipped: Array<{ deviceId: string; name: string; reason: string }> = [];
+    const accepted = new Set<string>();
 
     for (const device of devices) {
       const general = generalOf(device);
       const current = managedAppsOf(general);
       const installed = installedOf(device);
 
-      // Not there and nothing to install it with: a tile that opens nothing helps nobody. A tablet
-      // that has not reported gets the app anyway, since nothing says it is missing.
-      const missing = add.filter((packageName) => installed && !installed.has(packageName) && !current.some((app) => app.packageName === packageName));
-      const toInstall = missing.filter((packageName) => apks.has(packageName) && canInstall(device));
-      const refused = missing.filter((packageName) => !toInstall.includes(packageName));
+      const adding: string[] = [];
+      const toInstall: ApkPackage[] = [];
+      const refused: string[] = [];
+      for (const packageName of add) {
+        // A tablet that has not reported gets the app anyway, since nothing says it is missing
+        if (!installed || installed.has(packageName)) adding.push(packageName);
+        else if (underWay.has(`${device.id}/${packageName}`)) accepted.add(packageName);
+        else if (uploads.installable.has(packageName) && canInstall(device)) toInstall.push(uploads.installable.get(packageName)!);
+        else refused.push(packageName);
+      }
       if (refused.length) {
-        skipped.push({ deviceId: device.id, name: device.name, reason: `Chưa cài ${refused.map(labelOf).join(', ')}` });
+        const reason = refused.map(whyNot).join('. ');
+        skipped.push({ deviceId: device.id, name: device.name, reason });
+        record(device.id, { add: refused.map(labelOf) }, reason);
       }
 
-      const adding = add.filter((packageName) => !refused.includes(packageName));
       const next = editHomeApps(current, adding, remove, labelOf);
       // With nothing left, the tablet would fall back to the single app screen, or to nothing at all
       if (homeCount(next) === 0 && homeCount(current) > 0) {
-        skipped.push({ deviceId: device.id, name: device.name, reason: 'Phải còn ít nhất một ứng dụng trên màn hình' });
+        const reason = 'Phải còn ít nhất một ứng dụng trên màn hình';
+        skipped.push({ deviceId: device.id, name: device.name, reason });
+        record(device.id, { remove: remove.map(labelOf) }, reason);
         continue;
       }
 
+      // An app it lacks is installed first, and joins the screen only once that has worked
+      // (showAfterInstall): a tile that opens nothing helps nobody, and an install can fail
+      for (const apk of toInstall) {
+        installs.push(installCommandData(device.id, apk, actor, { show_on_home: true, label: labelOf(apk.packageName!) }, batchId));
+        accepted.add(apk.packageName!);
+      }
+      for (const packageName of adding) accepted.add(packageName);
+
       const changes: Json = {};
       if (JSON.stringify(next) !== JSON.stringify(current)) changes.managedApps = next;
-      if (switchToMulti && !isMultiApp(general)) {
+      const switching = switchToMulti && !isMultiApp(general);
+      if (switching) {
         changes.displayMode = 'external_app';
         changes.externalApp = { mode: 'multi' };
       }
-      for (const packageName of toInstall) installs.push(installCommandData(device.id, apks.get(packageName)!, actor));
       if (!Object.keys(changes).length) continue;
+
       await this.configSync.push([device.id], { general: changes });
       sent += 1;
+      const shownBefore = new Set(current.filter((app) => app.showOnHomeScreen).map((app) => app.packageName));
+      const shownAfter = new Set(next.filter((app) => app.showOnHomeScreen).map((app) => app.packageName));
+      record(device.id, {
+        add: [...shownAfter].filter((p) => !shownBefore.has(p)).map(labelOf),
+        remove: [...shownBefore].filter((p) => !shownAfter.has(p)).map(labelOf),
+        ...(switching ? { switch_to_multi: true } : {}),
+      });
     }
 
-    if (installs.length) await this.prisma.command.createMany({ data: installs });
-    const profile = target.groupId ? await this.saveInGroupProfile(target.groupId, devices, add, remove, switchToMulti, labelOf) : null;
+    if (installs.length || history.length) await this.prisma.command.createMany({ data: [...installs, ...history] });
+
+    const profileAdd = add.filter((packageName) => accepted.has(packageName));
+    const hasProfileChange = profileAdd.length > 0 || remove.length > 0 || switchToMulti;
+    const profile = target.groupId && hasProfileChange ? await this.saveInGroupProfile(target.groupId, devices, profileAdd, remove, switchToMulti, labelOf) : null;
 
     const parts = [add.length ? `thêm ${add.map(labelOf).join(', ')}` : '', remove.length ? `gỡ ${remove.map(labelOf).join(', ')}` : ''].filter(Boolean).join(', ');
     await this.activity.log({
@@ -180,6 +269,47 @@ export class HomeAppsService {
       data: { add, remove, installs: installs.length, skipped: skipped.length, profile: profile?.updated ? profile.name : null },
     });
     return { sent, installs: installs.length, skipped, profile };
+  }
+
+  /** An install the picker asked for has worked: the app can now join the screen of that tablet */
+  async showAfterInstall(deviceId: string, command: { params: unknown; batchId: string | null; createdById: string | null; createdBy: string | null }): Promise<void> {
+    const params = obj(command.params);
+    const packageName = params.package_name;
+    if (params.show_on_home !== true || typeof packageName !== 'string') return;
+    const label = typeof params.label === 'string' ? params.label : packageName;
+
+    const device = await this.prisma.device.findUnique({ where: { id: deviceId }, select: DEVICE_FIELDS });
+    if (!device) return;
+
+    // The picker knows at once. The tablet's own list follows at its next scan, with the real name
+    const reported = Array.isArray(device.installedApps) ? device.installedApps : null;
+    if (reported && !installedOf(device)?.has(packageName)) {
+      await this.prisma.device.update({
+        where: { id: deviceId },
+        data: { installedApps: [...reported, { package: packageName, label, version_code: 0 }] as Prisma.InputJsonValue },
+      });
+    }
+
+    const current = managedAppsOf(generalOf(device));
+    const next = editHomeApps(current, [packageName], [], () => label);
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    await this.configSync.push([deviceId], { general: { managedApps: next } });
+
+    const now = new Date();
+    await this.prisma.command.create({
+      data: {
+        deviceId,
+        type: HOME_APPS_COMMAND,
+        params: { add: [label] },
+        status: 'SENT',
+        batchId: command.batchId,
+        source: 'after_install',
+        createdById: command.createdById,
+        createdBy: command.createdBy,
+        sentAt: now,
+        expiresAt: new Date(now.getTime() + HISTORY_DAYS * 86_400_000),
+      },
+    });
   }
 
   /**

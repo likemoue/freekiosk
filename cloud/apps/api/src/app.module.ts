@@ -15,6 +15,7 @@ import { CommandsController, ConfigController, DevicesController, ScreenshotsCon
 import { DevicesService } from './devices/devices.service';
 import { HomeAppsController } from './devices/home-apps.controller';
 import { HomeAppsService } from './devices/home-apps.service';
+import { ApkInspector } from './files/apk-inspector';
 import { ApksController, MediaController, UploadsController } from './files/files.controller';
 import { UploadsService } from './files/uploads.service';
 import { EnrollmentController, GroupsController, ProfilesController } from './fleet/fleet.controller';
@@ -51,6 +52,7 @@ import { SignageService } from './signage/signage.service';
     CommandsService,
     ConfigSyncService,
     HomeAppsService,
+    ApkInspector,
     SignageService,
     AlertsService,
     NotifierService,

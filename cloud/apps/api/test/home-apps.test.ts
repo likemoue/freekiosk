@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { resetRateLimits } from '../src/common/rate-limit';
-import { AdminClient, adminClient, FakeTablet, newToken, startServer, TestServer } from './helpers';
+import { env } from '../src/config/env';
+import { needsOtherParts } from '../src/files/apk-reader';
+import { fakeApk } from './apk-fixture';
+import { AdminClient, adminClient, FakeTablet, newToken, startServer, TestServer, uploadInParts } from './helpers';
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('not much of an image')]).toString('base64');
 
@@ -64,6 +69,13 @@ describe('the apps on the home screen', () => {
 
   /** What the tablet receives at its next heartbeat */
   const pushed = async (tablet: FakeTablet) => (await tablet.heartbeat()).data.config?.general;
+
+  const historyOf = async (tablet: FakeTablet) => admin.json<any[]>('GET', `/api/admin/commands?deviceId=${tablet.deviceId}`);
+
+  const uploaded = (packageName: string, fileName = `${packageName}.apk`) =>
+    server.prisma.apkPackage.create({
+      data: { fileName, storageKey: `apk/${fileName}`, sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName, versionName: '1.2.2', versionCode: 70 },
+    });
 
   describe('what a tablet reports', () => {
     it('sends its list only when asked, and is asked only when the list changed', async () => {
@@ -276,26 +288,81 @@ describe('the apps on the home screen', () => {
       assert.equal((await tablet.heartbeat()).data.config, null);
     });
 
-    it('installs an uploaded app on a tablet that lacks it, and shows it', async () => {
-      const apk = await server.prisma.apkPackage.create({
-        data: { fileName: 'cai.apk', storageKey: 'apk/cai.apk', sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName: 'vn.do.upload', versionName: '1.0', versionCode: 1 },
-      });
+    it('installs an uploaded app first, and shows it once the tablet says it worked', async () => {
+      const apk = await uploaded('vn.install.ok', 'Ứng dụng cài.apk');
       const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
-      const result = await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.do.upload'] });
+      const target = { deviceIds: [tablet.deviceId] };
+
+      const result = await apply(target, { add: ['vn.install.ok'] });
       assert.equal(result.installs, 1);
-      assert.equal(result.sent, 1);
+      assert.equal(result.sent, 0);
+
+      // Nothing on the screen yet, and the picker says it is on its way
+      assert.equal((await tablet.heartbeat(reported([app('vn.do.iclass')]))).data.config, null);
+      const during = (await preview(target)).apps.find((a: any) => a.packageName === 'vn.install.ok');
+      assert.equal(during.installing, 1);
+      assert.equal(during.onHome, 0);
 
       const updates: any = await (await tablet.get('updates')).json();
       assert.equal(updates.length, 1);
-      assert.equal(updates[0].package_name, 'vn.do.upload');
       assert.ok(updates[0].download_url.includes(apk.id));
-      assert.ok((await pushed(tablet)).managedApps.some((a: any) => a.packageName === 'vn.do.upload'));
+      assert.equal((await tablet.sendResult(updates[0].command_id, 'success', { install_status: 'success' })).status, 200);
+
+      const general = await pushed(tablet);
+      assert.deepEqual(general.managedApps.map((a: any) => a.packageName), ['vn.do.iclass', 'vn.install.ok']);
+      assert.equal(general.managedApps[1].displayName, 'Ứng dụng cài');
+
+      const after = (await preview(target)).apps.find((a: any) => a.packageName === 'vn.install.ok');
+      assert.equal(after.installed, 1);
+      assert.equal(after.installing, 0);
+      assert.equal(after.onHome, 1);
+    });
+
+    it('leaves the screen as it was when the install fails', async () => {
+      await uploaded('vn.install.fails');
+      const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.install.fails'] });
+
+      const updates: any = await (await tablet.get('updates')).json();
+      await tablet.sendResult(updates[0].command_id, 'error', null, 'Install failed (status 1): INSTALL_FAILED_INTERNAL_ERROR');
+
+      assert.equal((await tablet.heartbeat()).data.config, null);
+      const entry = (await preview({ deviceIds: [tablet.deviceId] })).apps.find((a: any) => a.packageName === 'vn.install.fails');
+      assert.equal(entry.onHome, 0);
+      assert.equal(entry.installing, 0);
+      // And it can be tried again
+      assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.install.fails'] })).installs, 1);
+    });
+
+    it('does what it can at once, and the rest after the install', async () => {
+      await uploaded('vn.install.mixed');
+      const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass', 'vn.do.chrome']);
+      const result = await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.do.chrome', 'vn.install.mixed'] });
+      assert.equal(result.sent, 1);
+      assert.equal(result.installs, 1);
+      assert.deepEqual((await pushed(tablet)).managedApps.map((a: any) => a.packageName), ['vn.do.iclass', 'vn.do.chrome']);
+    });
+
+    it('does not send a second install while one is on its way', async () => {
+      await uploaded('vn.install.once');
+      const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
+      assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.install.once'] })).installs, 1);
+      const again = await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.install.once'] });
+      assert.equal(again.installs, 0);
+      assert.deepEqual(again.skipped, []);
+    });
+
+    it('says which apps are on a screen but not on the tablet', async () => {
+      const tablet = await tabletWith([app('vn.do.iclass'), app('vn.do.ghost', 'Không có thật')], ['vn.do.iclass']);
+      const ghost = (await preview({ deviceIds: [tablet.deviceId] })).apps.find((a: any) => a.packageName === 'vn.do.ghost');
+      assert.equal(ghost.onHome, 1);
+      assert.equal(ghost.installed, 0);
+      // Taking it off is an ordinary removal
+      assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { remove: ['vn.do.ghost'] })).sent, 1);
     });
 
     it('does not reinstall an app the tablet has', async () => {
-      await server.prisma.apkPackage.create({
-        data: { fileName: 'co.apk', storageKey: 'apk/co.apk', sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName: 'vn.do.have', versionName: '1.0', versionCode: 1 },
-      });
+      await uploaded('vn.do.have');
       const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass', 'vn.do.have']);
       assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.do.have'] })).installs, 0);
     });
@@ -306,9 +373,7 @@ describe('the apps on the home screen', () => {
       assert.equal(result.sent, 0);
       assert.match(result.skipped[0].reason, /Chưa cài/);
 
-      await server.prisma.apkPackage.create({
-        data: { fileName: 'owner.apk', storageKey: 'apk/owner.apk', sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName: 'vn.do.owner', versionName: '1.0', versionCode: 1 },
-      });
+      await uploaded('vn.do.owner');
       const notOwner = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass'], { capabilities: ['screen'] });
       result = await apply({ deviceIds: [notOwner.deviceId] }, { add: ['vn.do.owner'] });
       assert.equal(result.installs, 0);
@@ -358,6 +423,183 @@ describe('the apps on the home screen', () => {
       await apply(target, { add: ['vn.do.chrome'] });
       const log = await server.prisma.activityLog.findFirstOrThrow({ where: { action: 'config.changed' }, orderBy: { createdAt: 'desc' } });
       assert.match(log.message, /đã đổi ứng dụng trên màn hình của 1 thiết bị: thêm/);
+    });
+  });
+
+  describe('the command history', () => {
+    it('keeps a line for each tablet, in words, without sending the tablet a command', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass', 'iCLASS'), app('vn.hist.old', 'Cũ')], ['vn.hist.iclass', 'vn.hist.old', 'vn.hist.chrome']);
+      await post(tablet, 'apps', { hash: 'labels', apps: [{ package: 'vn.hist.iclass', label: 'iCLASS', version_code: 1 }, { package: 'vn.hist.old', label: 'Cũ', version_code: 1 }, { package: 'vn.hist.chrome', label: 'Chrome', version_code: 1 }] });
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.chrome'], remove: ['vn.hist.old'] });
+
+      const [line, ...others] = await historyOf(tablet);
+      assert.equal(others.length, 0);
+      assert.equal(line.type, 'home_apps');
+      assert.equal(line.status, 'SENT');
+      assert.deepEqual(line.params, { add: ['Chrome'], remove: ['Cũ'] });
+      assert.equal(line.createdBy, 'admin@test.local');
+
+      const beat = await tablet.heartbeat();
+      assert.equal(beat.data.pending_commands, 0);
+      assert.deepEqual(((await (await tablet.get('commands')).json()) as any).commands, []);
+      assert.deepEqual(await (await tablet.get('updates')).json(), []);
+    });
+
+    it('turns to success once the tablet has confirmed the change', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass', 'vn.hist.chrome']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.chrome'] });
+
+      await tablet.heartbeat(); // receives it
+      assert.equal((await historyOf(tablet))[0].status, 'SENT');
+      await tablet.heartbeat(); // has it
+      const [line] = await historyOf(tablet);
+      assert.equal(line.status, 'SUCCESS');
+      assert.ok(line.completedAt);
+    });
+
+    it('does not count a newer change as confirmed by an older one', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass', 'vn.hist.a', 'vn.hist.b']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.a'] });
+      await tablet.heartbeat(); // receives the first
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.b'] });
+      await tablet.heartbeat(); // receives the second, so nothing is confirmed yet
+      assert.deepEqual((await historyOf(tablet)).map((line) => line.status), ['SENT', 'SENT']);
+      await tablet.heartbeat();
+      assert.deepEqual((await historyOf(tablet)).map((line) => line.status), ['SUCCESS', 'SUCCESS']);
+    });
+
+    it('records why a tablet was skipped', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
+      await apply({ deviceIds: [tablet.deviceId] }, { remove: ['vn.hist.iclass'] });
+      const [line] = await historyOf(tablet);
+      assert.equal(line.status, 'ERROR');
+      assert.match(line.errorMessage, /ít nhất một/);
+
+      const other = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
+      await apply({ deviceIds: [other.deviceId] }, { add: ['vn.hist.nowhere'] });
+      const [refused] = await historyOf(other);
+      assert.equal(refused.status, 'ERROR');
+      assert.match(refused.errorMessage, /chưa có APK/);
+    });
+
+    it('adds nothing when there was nothing to do', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.iclass'] });
+      assert.deepEqual(await historyOf(tablet), []);
+    });
+
+    it('shows the install, then the app joining the screen', async () => {
+      await uploaded('vn.hist.upload', 'Tải lên.apk');
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.upload'] });
+
+      const updates: any = await (await tablet.get('updates')).json();
+      await tablet.sendResult(updates[0].command_id, 'success', {});
+
+      const lines = await historyOf(tablet);
+      assert.deepEqual(lines.map((line) => [line.type, line.status]), [['home_apps', 'SENT'], ['install_apk', 'SUCCESS']]);
+      assert.deepEqual(lines[0].params, { add: ['Tải lên'] });
+      assert.equal(lines[0].createdBy, 'admin@test.local');
+    });
+
+    it('survives a tablet that was away past the expiry, once it comes back', async () => {
+      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass', 'vn.hist.chrome']);
+      await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.hist.chrome'] });
+      await server.prisma.command.updateMany({ where: { deviceId: tablet.deviceId }, data: { status: 'EXPIRED' } });
+      await tablet.heartbeat();
+      await tablet.heartbeat();
+      assert.equal((await historyOf(tablet))[0].status, 'SUCCESS');
+    });
+  });
+
+  describe('an APK that is only a part of an app', () => {
+    // What the real iSMART iPro.apk declares, read from the file
+    const BASE_ONLY = { package: 'vn.split.base', versionName: '1.2.2', requiredSplitTypes: 'base__abi,base__density', splitTypes: '' };
+
+    const placeIncomplete = async (packageName: string) => {
+      const apk = await uploaded(packageName);
+      await writeFile(join(env().dataDir, apk.storageKey), fakeApk({ ...BASE_ONLY, package: packageName }));
+      return apk;
+    };
+
+    it('is told apart from a complete one, in every form the declaration takes', () => {
+      assert.equal(needsOtherParts({ package: 'a.b', requiredSplitTypes: 'base__abi,base__density' }), true);
+      assert.equal(needsOtherParts({ package: 'a.b', split: 'config.arm64_v8a' }), true);
+      assert.equal(needsOtherParts({ package: 'a.b', application: { isSplitRequired: true } }), true);
+      assert.equal(needsOtherParts({ package: 'a.b', application: { metaDatas: [{ name: 'com.android.vending.splits.required', value: true }] } }), true);
+
+      assert.equal(needsOtherParts({ package: 'a.b', splitTypes: '', application: { metaDatas: [{ name: 'other', value: true }] } }), false);
+      assert.equal(needsOtherParts({ package: 'a.b', application: { isSplitRequired: false } }), false);
+      assert.equal(needsOtherParts(null), false);
+    });
+
+    it('is refused at upload, saying what is needed instead', async () => {
+      const uploadId = await uploadInParts(admin, server.base, 'iSMART iPro.apk', fakeApk(BASE_ONLY), 'apk');
+      const response = await admin.request('POST', `/api/admin/apks/finish/${uploadId}`, {});
+      assert.equal(response.status, 400);
+      assert.match(((await response.json()) as any).message, /APK đầy đủ/);
+      assert.equal(await server.prisma.apkPackage.count({ where: { packageName: BASE_ONLY.package } }), 0);
+    });
+
+    it('does not stop a complete one being uploaded', async () => {
+      const uploadId = await uploadInParts(admin, server.base, 'đầy đủ.apk', fakeApk({ package: 'vn.split.full', versionName: '1.0' }), 'apk');
+      const apk = await admin.json('POST', `/api/admin/apks/finish/${uploadId}`, {});
+      assert.equal(apk.packageName, 'vn.split.full');
+      const listed = (await admin.json<any[]>('GET', '/api/admin/apks')).find((row) => row.id === apk.id);
+      assert.equal(listed.incomplete, false);
+    });
+
+    it('is flagged when it is already on the server, and cannot be sent', async () => {
+      const apk = await placeIncomplete('vn.split.old');
+      const listed = (await admin.json<any[]>('GET', '/api/admin/apks')).find((row) => row.id === apk.id);
+      assert.equal(listed.incomplete, true);
+
+      const tablet = await enrolled();
+      const response = await admin.request('POST', `/api/admin/apks/${apk.id}/deploy`, { target: { deviceIds: [tablet.deviceId] } });
+      assert.equal(response.status, 400);
+      assert.equal((await tablet.heartbeat()).data.pending_commands, 0);
+    });
+
+    it('is not installed by the picker, which says why and leaves the screen alone', async () => {
+      await placeIncomplete('vn.split.pick');
+      const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
+      const target = { deviceIds: [tablet.deviceId] };
+
+      const entry = (await preview(target)).apps.find((a: any) => a.packageName === 'vn.split.pick');
+      assert.equal(entry.canInstall, false);
+      assert.equal(entry.apkIncomplete, true);
+
+      const result = await apply(target, { add: ['vn.split.pick'] });
+      assert.equal(result.installs, 0);
+      assert.equal(result.sent, 0);
+      assert.match(result.skipped[0].reason, /APK đầy đủ/);
+      assert.equal((await tablet.heartbeat()).data.config, null);
+      assert.deepEqual(await (await tablet.get('updates')).json(), []);
+      assert.equal((await historyOf(tablet))[0].status, 'ERROR');
+    });
+
+    it('does not hide an older complete upload of the same app', async () => {
+      const complete = await server.prisma.apkPackage.create({
+        data: { fileName: 'cu.apk', storageKey: 'apk/cu-day-du.apk', sizeBytes: 3, sha256Hex: 'ab', checksumBase64: 'q6s', packageName: 'vn.split.both', versionName: '1.0', versionCode: 1 },
+      });
+      await writeFile(join(env().dataDir, complete.storageKey), fakeApk({ package: 'vn.split.both', versionName: '1.0' }));
+      await placeIncomplete('vn.split.both');
+
+      const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
+      assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.split.both'] })).installs, 1);
+      const updates: any = await (await tablet.get('updates')).json();
+      assert.ok(updates[0].download_url.includes(complete.id));
+    });
+
+    it('stays out of the profile of a group when no tablet could take it', async () => {
+      await placeIncomplete('vn.split.group');
+      const profile = await admin.json('POST', '/api/admin/profiles', { name: 'Hồ sơ thiếu phần', config: { general: { displayMode: 'external_app', managedApps: [app('vn.do.iclass')] } } });
+      const group = await admin.json('POST', '/api/admin/groups', { name: 'Nhóm thiếu phần', profileId: profile.id });
+      await tabletWith([app('vn.do.iclass')], ['vn.do.iclass'], { token: { groupId: group.id } });
+
+      await apply({ groupId: group.id }, { add: ['vn.split.group'] });
+      const stored = await server.prisma.configProfile.findUniqueOrThrow({ where: { id: profile.id } });
+      assert.deepEqual((stored.config as any).general.managedApps.map((a: any) => a.packageName), ['vn.do.iclass']);
     });
   });
 

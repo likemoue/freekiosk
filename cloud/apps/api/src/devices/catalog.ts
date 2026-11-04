@@ -51,7 +51,11 @@ export const COMMANDS: Record<string, CommandSpec> = {
   },
 };
 
+/** Not a command the tablet runs: a change of its apps through the configuration, kept for the history */
+export const HOME_APPS_COMMAND = 'home_apps';
+
 export const COMMAND_LABELS: Record<string, string> = {
+  [HOME_APPS_COMMAND]: 'Ứng dụng trên màn hình',
   screen_on: 'Bật màn hình',
   screen_off: 'Tắt màn hình',
   wake: 'Đánh thức',
@@ -75,11 +79,12 @@ export const COMMAND_LABELS: Record<string, string> = {
  * A silent install of an uploaded APK, delivered through GET updates. It lives for a week rather
  * than an hour: a tablet switched off for the weekend still gets it.
  */
-export function installCommandData(deviceId: string, apk: ApkPackage, actor: User): Prisma.CommandCreateManyInput {
+export function installCommandData(deviceId: string, apk: ApkPackage, actor: User, extra: Record<string, unknown> = {}, batchId?: string): Prisma.CommandCreateManyInput {
   return {
     deviceId,
     type: 'install_apk',
-    params: { apk_id: apk.id, file_name: apk.fileName, version: apk.versionName } as Prisma.InputJsonValue,
+    params: { apk_id: apk.id, package_name: apk.packageName, file_name: apk.fileName, version: apk.versionName, ...extra } as Prisma.InputJsonValue,
+    batchId,
     createdById: actor.id,
     createdBy: actor.email,
     expiresAt: new Date(Date.now() + 7 * 86_400_000),

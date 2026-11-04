@@ -64,7 +64,7 @@ Cũng do bản fork này đặt ra, để trang quản lý chọn ứng dụng b
 - Ứng dụng gửi `POST app-icons` với `{ icons: [{ package, png_base64 }] }`, `png_base64` là `null` nếu không đọc được, và làm tiếp theo `icons_wanted` đến khi hết.
 - Nếu đứt giữa chừng, tín hiệu kế tiếp trả `app_icons_wanted` để làm tiếp. Mỗi icon chỉ cần một máy gửi, và chỉ gửi lại khi có `version_code` mới hơn.
 
-Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết lập khác: `general.managedApps` được thay nguyên cả mảng, tính riêng cho từng máy.
+Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết lập khác: `general.managedApps` được thay nguyên cả mảng, tính riêng cho từng máy. Ứng dụng máy chưa có được gửi qua `install_apk` trước, và chỉ vào danh sách sau khi máy báo cài thành công. Lịch sử lệnh ghi các thay đổi này với loại `home_apps`, nhưng thiết bị không nhận loại lệnh đó.
 
 ## Đồng bộ cấu hình
 
