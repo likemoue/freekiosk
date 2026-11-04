@@ -9,46 +9,34 @@ using System.Windows.Forms;
 namespace CaiTablet
 {
     /// <summary>The one screen an operator fills in, once.</summary>
-    sealed class SettingsForm : Form
+    sealed class SettingsForm : ThemedDialog
     {
-        const int ColumnWidth = 400;
-
         readonly TextBox server = new TextBox();
         readonly TextBox token = new TextBox();
-        readonly Label tokenNote = Hint("");
+        readonly Label tokenNote = Theme.Hint("");
         readonly TextBox pin = new TextBox();
         readonly TextBox wifiName = new TextBox();
         readonly TextBox wifiPassword = new TextBox { UseSystemPasswordChar = true };
         readonly CheckBox showPassword = new CheckBox { AutoSize = true, Text = "Hiện mật khẩu" };
-        readonly TextBox backup = new TextBox { ReadOnly = true, Width = ColumnWidth };
+        // A read-only box goes grey by itself: this grey is the page's, so that it matches its frame
+        readonly TextBox backup = new TextBox { ReadOnly = true, BackColor = Theme.Page };
         readonly CheckBox usbOff = new CheckBox { AutoSize = true, Text = "Tắt Gỡ lỗi USB khi cài xong (nên bật)" };
 
+        string backupPath;
         string note;
         string noteForToken;
 
         public Settings Result { get; private set; }
 
         public SettingsForm(Settings current)
+            : base("Thiết lập", "Thiết lập", "Chỉ cần nhập một lần, công cụ nhớ cho các lần mở sau.")
         {
-            Text = "Thiết lập";
-            Font = new Font("Segoe UI", 9.75f);
-            AutoScaleMode = AutoScaleMode.Dpi;
-            AutoScaleDimensions = new SizeF(96f, 96f);
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ShowInTaskbar = false;
-            AutoSize = true;
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            Padding = new Padding(20, 14, 20, 14);
-
             server.Text = current.ServerUrl;
             token.Text = current.Token;
             pin.Text = current.Pin;
             wifiName.Text = current.WifiName;
             wifiPassword.Text = current.WifiPassword;
-            backup.Text = current.BackupPath;
+            ShowBackup(current.BackupPath);
             usbOff.Checked = current.TurnOffUsbDebugging;
             note = current.TokenNote;
             noteForToken = current.Token;
@@ -56,79 +44,78 @@ namespace CaiTablet
             // A code pasted over the one the note is about makes the note wrong
             token.TextChanged += delegate { ShowNote(); };
 
-            var left = Column();
-            Field(left, "Địa chỉ website", server, null);
-            Field(left, "Mã đăng ký", token, "Bấm Lấy từ website để chọn nhóm và hồ sơ ngay tại đây. Hoặc tạo mã trên website (Thêm thiết bị, Tiêu chuẩn), rồi dán mã hoặc cả dòng lệnh ADB vào ô này.");
-            left.Controls.Add(tokenNote);
-            var fromWebsite = new Button { Text = "Lấy từ website…", AutoSize = true, MinimumSize = new Size(140, 30), Margin = new Padding(0, 4, 0, 2) };
+            var fromWebsite = Theme.Secondary("Lấy từ website…");
+            fromWebsite.ForeColor = Theme.Brand;
+            fromWebsite.FlatAppearance.BorderColor = Theme.OnBrandLine;
             fromWebsite.Click += OnFromWebsite;
-            left.Controls.Add(fromWebsite);
-            Field(left, "PIN trên tablet", pin, "4 đến 6 chữ số, dùng để vào Cài đặt của FreeKiosk trên tablet.");
+            tokenNote.ForeColor = Theme.Brand;
 
-            var right = Column();
-            Field(right, "Tên Wi-Fi cho tablet", wifiName, "Nên nhập để công cụ tự nối mạng cho tablet, khỏi phải nối tay trên từng máy.");
-            Field(right, "Mật khẩu Wi-Fi", wifiPassword, null);
-            showPassword.Margin = new Padding(0, 2, 0, 0);
+            TableLayoutPanel website = Theme.Card("Website");
+            website.Controls.Add(Theme.FieldLabel("Địa chỉ website"));
+            website.Controls.Add(Theme.Input(server, Theme.FieldWidth));
+            website.Controls.Add(Theme.FieldLabel("Mã đăng ký"));
+            website.Controls.Add(Theme.InputWithButton(token, fromWebsite, Theme.FieldWidth));
+            website.Controls.Add(Theme.Hint("Bấm Lấy từ website để chọn nhóm và hồ sơ ngay tại đây. Hoặc tạo mã trên website (Thêm thiết bị, Tiêu chuẩn), rồi dán mã hoặc cả dòng lệnh ADB vào ô này."));
+            website.Controls.Add(tokenNote);
+
+            TableLayoutPanel tablet = Theme.Card("Trên tablet");
+            tablet.Controls.Add(Theme.FieldLabel("PIN trên tablet"));
+            tablet.Controls.Add(Theme.Input(pin, Theme.FieldWidth));
+            tablet.Controls.Add(Theme.Hint("4 đến 6 chữ số, dùng để vào Cài đặt của FreeKiosk trên tablet."));
+            usbOff.Margin = new Padding(0, 12, 0, 0);
+            tablet.Controls.Add(usbOff);
+            tablet.Controls.Add(Theme.Hint("Để không ai cắm cáp vào kiosk được."));
+
+            TableLayoutPanel wifi = Theme.Card("Wi-Fi");
+            wifi.Controls.Add(Theme.FieldLabel("Tên Wi-Fi cho tablet"));
+            wifi.Controls.Add(Theme.Input(wifiName, Theme.FieldWidth));
+            wifi.Controls.Add(Theme.Hint("Nên nhập để công cụ tự nối mạng cho tablet, khỏi phải nối tay trên từng máy."));
+            wifi.Controls.Add(Theme.FieldLabel("Mật khẩu Wi-Fi"));
+            wifi.Controls.Add(Theme.Input(wifiPassword, Theme.FieldWidth, "Để trống nếu mạng không có mật khẩu"));
+            showPassword.Margin = new Padding(0, 6, 0, 0);
             showPassword.CheckedChanged += delegate { wifiPassword.UseSystemPasswordChar = !showPassword.Checked; };
-            right.Controls.Add(showPassword);
-            Field(right, "Tệp cấu hình (không bắt buộc)", backup, "Tệp xuất từ Cài đặt, Nâng cao, Sao lưu và khôi phục trên một tablet đã làm sẵn. Tệp được áp sau khi đăng ký, nên nếu có cả hồ sơ thì các mục trong tệp được ưu tiên.");
-            var pick = new Button { Text = "Chọn tệp…", AutoSize = true, MinimumSize = new Size(96, 30), Margin = new Padding(0, 4, 8, 2) };
-            var clear = new Button { Text = "Bỏ chọn", AutoSize = true, MinimumSize = new Size(96, 30), Margin = new Padding(0, 4, 0, 2) };
+            wifi.Controls.Add(showPassword);
+
+            var pick = Theme.Secondary("Chọn tệp…");
+            var clear = Theme.Secondary("Bỏ chọn");
             pick.Click += OnPickBackup;
-            clear.Click += delegate { backup.Text = ""; };
-            var backupButtons = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
+            clear.Click += delegate { ShowBackup(""); };
+            pick.Margin = new Padding(0, 8, 8, 0);
+            clear.Margin = new Padding(0, 8, 0, 0);
+            var backupButtons = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0) };
             backupButtons.Controls.Add(pick);
             backupButtons.Controls.Add(clear);
-            right.Controls.Add(backupButtons);
-            usbOff.Margin = new Padding(0, 12, 0, 2);
-            right.Controls.Add(usbOff);
-            right.Controls.Add(Hint("Để không ai cắm cáp vào kiosk được."));
+            Panel backupFrame = Theme.Input(backup, Theme.FieldWidth);
+            backupFrame.Margin = new Padding(0, 10, 0, 0);
 
-            var columns = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0) };
-            left.Margin = new Padding(0, 0, 24, 0);
-            right.Margin = new Padding(0);
-            columns.Controls.Add(left, 0, 0);
-            columns.Controls.Add(right, 1, 0);
+            TableLayoutPanel config = Theme.Card("Tệp cấu hình (không bắt buộc)");
+            config.Controls.Add(backupFrame);
+            config.Controls.Add(backupButtons);
+            config.Controls.Add(Theme.Hint("Tệp xuất từ Cài đặt, Nâng cao, Sao lưu và khôi phục trên một tablet đã làm sẵn. Tệp được áp sau khi đăng ký, nên nếu có cả hồ sơ thì các mục trong tệp được ưu tiên."));
 
-            var save = new Button { Text = "Lưu", AutoSize = true, MinimumSize = new Size(96, 32), DialogResult = DialogResult.None };
-            var cancel = new Button { Text = "Hủy", AutoSize = true, MinimumSize = new Size(96, 32), DialogResult = DialogResult.Cancel };
+            // Column by column, which is also the order Tab goes through the fields
+            var grid = new TableLayoutPanel { ColumnCount = 2, RowCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0) };
+            website.Margin = new Padding(0, 0, 6, 6);
+            tablet.Margin = new Padding(0, 6, 6, 0);
+            wifi.Margin = new Padding(6, 0, 0, 6);
+            config.Margin = new Padding(6, 6, 0, 0);
+            grid.Controls.Add(website, 0, 0);
+            grid.Controls.Add(tablet, 0, 1);
+            grid.Controls.Add(wifi, 1, 0);
+            grid.Controls.Add(config, 1, 1);
+            Content.Controls.Add(grid);
+
+            var save = Theme.Primary("Lưu");
             save.Click += OnSave;
-            var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 12, 0, 0) };
-            buttons.Controls.Add(cancel);
-            buttons.Controls.Add(save);
-
-            var layout = new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Fill };
-            layout.Controls.Add(columns);
-            layout.Controls.Add(Hint2("Mã đăng ký, PIN và mật khẩu Wi-Fi được mã hóa theo tài khoản Windows này, và không nằm trong thư mục công cụ."));
-            layout.Controls.Add(buttons);
-
-            Controls.Add(layout);
-            AcceptButton = save;
-            CancelButton = cancel;
+            Finish(save, Theme.Secondary("Hủy"), "Mã đăng ký, PIN và mật khẩu Wi-Fi được mã hóa theo tài khoản Windows này, và không nằm trong thư mục công cụ.");
         }
 
-        static TableLayoutPanel Column()
+        /// <summary>A read-only box shows no cue, so when empty it says so in the text itself.</summary>
+        void ShowBackup(string path)
         {
-            return new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-        }
-
-        static void Field(TableLayoutPanel column, string label, Control input, string hint)
-        {
-            column.Controls.Add(new Label { Text = label, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.75f), Margin = new Padding(0, 10, 0, 3) });
-            input.Width = ColumnWidth;
-            input.Margin = new Padding(0, 0, 0, 2);
-            column.Controls.Add(input);
-            if (hint != null) column.Controls.Add(Hint(hint));
-        }
-
-        static Label Hint(string text)
-        {
-            return new Label { Text = text, AutoSize = true, MaximumSize = new Size(ColumnWidth, 0), ForeColor = Color.FromArgb(95, 105, 120), Margin = new Padding(0, 0, 0, 2) };
-        }
-
-        static Label Hint2(string text)
-        {
-            return new Label { Text = text, AutoSize = true, ForeColor = Color.FromArgb(95, 105, 120), Margin = new Padding(0, 10, 0, 0) };
+            backupPath = path;
+            backup.Text = path != "" ? path : "Chưa chọn tệp";
+            backup.ForeColor = path != "" ? Theme.Ink : Theme.Soft;
         }
 
         void ShowNote()
@@ -167,7 +154,7 @@ namespace CaiTablet
                     Refuse(problem, backup);
                     return;
                 }
-                backup.Text = dialog.FileName;
+                ShowBackup(dialog.FileName);
             }
         }
 
@@ -251,9 +238,9 @@ namespace CaiTablet
                 return;
             }
 
-            if (backup.Text != "")
+            if (backupPath != "")
             {
-                string problem = CheckBackup(backup.Text);
+                string problem = CheckBackup(backupPath);
                 if (problem != null)
                 {
                     Refuse(problem, backup);
@@ -269,7 +256,7 @@ namespace CaiTablet
                 Pin = newPin,
                 WifiName = ssid,
                 WifiPassword = passphrase,
-                BackupPath = backup.Text,
+                BackupPath = backupPath,
                 TurnOffUsbDebugging = usbOff.Checked,
             };
             Result.Save();

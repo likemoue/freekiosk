@@ -11,10 +11,10 @@ namespace CaiTablet
 {
     sealed class MainForm : Form, IInstallerView
     {
-        static readonly Color Brand = Color.FromArgb(29, 98, 216);
-        static readonly Color Ink = Color.FromArgb(28, 36, 48);
-        static readonly Color Soft = Color.FromArgb(95, 105, 120);
-        static readonly Color Page = Color.FromArgb(246, 247, 249);
+        static readonly Color Brand = Theme.Brand;
+        static readonly Color Ink = Theme.Ink;
+        static readonly Color Soft = Theme.Soft;
+        static readonly Color Page = Theme.Page;
         static readonly string[] Spinner = { "◐", "◓", "◑", "◒" };
         static readonly object LogFileLock = new object();
 
@@ -30,11 +30,12 @@ namespace CaiTablet
             new KeyValuePair<Step, string>(Step.Finish, "Hoàn tất"),
         };
 
-        readonly Label serverLabel = new Label { AutoSize = false, AutoEllipsis = true, Height = 22, ForeColor = Color.FromArgb(214, 228, 255) };
+        readonly Label serverLabel = Theme.BandSubtitle();
         readonly Panel statusBar = new Panel { Dock = DockStyle.Left, Width = 6 };
         readonly Label statusTitle = new Label { AutoSize = false, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Ink };
         readonly Label statusDetail = new Label { Dock = DockStyle.Fill, AutoSize = false, ForeColor = Soft };
-        readonly Button retryButton = new Button { Text = "Thử lại", AutoSize = true, MinimumSize = new Size(96, 30), Visible = false };
+        readonly Button retryButton = Theme.Primary("Thử lại");
+        readonly RowStyle logRow = new RowStyle(SizeType.Absolute, 160);
         readonly Label countLabel = new Label { AutoSize = true, ForeColor = Soft };
         readonly TextBox logBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, BackColor = Color.White, ForeColor = Soft };
         readonly Dictionary<Step, Label> stepIcons = new Dictionary<Step, Label>();
@@ -53,12 +54,13 @@ namespace CaiTablet
 
         public MainForm()
         {
+            SuspendLayout();
             Text = "Cài tablet FreeKiosk qua USB";
-            Font = new Font("Segoe UI", 9.75f);
-            AutoScaleMode = AutoScaleMode.Dpi;
-            AutoScaleDimensions = new SizeF(96f, 96f);
+            Font = Theme.Body;
             ClientSize = new Size(900, 660);
-            MinimumSize = new Size(820, 600);
+            // A bigger window would only spread the rows apart, so its size is fixed
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Page;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); }
@@ -67,6 +69,12 @@ namespace CaiTablet
             BuildLayout();
             statusTitle.Font = new Font("Segoe UI Semibold", 15f);
             logBox.Font = new Font("Consolas", 9f);
+
+            // Last, because scaling applies to what exists at that moment: every size above is in pixels at 100%
+            AutoScaleDimensions = new SizeF(96f, 96f);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ResumeLayout(true);
+            FitScreen();
 
             spinnerTimer.Tick += delegate
             {
@@ -82,12 +90,25 @@ namespace CaiTablet
 
         // ─── Layout ─────────────────────────────────────────────────────────────
 
+        /// <summary>The window cannot be resized, so on a small screen it has to fit by itself. The log gives way first.</summary>
+        void FitScreen()
+        {
+            Rectangle screen = Screen.FromPoint(MousePosition).WorkingArea;
+            int over = Height - screen.Height;
+            if (over > 0)
+            {
+                logRow.Height -= Math.Min(over, logRow.Height / 2);
+                ClientSize = new Size(ClientSize.Width, ClientSize.Height - over);
+            }
+            if (Width > screen.Width) ClientSize = new Size(ClientSize.Width - (Width - screen.Width), ClientSize.Height);
+        }
+
         void BuildLayout()
         {
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(0), Margin = new Padding(0) };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 160));
+            root.RowStyles.Add(logRow);
             root.Controls.Add(BuildHeader(), 0, 0);
             root.Controls.Add(BuildBody(), 0, 1);
             root.Controls.Add(BuildLog(), 0, 2);
@@ -97,13 +118,10 @@ namespace CaiTablet
         Control BuildHeader()
         {
             var header = new Panel { Dock = DockStyle.Fill, BackColor = Brand, Margin = new Padding(0) };
-            var title = new Label { Text = "Cài tablet FreeKiosk qua USB", AutoSize = true, ForeColor = Color.White, Font = new Font("Segoe UI Semibold", 14f), Location = new Point(20, 10) };
-            serverLabel.Location = new Point(21, 41);
-            var settingsButton = new Button { Text = "Thiết lập", AutoSize = true, MinimumSize = new Size(96, 32), FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Brand, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            settingsButton.FlatAppearance.BorderColor = Color.FromArgb(150, 185, 245);
+            var title = Theme.BandTitle("Cài tablet FreeKiosk qua USB");
+            var settingsButton = Theme.BandButton("Thiết lập");
             settingsButton.Click += delegate { OpenSettings(); };
-            var historyButton = new Button { Text = "Lịch sử", AutoSize = true, MinimumSize = new Size(96, 32), FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Brand, Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            historyButton.FlatAppearance.BorderColor = Color.FromArgb(150, 185, 245);
+            var historyButton = Theme.BandButton("Lịch sử");
             historyButton.Click += delegate { OpenHistory(); };
 
             var actions = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Anchor = AnchorStyles.Top | AnchorStyles.Right, BackColor = Brand };
@@ -144,6 +162,7 @@ namespace CaiTablet
             var inner = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 8, 12, 8), BackColor = Color.White };
             var top = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.White };
             retryButton.Dock = DockStyle.Right;
+            retryButton.Visible = false;
             retryButton.Click += delegate
             {
                 if (installer != null) installer.RetryFailed();
