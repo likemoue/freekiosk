@@ -405,6 +405,7 @@ GET /api/camera/photo?camera=front&rotate=90
 - Độ phân giải ảnh được tự động tối ưu (~1.2MP) để truyền qua HTTP nhanh
 - Giá trị chất lượng càng cao thì tệp càng lớn
 - Việc chụp sẽ thất bại khi tính năng phát hiện chuyển động đang dùng camera
+- Vẫn hoạt động khi một ứng dụng khác đang hiển thị hoặc khi màn hình tắt, miễn là REST API đang bật và đã cấp quyền camera: FreeKiosk sẽ chạy một dịch vụ nền cho camera (thông báo im lặng "Camera từ xa sẵn sàng"). Nếu chính ứng dụng đang hiển thị dùng camera thì ứng dụng đó giữ camera và việc chụp sẽ thất bại. **Không có trong bản Play Store**, nơi camera chỉ hoạt động khi FreeKiosk đang hiển thị. **(2.1.0+)**
 
 > 💡 Ảnh chụp từ camera cũng có thể được publish qua MQTT dưới dạng các thực thể `image` / `camera` tự động phát hiện (mỗi camera một thực thể), kèm nút chụp trong Home Assistant — xem [MQTT: Hình ảnh (Ảnh chụp màn hình và camera)](MQTT.md#-hình-ảnh-ảnh-chụp-màn-hình-và-camera).
 

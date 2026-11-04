@@ -3,7 +3,7 @@
  * Material Design tabs with organized sections
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { defaultMediaCacheEnabled, defaultMediaUnattended } from '../../utils/MediaCache';
 import {
   View,
@@ -95,6 +95,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [pinMaxAttempts, setPinMaxAttempts] = useState<number>(5);
   const [pinMaxAttemptsText, setPinMaxAttemptsText] = useState<string>('5');
   const [autoReload, setAutoReload] = useState<boolean>(false);
+  const [hideErrorUrl, setHideErrorUrl] = useState<boolean>(false);
   const [kioskEnabled, setKioskEnabled] = useState<boolean>(false);
   const [autoLaunchEnabled, setAutoLaunchEnabled] = useState<boolean>(false);
   const [screenLockCompatEnabled, setScreenLockCompatEnabled] = useState<boolean>(false);
@@ -147,6 +148,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   // another language as selected for a moment every time this screen opened
   const [language, setLanguage] = useState<SupportedLanguage>(() => resolveSupportedLanguage(i18n.language));
   const [keyboardMode, setKeyboardMode] = useState<string>('default');
+  const [screenOrientation, setScreenOrientation] = useState<string>('auto');
   const [allowPowerButton, setAllowPowerButton] = useState<boolean>(true);
   const [blockFactoryReset, setBlockFactoryReset] = useState<boolean>(false);
   const [allowRemoteScreenshot, setAllowRemoteScreenshot] = useState<boolean>(false);
@@ -164,6 +166,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [urlRotationEnabled, setUrlRotationEnabled] = useState<boolean>(false);
   const [urlRotationList, setUrlRotationList] = useState<string[]>([]);
   const [urlRotationInterval, setUrlRotationInterval] = useState<string>('30');
+  const [urlRotationPauseOnTouch, setUrlRotationPauseOnTouch] = useState<boolean>(false);
+  const [urlRotationResumeDelay, setUrlRotationResumeDelay] = useState<string>('60');
   
   // URL Planner states
   const [urlPlannerEnabled, setUrlPlannerEnabled] = useState<boolean>(false);
@@ -252,6 +256,14 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   
   // Media Player states
   const [mediaPlayerItems, setMediaPlayerItems] = useState<MediaItem[]>([]);
+  // Every copied local file the playlist held during this visit. Those no longer in the
+  // playlist are deleted on Save only, so leaving without saving keeps the saved playlist whole.
+  const seenLocalMediaFiles = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const item of mediaPlayerItems) {
+      if (item.isLocal && item.url.startsWith('file://')) seenLocalMediaFiles.current.add(item.url);
+    }
+  }, [mediaPlayerItems]);
   const [mediaPlayerAutoPlay, setMediaPlayerAutoPlay] = useState<boolean>(true);
   const [mediaPlayerLoop, setMediaPlayerLoop] = useState<boolean>(true);
   const [mediaPlayerShuffle, setMediaPlayerShuffle] = useState<boolean>(false);
@@ -532,6 +544,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     if (hasPinConfigured) setPin('');
 
     setAutoReload(savedAutoReload);
+    setHideErrorUrl(await StorageService.getHideErrorUrl());
     setKioskEnabled(savedKioskEnabled);
     setAutoLaunchEnabled(savedAutoLaunch ?? false);
     setScreenLockCompatEnabled(savedScreenLockCompat ?? false);
@@ -666,6 +679,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setBackButtonMode(savedBackButtonMode);
     setBackButtonTimerDelay(String(savedBackButtonTimerDelay));
     setKeyboardMode(savedKeyboardMode);
+    setScreenOrientation(await StorageService.getScreenOrientation());
     setAllowPowerButton(savedAllowPowerButton);
     setBlockFactoryReset(savedBlockFactoryReset);
     setAllowRemoteScreenshot(savedAllowRemoteScreenshot);
@@ -681,6 +695,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setUrlRotationEnabled(savedUrlRotationEnabled);
     setUrlRotationList(savedUrlRotationList);
     setUrlRotationInterval(String(savedUrlRotationInterval));
+    setUrlRotationPauseOnTouch(await StorageService.getUrlRotationPauseOnTouch());
+    setUrlRotationResumeDelay(String(await StorageService.getUrlRotationResumeDelay()));
     setUrlPlannerEnabled(savedUrlPlannerEnabled);
     setUrlPlannerEvents(savedUrlPlannerEvents);
     setWebViewBackButtonEnabled(savedWebViewBackButtonEnabled);
@@ -1564,6 +1580,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
 
     if (displayMode === 'webview' || displayMode === 'media_player') {
       await StorageService.saveAutoReload(displayMode === 'webview' ? autoReload : false);
+      await StorageService.saveHideErrorUrl(hideErrorUrl);
       await StorageService.saveKioskEnabled(kioskEnabled);
       await StorageService.saveDefaultBrightness(defaultBrightness);
       // #242: also mirror it natively, so the wake paths and a reboot keep it.
@@ -1619,6 +1636,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const timerDelay = parseInt(backButtonTimerDelay, 10);
     await StorageService.saveBackButtonTimerDelay(isNaN(timerDelay) ? 10 : Math.max(1, Math.min(3600, timerDelay)));
     await StorageService.saveKeyboardMode(keyboardMode);
+    await StorageService.saveScreenOrientation(screenOrientation);
     await StorageService.saveWebViewZoomLevel(zoomLevel);
     await StorageService.saveWebViewZoomMode(zoomMode);
     await StorageService.saveDisableUserZoom(disableUserZoom);
@@ -1661,6 +1679,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       await StorageService.saveUrlRotationList(urlRotationList);
       const rotationInterval = parseInt(urlRotationInterval, 10);
       await StorageService.saveUrlRotationInterval(isNaN(rotationInterval) ? 30 : Math.max(5, rotationInterval));
+      await StorageService.saveUrlRotationPauseOnTouch(urlRotationPauseOnTouch);
+      const resumeDelay = parseInt(urlRotationResumeDelay, 10);
+      await StorageService.saveUrlRotationResumeDelay(isNaN(resumeDelay) ? 60 : Math.max(5, resumeDelay));
       
       // Save URL Planner settings
       await StorageService.saveUrlPlannerEnabled(urlPlannerEnabled);
@@ -1714,6 +1735,11 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     // Save Media Player settings
     if (displayMode === 'media_player') {
       await StorageService.saveMediaPlayerItems(mediaPlayerItems);
+      const kept = new Set(mediaPlayerItems.map(i => i.url));
+      for (const fileUrl of seenLocalMediaFiles.current) {
+        if (!kept.has(fileUrl)) FilePickerModule.deleteMediaFile(fileUrl).catch(() => {});
+      }
+      seenLocalMediaFiles.current = new Set([...kept].filter(u => u.startsWith('file://')));
       await StorageService.saveMediaPlayerAutoPlay(mediaPlayerAutoPlay);
       await StorageService.saveMediaPlayerLoop(mediaPlayerLoop);
       await StorageService.saveMediaPlayerShuffle(mediaPlayerShuffle);
@@ -1844,6 +1870,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               setPinMaxAttempts(5);
               setPinMaxAttemptsText('5');
               setAutoReload(false);
+              setHideErrorUrl(false);
               setKioskEnabled(false);
               setAutoLaunchEnabled(false);
               setScreensaverEnabled(false);
@@ -2057,6 +2084,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             }}
             autoReload={autoReload}
             onAutoReloadChange={setAutoReload}
+            hideErrorUrl={hideErrorUrl}
+            onHideErrorUrlChange={setHideErrorUrl}
             pdfViewerEnabled={pdfViewerEnabled}
             onPdfViewerEnabledChange={setPdfViewerEnabled}
             windowPrintEnabled={windowPrintEnabled}
@@ -2081,6 +2110,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onUrlRotationListChange={setUrlRotationList}
             urlRotationInterval={urlRotationInterval}
             onUrlRotationIntervalChange={setUrlRotationInterval}
+            urlRotationPauseOnTouch={urlRotationPauseOnTouch}
+            onUrlRotationPauseOnTouchChange={setUrlRotationPauseOnTouch}
+            urlRotationResumeDelay={urlRotationResumeDelay}
+            onUrlRotationResumeDelayChange={setUrlRotationResumeDelay}
             urlPlannerEnabled={urlPlannerEnabled}
             onUrlPlannerEnabledChange={setUrlPlannerEnabled}
             urlPlannerEvents={urlPlannerEvents}
@@ -2213,6 +2246,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             }}
             keyboardMode={keyboardMode}
             onKeyboardModeChange={setKeyboardMode}
+            screenOrientation={screenOrientation}
+            onScreenOrientationChange={setScreenOrientation}
             zoomLevel={zoomLevel}
             onZoomLevelChange={setZoomLevel}
             zoomMode={zoomMode}

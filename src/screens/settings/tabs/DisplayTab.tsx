@@ -70,6 +70,8 @@ interface DisplayTabProps {
   // Keyboard mode
   keyboardMode: string;
   onKeyboardModeChange: (value: string) => void;
+  screenOrientation: string;
+  onScreenOrientationChange: (value: string) => void;
   
   // WebView Zoom Level
   zoomLevel: number;
@@ -179,6 +181,8 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
   onStatusBarThemeChange,
   keyboardMode,
   onKeyboardModeChange,
+  screenOrientation,
+  onScreenOrientationChange,
   zoomLevel,
   onZoomLevelChange,
   zoomMode,
@@ -1047,6 +1051,24 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
         </SettingsSection>
       )}
 
+      {/* Screen Orientation (#189): FreeKiosk's own screen; an external app sets its own */}
+      {!Platform.isTV && displayMode !== 'external_app' && (
+        <SettingsSection title={t('display.orientation.title')} icon="screen-rotation">
+          <SettingsRadioGroup
+            hint={t('display.orientation.hint')}
+            options={[
+              { value: 'auto', label: t('display.orientation.auto') },
+              { value: 'portrait', label: t('display.orientation.portrait') },
+              { value: 'landscape', label: t('display.orientation.landscape') },
+              { value: 'reverse_portrait', label: t('display.orientation.reversePortrait') },
+              { value: 'reverse_landscape', label: t('display.orientation.reverseLandscape') },
+            ]}
+            value={screenOrientation}
+            onValueChange={onScreenOrientationChange}
+          />
+        </SettingsSection>
+      )}
+
       {/* Keyboard Mode - Only in WebView mode */}
       {displayMode === 'webview' && (
         <SettingsSection title={t('display.keyboard.title')} icon="keyboard-outline">
@@ -1067,6 +1089,11 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
                 value: 'smart',
                 label: t('display.keyboard.smart'),
                 hint: t('display.keyboard.smartHint'),
+              },
+              {
+                value: 'none',
+                label: t('display.keyboard.none'),
+                hint: t('display.keyboard.noneHint'),
               },
             ]}
             value={keyboardMode}

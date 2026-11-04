@@ -13,7 +13,7 @@ import MotionDetector from '../components/MotionDetector';
 import ProximityDetectionModule, { onProximityNear as onProximityNearEvent } from '../utils/ProximityDetectionModule';
 import ExternalAppOverlay from '../components/ExternalAppOverlay';
 import { StorageService, toPrintOrigins } from '../utils/storage';
-import { saveSecurePin, saveSecureMqttPassword, getSecureBasicAuthPassword } from '../utils/secureStorage';
+import { saveSecurePin, saveSecureMqttPassword, saveSecureApiKey, getSecureBasicAuthPassword } from '../utils/secureStorage';
 import KioskModule from '../utils/KioskModule';
 import AppLauncherModule from '../utils/AppLauncherModule';
 import { applyProvisioningBackup } from '../utils/BackupService';
@@ -58,6 +58,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const isFocused = useIsFocused();
   const [url, setUrl] = useState<string>('');
   const [autoReload, setAutoReload] = useState<boolean>(false);
+  const [hideErrorUrl, setHideErrorUrl] = useState<boolean>(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] = useState<boolean>(true);
   const [screensaverEnabled, setScreensaverEnabled] = useState(false);
@@ -159,7 +160,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   
   const [urlRotationInterval, setUrlRotationInterval] = useState<number>(30000);
   const [currentUrlIndex, setCurrentUrlIndex] = useState<number>(0);
-  const urlRotationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const urlRotationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // #235: hold the rotation while someone touches the page. Its own signal, not the inactivity
+  // one: markUserInteraction() also fires on every navigation, rotation changes included.
+  const [urlRotationPauseOnTouch, setUrlRotationPauseOnTouch] = useState<boolean>(false);
+  const [urlRotationResumeDelay, setUrlRotationResumeDelay] = useState<number>(60000);
+  const lastPageTouchRef = useRef<number>(0);
   
   // URL Planner states
   const [urlPlannerEnabled, setUrlPlannerEnabled] = useState<boolean>(false);
@@ -1362,7 +1368,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   useEffect(() => {
     // Clear any existing rotation timer
     if (urlRotationTimerRef.current) {
-      clearInterval(urlRotationTimerRef.current);
+      clearTimeout(urlRotationTimerRef.current);
       urlRotationTimerRef.current = null;
     }
     
@@ -1381,23 +1387,36 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         setUrl(urlRotationList[0]);
       }
       
-      // Start rotation timer
-      urlRotationTimerRef.current = setInterval(() => {
+      // A chain of timeouts rather than an interval: a tick that lands while someone is using
+      // the page waits until the resume delay has passed, then a full interval (#235).
+      const schedule = (delay: number) => {
+        urlRotationTimerRef.current = setTimeout(tick, delay);
+      };
+      const tick = () => {
+        if (urlRotationPauseOnTouch) {
+          const sinceTouch = Date.now() - lastPageTouchRef.current;
+          if (sinceTouch < urlRotationResumeDelay) {
+            schedule(urlRotationResumeDelay - sinceTouch + urlRotationInterval);
+            return;
+          }
+        }
         setCurrentUrlIndex(prevIndex => {
           const nextIndex = (prevIndex + 1) % urlRotationList.length;
           setUrl(urlRotationList[nextIndex]);
           return nextIndex;
         });
-      }, urlRotationInterval);
+        schedule(urlRotationInterval);
+      };
+      schedule(urlRotationInterval);
     }
-    
+
     return () => {
       if (urlRotationTimerRef.current) {
-        clearInterval(urlRotationTimerRef.current);
+        clearTimeout(urlRotationTimerRef.current);
         urlRotationTimerRef.current = null;
       }
     };
-  }, [displayMode, urlRotationEnabled, dashboardModeEnabled, urlRotationList, urlRotationInterval, activeScheduledEvent]);
+  }, [displayMode, urlRotationEnabled, dashboardModeEnabled, urlRotationList, urlRotationInterval, activeScheduledEvent, urlRotationPauseOnTouch, urlRotationResumeDelay]);
 
   // URL Planner effect - checks every minute for scheduled events
   useEffect(() => {
@@ -1767,6 +1786,16 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                 failedSecrets.push('PIN');
                 console.error('[KioskScreen] PIN could NOT be saved to secure storage (see #258)');
               }
+            } else if (key === '@kiosk_rest_api_key') {
+              // REST API key goes to the Keychain too (#325). Written to AsyncStorage it was
+              // read only while the Keychain held no key, so an ADB rotation was ignored and
+              // the new key stayed in plain text. saveSecureApiKey also clears that legacy copy.
+              if (await saveSecureApiKey(value)) {
+                console.log('[KioskScreen] REST API key saved to secure Keychain via pending ADB config');
+              } else {
+                failedSecrets.push('REST API key');
+                console.error('[KioskScreen] REST API key could NOT be saved to secure storage (see #258)');
+              }
             } else if (key === '@mqtt_password_pending') {
               // MQTT password must be saved to Keychain (not AsyncStorage)
               if (await saveSecureMqttPassword(value)) {
@@ -1885,6 +1914,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       if (savedUrl) setUrl(savedUrl);
       setAutoReload(savedAutoReload);
+      setHideErrorUrl(bool(K.HIDE_ERROR_URL, false));
       setPauseWebMediaWhenHidden(savedPauseWebMediaWhenHidden);
       // #205 — re-apply the opt-in 2-way audio (intercom) mode on each kiosk launch: the
       // native AudioRecordingCallback registration doesn't survive an app restart. No-op when off.
@@ -1941,6 +1971,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setBackButtonMode(savedBackButtonMode);
       setBackButtonTimerDelay(savedBackButtonTimerDelay);
       setKeyboardMode(savedKeyboardMode);
+      // #189: not on a TV or behind an external app, where the setting is not offered.
+      NativeModules.RotationControlModule?.setAppOrientation?.(
+        savedDisplayMode === 'external_app' ? 'auto' : (str(K.SCREEN_ORIENTATION) ?? 'auto')
+      )?.catch?.(() => {});
       setAllowPowerButton(savedAllowPowerButton);
       setAllowNotifications(savedAllowNotifications);
 
@@ -1986,6 +2020,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setUrlRotationEnabled(savedUrlRotationEnabled);
       setUrlRotationList(savedUrlRotationList);
       setUrlRotationInterval(savedUrlRotationInterval * 1000); // Convert seconds to ms
+      setUrlRotationPauseOnTouch(bool(K.URL_ROTATION_PAUSE_ON_TOUCH, false));
+      setUrlRotationResumeDelay(Math.max(5, num(K.URL_ROTATION_RESUME_DELAY, 60)) * 1000);
       
       // Load URL Planner settings
       const savedUrlPlannerEnabled = bool(K.URL_PLANNER_ENABLED, false);
@@ -3087,6 +3123,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               key={webViewKey}
               url={url}
               autoReload={autoReload}
+              hideErrorUrl={hideErrorUrl}
+              reportPageTouches={urlRotationEnabled && urlRotationPauseOnTouch}
+              onPageTouch={() => { lastPageTouchRef.current = Date.now(); }}
               keyboardMode={keyboardMode}
               onUserInteraction={onUserInteraction}
               jsToExecute={jsToExecute}

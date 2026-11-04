@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- CameraForegroundService: remote camera behind another app. Stripped from Play Store builds. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -36,6 +38,8 @@
          Removed entirely in Play Store builds via src/playstore overlay (tools:node="remove"). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- navigator.vibrate() in web pages (#194): a normal permission, granted at install -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Exact alarm for the screen schedule's wake (#307). USE_EXACT_ALARM (Android 13+) is granted
          at install and cannot be revoked; SCHEDULE_EXACT_ALARM covers Android 12, where it is granted
@@ -114,8 +118,18 @@
       android:theme="@style/AppTheme"
       android:supportsRtl="true"
       android:networkSecurityConfig="@xml/network_security_config"
-      android:usesCleartextTraffic="true"
-      android:enableOnBackInvokedCallback="true">
+      android:usesCleartextTraffic="true">
+      <!-- #189: Android 16 ignores an app's requested orientation (and resizeableActivity) on
+           screens of 600 dp and more for apps targeting API 36; this documented, temporary
+           opt-out keeps the Screen Orientation setting working on those tablets. -->
+      <property
+        android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+        android:value="true" />
+      <!-- No android:enableOnBackInvokedCallback here (#221, #324). Set to true, Android 13 to 15
+           send Back to a callback nobody registers below Android 16 (React Native only adds its own
+           there), so the system finished the activity: Back left the kiosk and the page reloaded.
+           Left out, those versions call onBackPressed() as before, and Android 16 uses React
+           Native's callback either way. -->
       
       <!-- HomeActivity - Transparent launcher pour External App Mode -->
       <activity
@@ -274,6 +288,20 @@
         <property
           android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
           android:value="kiosk_watchdog"/>
+      </service>
+
+      <!-- Lets the REST API and MQTT use the camera while another app is in front (Android 11+
+           grants the camera in the background only to a camera-type foreground service).
+           specialUse is its fallback when the camera type is refused. Stripped from Play
+           Store builds. -->
+      <service
+        android:name=".CameraForegroundService"
+        android:enabled="true"
+        android:exported="false"
+        android:foregroundServiceType="camera|specialUse">
+        <property
+          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="remote_camera"/>
       </service>
 
       <!-- Runs one cloud heartbeat while backgrounded: React Native stops dispatching JS

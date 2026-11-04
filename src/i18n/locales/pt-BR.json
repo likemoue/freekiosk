@@ -36,7 +36,12 @@
       "durationLabel": "Duração de exibição (segundos)",
       "durationHint": "Deixe em branco para usar a duração padrão",
       "addUrlEntry": "Adicionar URL",
-      "emptyWarning": "Adicione pelo menos uma mídia para usar o player de mídia"
+      "emptyWarning": "Adicione pelo menos uma mídia para usar o player de mídia",
+      "removeAll": "Remover tudo",
+      "removeAllTitle": "Remover todos os itens?",
+      "removeAllMessage": "A playlist será esvaziada. Os arquivos copiados para o dispositivo são excluídos ao salvar.",
+      "removeAllCancel": "Cancelar",
+      "removeAllConfirm": "Remover tudo"
     },
     "playback": {
       "cache": "Reproduzir do dispositivo (cache offline)",
@@ -100,6 +105,10 @@
       "enableHint": "Alternar automaticamente entre várias URLs",
       "interval": "Intervalo de rotação (segundos)",
       "intervalHint": "Tempo entre cada troca de URL (mínimo de 5 segundos)",
+      "pauseOnTouch": "Pausar enquanto alguém usa a página",
+      "pauseOnTouchHint": "Segura a rotação enquanto a página é tocada ou recebe digitação",
+      "resumeDelay": "Retomar após (segundos)",
+      "resumeDelayHint": "Segundos sem toque antes de a rotação continuar (mínimo 5)",
       "needTwoUrls": "Adicione pelo menos 2 URLs para ativar a rotação"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Recarregamento automático",
       "reloadOnError": "Recarregar em caso de erro",
-      "reloadOnErrorHint": "Recarregar a página automaticamente quando houver erro de rede"
+      "reloadOnErrorHint": "Recarregar a página automaticamente quando houver erro de rede",
+      "hideUrl": "Ocultar a URL na tela de erro",
+      "hideUrlHint": "Mostra apenas a mensagem de erro quando uma página não carrega, sem o endereço"
     },
     "pdfViewer": {
       "title": "Visualizador de PDF",
@@ -409,6 +420,15 @@
       "intercom": "Modo de áudio bidirecional (interfone)",
       "intercomHint": "Ative para áudio bidirecional / talk-back via WebRTC (ex.: um card de interfone de campainha do Home Assistant / go2rtc). Enquanto a página web estiver usando o microfone, o FreeKiosk coloca o dispositivo no modo de áudio de comunicação para que o canal de retorno do microfone transmita, e depois restaura o áudio normal quando você parar de falar. Deixe desativado para a navegação normal — ele só entra em ação enquanto o microfone está em uso."
     },
+    "orientation": {
+      "title": "Orientação da tela",
+      "hint": "Trava a tela do FreeKiosk em uma orientação ou segue o dispositivo. Não se aplica a um app externo.",
+      "auto": "Seguir o dispositivo",
+      "portrait": "Retrato",
+      "landscape": "Paisagem",
+      "reversePortrait": "Retrato (invertido)",
+      "reverseLandscape": "Paisagem (invertida)"
+    },
     "keyboard": {
       "title": "Modo do teclado",
       "hint": "Controlar qual teclado aparece nos campos de entrada",
@@ -417,7 +437,9 @@
       "forceNumeric": "Forçar numérico",
       "forceNumericHint": "Todos os campos mostram o teclado numérico",
       "smart": "Detecção inteligente",
-      "smartHint": "Detectar e converter apenas os campos numéricos"
+      "smartHint": "Detectar e converter apenas os campos numéricos",
+      "none": "Sem teclado na tela",
+      "noneHint": "Nunca mostrar o teclado; um leitor de código de barras continua digitando nos campos"
     }
   },
   "security": {

@@ -229,7 +229,8 @@ Mọi khóa bên dưới đều được chuyển thẳng (passthrough): giá tr
 | `--ez overlay_button_visible true` | Hiện nút quay lại nổi ở chế độ Ứng dụng ngoài |
 | `--es overlay_button_position "bottom-right"` | Góc đặt nút đó |
 | `--ei pin_max_attempts 5` | Số lần nhập sai PIN trước khi bị khóa |
-| `--es keyboard_mode "default"` | Bàn phím trên màn hình: `default`, `force_numeric` hoặc `smart` |
+| `--es screen_orientation "landscape"` | Hướng màn hình của FreeKiosk: `auto` (theo thiết bị), `portrait`, `landscape`, `reverse_portrait` hoặc `reverse_landscape`. Không áp dụng cho ứng dụng bên ngoài |
+| `--es keyboard_mode "default"` | Bàn phím trên màn hình: `default`, `force_numeric`, `smart` hoặc `none` (không có bàn phím trên màn hình; máy quét vẫn nhập được vào các ô) |
 
 **Khóa chặt**
 
@@ -247,7 +248,8 @@ Mọi khóa bên dưới đều được chuyển thẳng (passthrough): giá tr
 
 | Tham số | Mô tả |
 |-----------|-------------|
-| `--ez auto_reload true` | Tải lại trang định kỳ |
+| `--ez auto_reload true` | Tải lại trang sau khi gặp lỗi tải trang |
+| `--ez hide_error_url true` | Không hiện URL trên màn hình lỗi tải trang |
 | `--ez pdf_viewer_enabled true` | Mở PDF trong trình xem tích hợp sẵn. **Đây cũng là cài đặt cho phép dùng URL `file://`**: nếu không bật, WebView sẽ từ chối tải tệp cục bộ, bất kể nhãn của cài đặt ghi gì (xem [Câu hỏi thường gặp](faq.md)) |
 | `--ez disable_overscroll true` | Bỏ hiệu ứng giãn đàn hồi ở đầu và cuối trang. Mặc định tắt (hành vi chuẩn của Android) |
 | `--ez session_reset_button_enabled true` | Hiện một nút nhỏ ở góc dưới bên trái, dùng để xóa cookie, bộ nhớ đệm và bộ nhớ lưu trữ web sau khi xác nhận, rồi quay về URL bắt đầu. Dành cho máy tính bảng dùng chung. Mặc định tắt |
@@ -264,6 +266,8 @@ Mọi khóa bên dưới đều được chuyển thẳng (passthrough): giá tr
 | `--ez url_rotation_enabled true` | Xoay vòng qua một danh sách URL |
 | `--es url_rotation_list '["https://a","https://b"]'` | Danh sách, dưới dạng mảng JSON |
 | `--es url_rotation_interval "30"` | Số giây giữa các lần chuyển, tối thiểu 5 |
+| `--ez url_rotation_pause_on_touch true` | Giữ nguyên trang trong lúc có người chạm vào trang hoặc nhập liệu |
+| `--es url_rotation_resume_delay "60"` | Số giây không có thao tác chạm trước khi xoay vòng tiếp tục, tối thiểu 5 |
 | `--ez url_planner_enabled true` | Lập lịch URL theo ngày và giờ |
 | `--es url_planner_events '[...]'` | Các sự kiện lập lịch URL, dưới dạng mảng JSON |
 

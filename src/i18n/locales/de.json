@@ -36,7 +36,12 @@
       "durationLabel": "Anzeigedauer (Sekunden)",
       "durationHint": "Leer lassen, um die Standarddauer zu verwenden",
       "addUrlEntry": "URL hinzufügen",
-      "emptyWarning": "Füge mindestens ein Medium hinzu, um den Mediaplayer zu verwenden"
+      "emptyWarning": "Füge mindestens ein Medium hinzu, um den Mediaplayer zu verwenden",
+      "removeAll": "Alle entfernen",
+      "removeAllTitle": "Alle Elemente entfernen?",
+      "removeAllMessage": "Die Playlist wird geleert. Auf das Gerät kopierte Dateien werden beim Speichern gelöscht.",
+      "removeAllCancel": "Abbrechen",
+      "removeAllConfirm": "Alle entfernen"
     },
     "playback": {
       "cache": "Vom Gerät abspielen (Offline-Cache)",
@@ -100,6 +105,10 @@
       "enableHint": "Automatisch durch mehrere URLs wechseln",
       "interval": "Rotationsintervall (Sekunden)",
       "intervalHint": "Zeit zwischen den URL-Wechseln (mindestens 5 Sekunden)",
+      "pauseOnTouch": "Pausieren, während jemand die Seite nutzt",
+      "pauseOnTouchHint": "Hält die Rotation an, solange die Seite berührt oder darin getippt wird",
+      "resumeDelay": "Fortsetzen nach (Sekunden)",
+      "resumeDelayHint": "Sekunden ohne Berührung, bevor die Rotation weiterläuft (mindestens 5)",
       "needTwoUrls": "Füge mindestens 2 URLs hinzu, um die Rotation zu aktivieren"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Automatisches Neuladen",
       "reloadOnError": "Bei Fehler neu laden",
-      "reloadOnErrorHint": "Die Seite bei einem Netzwerkfehler automatisch neu laden"
+      "reloadOnErrorHint": "Die Seite bei einem Netzwerkfehler automatisch neu laden",
+      "hideUrl": "URL auf dem Fehlerbildschirm ausblenden",
+      "hideUrlHint": "Zeigt nur die Fehlermeldung an, wenn eine Seite nicht lädt, nicht ihre Adresse"
     },
     "pdfViewer": {
       "title": "PDF-Viewer",
@@ -409,6 +420,15 @@
       "intercom": "Modus für bidirektionales Audio (Gegensprechanlage)",
       "intercomHint": "Aktiviere dies für bidirektionales WebRTC-Audio / Rückkanal (z. B. eine Gegensprechanlagen-Karte einer Home-Assistant-/go2rtc-Türklingel). Solange die Webseite aktiv das Mikrofon nutzt, schaltet FreeKiosk das Gerät in den Kommunikations-Audiomodus, damit der Mikrofon-Rückkanal sendet, und stellt das normale Audio wieder her, wenn du aufhörst zu sprechen. Für normales Surfen deaktiviert lassen: Er greift nur, solange das Mikrofon genutzt wird."
     },
+    "orientation": {
+      "title": "Bildschirmausrichtung",
+      "hint": "Sperrt den Bildschirm von FreeKiosk in einer Ausrichtung oder folgt dem Gerät. Gilt nicht für eine externe App.",
+      "auto": "Dem Gerät folgen",
+      "portrait": "Hochformat",
+      "landscape": "Querformat",
+      "reversePortrait": "Hochformat (umgedreht)",
+      "reverseLandscape": "Querformat (umgedreht)"
+    },
     "keyboard": {
       "title": "Tastaturmodus",
       "hint": "Steuert, welche Tastatur für Eingabefelder erscheint",
@@ -417,7 +437,9 @@
       "forceNumeric": "Numerisch erzwingen",
       "forceNumericHint": "Alle Felder zeigen die numerische Tastatur",
       "smart": "Intelligente Erkennung",
-      "smartHint": "Erkennt und konvertiert nur numerische Felder"
+      "smartHint": "Erkennt und konvertiert nur numerische Felder",
+      "none": "Keine Bildschirmtastatur",
+      "noneHint": "Tastatur nie anzeigen; ein Barcodescanner tippt weiterhin in die Felder"
     }
   },
   "security": {

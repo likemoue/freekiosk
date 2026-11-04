@@ -26,7 +26,6 @@ import AppLauncherModule, { AppInfo } from '../../../utils/AppLauncherModule';
 import { ScheduledEvent } from '../../../types/planner';
 import type { MediaItem, MediaFitMode } from '../../../types/mediaPlayer';
 import { generateMediaItemId, detectMediaType, isLocalMedia, getMediaDisplayName } from '../../../types/mediaPlayer';
-import FilePickerModule from '../../../utils/FilePickerModule';
 import { useFilePickerAvailable } from '../../../utils/useFilePickerAvailable';
 import MediaCacheStatus from '../../../components/settings/MediaCacheStatus';
 import SignageManagedNotice from '../../../components/settings/SignageManagedNotice';
@@ -86,6 +85,8 @@ interface GeneralTabProps {
   // Auto reload (webview only)
   autoReload: boolean;
   onAutoReloadChange: (value: boolean) => void;
+  hideErrorUrl: boolean;
+  onHideErrorUrlChange: (value: boolean) => void;
   
   // PDF Viewer (webview only)
   pdfViewerEnabled: boolean;
@@ -116,6 +117,10 @@ interface GeneralTabProps {
   onUrlRotationListChange: (urls: string[]) => void;
   urlRotationInterval: string;
   onUrlRotationIntervalChange: (value: string) => void;
+  urlRotationPauseOnTouch: boolean;
+  onUrlRotationPauseOnTouchChange: (value: boolean) => void;
+  urlRotationResumeDelay: string;
+  onUrlRotationResumeDelayChange: (value: string) => void;
   
   // URL Planner (webview only)
   urlPlannerEnabled: boolean;
@@ -228,6 +233,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onDashboardModeEnabledChange,
   autoReload,
   onAutoReloadChange,
+  hideErrorUrl,
+  onHideErrorUrlChange,
   pdfViewerEnabled,
   onPdfViewerEnabledChange,
   windowPrintEnabled,
@@ -252,6 +259,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onUrlRotationListChange,
   urlRotationInterval,
   onUrlRotationIntervalChange,
+  urlRotationPauseOnTouch,
+  onUrlRotationPauseOnTouchChange,
+  urlRotationResumeDelay,
+  onUrlRotationResumeDelayChange,
   urlPlannerEnabled,
   onUrlPlannerEnabledChange,
   urlPlannerEvents,
@@ -321,16 +332,6 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
 
   return (
     <View>
-      {/* Language / Langue */}
-      <SettingsSection title={t('general.language.title')} icon="translate">
-        <SettingsRadioGroup
-          label={t('general.language.label')}
-          options={[...LANGUAGE_OPTIONS]}
-          value={language}
-          onValueChange={(v) => onLanguageChange(v as SupportedLanguage)}
-        />
-      </SettingsSection>
-
       {/* Display Mode Selection */}
       <SettingsSection title={t('general.displayMode.title')} icon="cellphone">
         <SettingsModeSelector
@@ -445,11 +446,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                   <TouchableOpacity
                     style={styles.mediaItemDeleteBtn}
                     onPress={() => {
-                      const toDelete = mediaPlayerItems.find(i => i.id === item.id);
-                      // If it's a local file, also delete the copied file
-                      if (toDelete?.isLocal && toDelete.url.startsWith('file://')) {
-                        FilePickerModule.deleteMediaFile(toDelete.url).catch(() => {});
-                      }
+                      // The copied file is deleted on Save (SettingsScreenNew), not here: leaving
+                      // without saving used to keep a playlist pointing at a file already gone.
                       const updated = mediaPlayerItems.filter(i => i.id !== item.id);
                       onMediaPlayerItemsChange(updated);
                     }}
@@ -515,6 +513,29 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                 onMediaPlayerItemsChange([...mediaPlayerItems, newItem]);
               }}
             />
+
+            {mediaPlayerItems.length > 1 && (
+              <SettingsButton
+                title={t('general.mediaPlaylist.removeAll')}
+                icon="delete-outline"
+                variant="danger"
+                onPress={() => {
+                  // #269: one confirmation instead of one tap per item.
+                  Alert.alert(
+                    t('general.mediaPlaylist.removeAllTitle'),
+                    t('general.mediaPlaylist.removeAllMessage'),
+                    [
+                      { text: t('general.mediaPlaylist.removeAllCancel'), style: 'cancel' },
+                      {
+                        text: t('general.mediaPlaylist.removeAllConfirm'),
+                        style: 'destructive',
+                        onPress: () => onMediaPlayerItemsChange([]),
+                      },
+                    ],
+                  );
+                }}
+              />
+            )}
 
             {mediaPlayerItems.length === 0 && (
               <SettingsInfoBox variant="warning">
@@ -738,6 +759,23 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                     keyboardType="numeric"
                     hint={t('general.urlRotation.intervalHint')}
                   />
+
+                  <SettingsSwitch
+                    label={t('general.urlRotation.pauseOnTouch')}
+                    hint={t('general.urlRotation.pauseOnTouchHint')}
+                    value={urlRotationPauseOnTouch}
+                    onValueChange={onUrlRotationPauseOnTouchChange}
+                  />
+                  {urlRotationPauseOnTouch && (
+                    <SettingsInput
+                      label={t('general.urlRotation.resumeDelay')}
+                      value={urlRotationResumeDelay}
+                      onChangeText={onUrlRotationResumeDelayChange}
+                      placeholder="60"
+                      keyboardType="numeric"
+                      hint={t('general.urlRotation.resumeDelayHint')}
+                    />
+                  )}
 
                   {urlRotationList.length < 2 && (
                     <SettingsInfoBox variant="warning">
@@ -1018,6 +1056,12 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             value={autoReload}
             onValueChange={onAutoReloadChange}
           />
+          <SettingsSwitch
+            label={t('general.autoReload.hideUrl')}
+            hint={t('general.autoReload.hideUrlHint')}
+            value={hideErrorUrl}
+            onValueChange={onHideErrorUrlChange}
+          />
         </SettingsSection>
       )}
 
@@ -1225,6 +1269,16 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           />
         </SettingsSection>
       )}
+
+      {/* Language, last (#305): set once, and seven options pushed Display Mode below the fold */}
+      <SettingsSection title={t('general.language.title')} icon="translate">
+        <SettingsRadioGroup
+          label={t('general.language.label')}
+          options={[...LANGUAGE_OPTIONS]}
+          value={language}
+          onValueChange={(v) => onLanguageChange(v as SupportedLanguage)}
+        />
+      </SettingsSection>
 
       {/* Back to Kiosk Button */}
       <SettingsButton

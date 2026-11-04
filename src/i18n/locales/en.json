@@ -36,7 +36,12 @@
       "durationLabel": "Display Duration (seconds)",
       "durationHint": "Leave empty to use default duration",
       "addUrlEntry": "Add URL Entry",
-      "emptyWarning": "Add at least one media item to use the Media Player"
+      "emptyWarning": "Add at least one media item to use the Media Player",
+      "removeAll": "Remove all",
+      "removeAllTitle": "Remove every item?",
+      "removeAllMessage": "This empties the playlist. Files copied to the device are deleted when you save.",
+      "removeAllCancel": "Cancel",
+      "removeAllConfirm": "Remove all"
     },
     "playback": {
       "cache": "Play from the device (offline cache)",
@@ -100,6 +105,10 @@
       "enableHint": "Automatically cycle through multiple URLs",
       "interval": "Rotation Interval (seconds)",
       "intervalHint": "Time between each URL change (minimum 5 seconds)",
+      "pauseOnTouch": "Pause while someone uses the page",
+      "pauseOnTouchHint": "Hold the rotation while the page is being touched or typed into",
+      "resumeDelay": "Resume after (seconds)",
+      "resumeDelayHint": "Seconds without a touch before the rotation goes on (minimum 5)",
       "needTwoUrls": "Add at least 2 URLs to enable rotation"
     },
     "urlPlanner": {
@@ -175,7 +184,9 @@
     "autoReload": {
       "title": "Auto Reload",
       "reloadOnError": "Reload on Error",
-      "reloadOnErrorHint": "Automatically reload the page on network error"
+      "reloadOnErrorHint": "Automatically reload the page on network error",
+      "hideUrl": "Hide the URL on the error screen",
+      "hideUrlHint": "Show only the error message when a page fails to load, not its address"
     },
     "pdfViewer": {
       "title": "PDF Viewer",
@@ -409,6 +420,15 @@
       "intercom": "2-way audio (intercom) mode",
       "intercomHint": "Enable for WebRTC 2-way audio / talk-back (e.g. a Home Assistant / go2rtc doorbell intercom card). While the web page is actively using the microphone, FreeKiosk switches the device to communication audio mode so the microphone back-channel transmits, then restores normal audio when you stop talking. Leave off for normal browsing — it only engages while the mic is in use."
     },
+    "orientation": {
+      "title": "Screen Orientation",
+      "hint": "Lock FreeKiosk's screen to one orientation, or follow the device. Not applied to an external app.",
+      "auto": "Follow the device",
+      "portrait": "Portrait",
+      "landscape": "Landscape",
+      "reversePortrait": "Portrait (upside down)",
+      "reverseLandscape": "Landscape (reversed)"
+    },
     "keyboard": {
       "title": "Keyboard Mode",
       "hint": "Control which keyboard appears for input fields",
@@ -417,7 +437,9 @@
       "forceNumeric": "Force Numeric",
       "forceNumericHint": "All fields show numeric keyboard",
       "smart": "Smart Detection",
-      "smartHint": "Detect and convert numeric fields only"
+      "smartHint": "Detect and convert numeric fields only",
+      "none": "No On-Screen Keyboard",
+      "noneHint": "Never show the keyboard; a barcode scanner still types into the fields"
     }
   },
   "security": {
