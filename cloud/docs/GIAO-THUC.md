@@ -13,6 +13,8 @@ Mọi lời gọi trừ đăng ký đều gửi `Authorization: Bearer <api_key>
 | `GET /api/v1/devices/{id}/commands/` | Khi `pending_commands > 0` | `CloudCommandService.pollCommands` |
 | `GET /api/v1/devices/{id}/updates/` | Khi `pending_commands > 0` | `CloudCommandService.pollUpdates` |
 | `GET /api/v1/devices/{id}/app-update/` | Nhấn **Kiểm tra cập nhật** trong ứng dụng | `AppUpdateCheck.findLatestUpdate` |
+| `POST /api/v1/devices/{id}/apps/` | Khi tín hiệu trả `installed_apps_wanted` | `InstalledAppsReport.answer` |
+| `POST /api/v1/devices/{id}/app-icons/` | Khi máy chủ còn thiếu icon | `InstalledAppsReport.answer` |
 | `POST /api/v1/commands/{id}/result/` | Báo kết quả lệnh | `CloudCommandService.postResult` |
 | `POST /api/v1/devices/{id}/screenshot/` | Lệnh chụp màn hình, multipart | `CloudCommandService.captureAndUploadScreenshot` |
 | `GET /api/v1/devices/{id}/playlist/` | Khi `playlist_version` đổi | `SignagePlaylist.sync` |
@@ -41,7 +43,9 @@ Máy chủ trả:
   "config_version": 3,
   "force_unenroll": false,
   "playlist_version": null,
-  "device_name": "samsung SM-X210"
+  "device_name": "samsung SM-X210",
+  "installed_apps_wanted": false,
+  "app_icons_wanted": []
 }
 ```
 
@@ -50,6 +54,17 @@ Không có khóa `battery` nghĩa là TV hoặc hộp không có pin. Ứng dụ
 `device_name` do bản fork này đặt ra: là tên máy trên trang quản lý, ứng dụng hiện thay cho chữ FreeKiosk ở màn hình chính
 (`DeviceDisplayName.ts`). Tên chỉ thuộc về một máy nên không nằm trong `config`: hồ sơ lấy từ máy này không đổi tên máy khác.
 Máy chủ không gửi khóa này thì ứng dụng giữ nguyên.
+
+## Ứng dụng trên máy
+
+Cũng do bản fork này đặt ra, để trang quản lý chọn ứng dụng bằng tên và icon thay vì tên gói (`InstalledAppsReport.ts`).
+
+- Tín hiệu định kỳ gửi `installed_apps_hash`. Mã này khác với mã máy chủ đang giữ thì câu trả lời có `installed_apps_wanted: true`.
+- Ứng dụng gửi `POST apps` với `{ hash, apps: [{ package, label, version_code }] }`. Câu trả lời `{ icons_wanted: [...] }` là tối đa 8 gói còn thiếu icon.
+- Ứng dụng gửi `POST app-icons` với `{ icons: [{ package, png_base64 }] }`, `png_base64` là `null` nếu không đọc được, và làm tiếp theo `icons_wanted` đến khi hết.
+- Nếu đứt giữa chừng, tín hiệu kế tiếp trả `app_icons_wanted` để làm tiếp. Mỗi icon chỉ cần một máy gửi, và chỉ gửi lại khi có `version_code` mới hơn.
+
+Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết lập khác: `general.managedApps` được thay nguyên cả mảng, tính riêng cho từng máy.
 
 ## Đồng bộ cấu hình
 

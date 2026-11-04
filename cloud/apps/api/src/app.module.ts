@@ -13,6 +13,8 @@ import { CommandsService } from './devices/commands.service';
 import { ConfigSyncService } from './devices/config-sync.service';
 import { CommandsController, ConfigController, DevicesController, ScreenshotsController } from './devices/devices.controller';
 import { DevicesService } from './devices/devices.service';
+import { HomeAppsController } from './devices/home-apps.controller';
+import { HomeAppsService } from './devices/home-apps.service';
 import { ApksController, MediaController, UploadsController } from './files/files.controller';
 import { UploadsService } from './files/uploads.service';
 import { EnrollmentController, GroupsController, ProfilesController } from './fleet/fleet.controller';
@@ -30,6 +32,7 @@ import { SignageService } from './signage/signage.service';
     DevicesController,
     ConfigController,
     CommandsController,
+    HomeAppsController,
     ScreenshotsController,
     GroupsController,
     ProfilesController,
@@ -47,6 +50,7 @@ import { SignageService } from './signage/signage.service';
     DevicesService,
     CommandsService,
     ConfigSyncService,
+    HomeAppsService,
     SignageService,
     AlertsService,
     NotifierService,

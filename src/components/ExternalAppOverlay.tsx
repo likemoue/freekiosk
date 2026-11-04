@@ -153,6 +153,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   // Only show multi-app grid when explicitly in multi mode
   const homeScreenApps = externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [];
   const isMultiAppMode = externalAppMode === 'multi' && homeScreenApps.length > 0;
+  const homeScreenPackages = homeScreenApps.map(app => app.packageName).join(',');
   
   // Resolve app labels and icons for display
   useEffect(() => {
@@ -180,7 +181,10 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
       setAppIcons(icons);
     };
     resolveLabelsAndIcons();
-  }, [homeScreenApps.length, externalAppPackage]);
+    // By package, not by count: the website can swap one app for another in a single change. And
+    // again on coming back from an app: one pushed from the website may have finished installing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeScreenPackages, externalAppPackage, isAppLaunched]);
 
   const handleAppPress = (packageName: string) => {
     if (onLaunchApp) {

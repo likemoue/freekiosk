@@ -3,6 +3,8 @@ import { NativeModules, NativeEventEmitter } from 'react-native';
 export interface AppInfo {
   packageName: string;
   appName: string;
+  /** From getInstalledApps, for the report to the management website */
+  versionCode?: number;
 }
 
 /** Extended app info including non-UI packages (services, VPNs, etc.) */

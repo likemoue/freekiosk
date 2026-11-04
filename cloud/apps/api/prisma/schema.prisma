@@ -161,6 +161,11 @@ model Device {
   telemetry              Json?
   // null: ứng dụng chưa từng báo cáo (phiên bản cũ); chuỗi rỗng: không có danh sách phát
   signagePlaylistVersion String?
+  // Ứng dụng mở được trên máy, ứng dụng tự báo: [{ package, label, version_code }]. null: phiên bản cũ, chưa báo
+  installedApps          Json?
+  installedAppsHash      String?
+  // Máy này còn icon chưa gửi, để tín hiệu kế tiếp hỏi lại nếu lần gửi trước đứt giữa chừng
+  appIconsWanted         Boolean   @default(false)
 
   reportedConfig         Json?
   reportedConfigVersion  Int       @default(0)
@@ -242,6 +247,16 @@ model Screenshot {
   createdAt  DateTime @default(now())
 
   @@index([deviceId, createdAt])
+}
+
+/// Tên và icon của một ứng dụng, dùng chung cho mọi máy: nhiều tablet cùng ứng dụng chỉ cần gửi một lần
+model AppInfo {
+  packageName     String   @id
+  label           String
+  // Mã phiên bản của icon đang giữ. -1: chưa có. Chỉ nhận icon của bản mới hơn, để hai máy khác phiên bản không ghi đè nhau
+  iconVersionCode Int      @default(-1)
+  icon            Bytes?
+  updatedAt       DateTime @updatedAt
 }
 
 model ApkPackage {

@@ -9,6 +9,7 @@ import { getMediaCacheReport } from './MediaCacheReport';
 import { SignagePlaylist } from './SignagePlaylist';
 import { ServerClock } from './ServerClock';
 import { DeviceDisplayName } from './DeviceDisplayName';
+import { InstalledAppsReport } from './InstalledAppsReport';
 import { deviceTimeZone } from './DeviceTimeZone';
 import KioskModule from './KioskModule';
 import { tr } from '../i18n/tr';
@@ -136,6 +137,9 @@ interface HeartbeatResponse {
   playlist_version?: string | null;
   // The name on the management website: absent from any other cloud
   device_name?: string;
+  // What the management website still lacks of InstalledAppsReport: absent from any other cloud
+  installed_apps_wanted?: boolean;
+  app_icons_wanted?: string[];
 }
 
 /** The server answers a refusal in JSON; a proxy answers with an HTML page or says it stepped in */
@@ -326,6 +330,8 @@ class CloudSyncServiceClass {
         // Telemetry is best-effort — never block heartbeat
       }
 
+      const installedAppsHash = await InstalledAppsReport.hash();
+
       const sentAt = Date.now();
       const response = await fetch(
         `${c.cloudUrl}/api/v1/devices/${c.deviceId}/heartbeat/`,
@@ -341,6 +347,7 @@ class CloudSyncServiceClass {
             config_version: configVersion,
             config_updated_at: configUpdatedAt,
             sensitive_config: sensitiveConfig,
+            ...(installedAppsHash ? { installed_apps_hash: installedAppsHash } : {}),
           }),
         },
       );
@@ -376,6 +383,7 @@ class CloudSyncServiceClass {
       }
 
       await DeviceDisplayName.observe(data.device_name).catch(() => {});
+      InstalledAppsReport.answer(c, data.installed_apps_wanted, data.app_icons_wanted).catch(() => {/* asked again at the next heartbeat */});
 
       if (data.sync_action === 'apply' && data.config) {
         await StorageService.importConfig(data.config);

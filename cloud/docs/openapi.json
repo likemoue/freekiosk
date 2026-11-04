@@ -113,6 +113,46 @@
         ]
       }
     },
+    "/api/v1/devices/{deviceId}/apps": {
+      "post": {
+        "operationId": "DeviceApiController_apps",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Danh sách ứng dụng mở được trên máy, gửi khi tín hiệu định kỳ yêu cầu",
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/app-icons": {
+      "post": {
+        "operationId": "DeviceApiController_appIcons",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Icon của các ứng dụng máy chủ còn thiếu",
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
     "/api/v1/commands/{commandId}/result": {
       "post": {
         "operationId": "DeviceApiController_result",
@@ -700,6 +740,79 @@
         },
         "tags": [
           "Lệnh"
+        ]
+      }
+    },
+    "/api/admin/home-apps/preview": {
+      "post": {
+        "operationId": "HomeAppsController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeAppsPreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Các ứng dụng có thể chọn cho một thiết bị, một nhóm hoặc toàn bộ, và số máy đang hiện từng ứng dụng",
+        "tags": [
+          "Ứng dụng trên màn hình"
+        ]
+      }
+    },
+    "/api/admin/home-apps/apply": {
+      "post": {
+        "operationId": "HomeAppsController_apply",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyHomeAppsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Thêm hoặc gỡ ứng dụng trên màn hình chính, tính riêng cho từng máy",
+        "tags": [
+          "Ứng dụng trên màn hình"
+        ]
+      }
+    },
+    "/api/admin/home-apps/icons/{packageName}": {
+      "get": {
+        "operationId": "HomeAppsController_icon",
+        "parameters": [
+          {
+            "name": "packageName",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Ứng dụng trên màn hình"
         ]
       }
     },
@@ -2285,6 +2398,46 @@
         },
         "required": [
           "type",
+          "target"
+        ]
+      },
+      "HomeAppsPreviewDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/TargetDto"
+          }
+        },
+        "required": [
+          "target"
+        ]
+      },
+      "ApplyHomeAppsDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/TargetDto"
+          },
+          "add": {
+            "description": "Tên gói cần thêm vào màn hình chính",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove": {
+            "description": "Tên gói cần gỡ khỏi màn hình chính",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "switchToMulti": {
+            "type": "boolean",
+            "description": "Chuyển các thiết bị chưa ở chế độ nhiều ứng dụng sang chế độ này"
+          }
+        },
+        "required": [
           "target"
         ]
       },

@@ -106,6 +106,8 @@ The contract is defined by the app (`CloudSyncService.ts`, `CloudCommandService.
 
 Each heartbeat answer carries `device_name`, and the app shows that name where it would say "FreeKiosk" on its home screens (`src/utils/DeviceDisplayName.ts`). It is kept out of `exportConfig` and backups on purpose: a profile taken from one tablet must not rename the others.
 
+The tablet reports its launchable apps (`src/utils/InstalledAppsReport.ts`: a hash in each heartbeat, the list and icons when the server asks), so **Lệnh > Thao tác nhanh > Ứng dụng trên màn hình** (`cloud/apps/web/src/components/home-apps.tsx`, `cloud/apps/api/src/devices/home-apps.service.ts`) picks apps by icon for a device, a group or all. The server sends each tablet its own `general.managedApps`, since a push replaces the whole array, and for a group it also updates the group's profile unless other groups or devices use it.
+
 This fork publishes no GitHub releases. **Check for updates** on an enrolled tablet asks its server instead (`src/utils/AppUpdateCheck.ts`, `GET devices/{id}/app-update`) and installs through `ManagedAppInstaller`, the path a push from the website takes; only a tablet that is not enrolled reaches GitHub, and gets `NO_RELEASES`.
 
 ### Installing tablets
