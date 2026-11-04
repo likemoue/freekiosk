@@ -82,6 +82,24 @@ export class DeviceApiController {
 
   @UseGuards(DeviceGuard)
   @ApiBearerAuth()
+  @Post('devices/:deviceId/apps')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Danh sách ứng dụng mở được trên máy, gửi khi tín hiệu định kỳ yêu cầu' })
+  apps(@CurrentDevice() device: Device, @Body() body: Record<string, unknown>) {
+    return this.service.reportApps(device, body ?? {});
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/app-icons')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Icon của các ứng dụng máy chủ còn thiếu' })
+  appIcons(@CurrentDevice() device: Device, @Body() body: Record<string, unknown>) {
+    return this.service.saveIcons(device, body ?? {});
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
   @Post('commands/:commandId/result')
   @HttpCode(200)
   async result(

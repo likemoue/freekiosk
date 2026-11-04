@@ -9,10 +9,15 @@ import { StorageService } from '../common/storage.service';
 import { env } from '../config/env';
 import { AlertsService } from '../alerts/alerts.service';
 import { SensitiveValues } from '../devices/config-sync.service';
+import { PACKAGE_NAME } from '../devices/home-apps';
 import { SignageService } from '../signage/signage.service';
 
 const SCREENSHOTS_KEPT_PER_DEVICE = 30;
 const OWN_PACKAGE = 'com.freekiosk';
+const ICONS_PER_ROUND = 8;
+const MAX_REPORTED_APPS = 1000;
+const MAX_ICON_BYTES = 256 * 1024;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 type Json = Record<string, unknown>;
 
@@ -28,6 +33,36 @@ const int = (value: unknown): number | undefined => {
 };
 const strings = (value: unknown): string[] | undefined =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string').slice(0, 100) : undefined;
+
+interface ReportedApp {
+  package: string;
+  label: string;
+  version_code: number;
+}
+
+/** The list as an app sent it, or as it was stored: what does not read as an app is dropped */
+function reportedApps(value: unknown): ReportedApp[] {
+  if (!Array.isArray(value)) return [];
+  const apps: ReportedApp[] = [];
+  for (const item of value.slice(0, MAX_REPORTED_APPS)) {
+    const packageName = str(obj(item).package, 255);
+    if (!packageName || !PACKAGE_NAME.test(packageName)) continue;
+    apps.push({
+      package: packageName,
+      label: str(obj(item).label, 120) ?? packageName,
+      // The column is 32-bit. Very few apps go past it, and they only lose the icon refresh
+      version_code: Math.min(Math.max(int(obj(item).version_code) ?? 0, 0), 2_147_483_647),
+    });
+  }
+  return apps;
+}
+
+/** A served image must really be one: this comes from a device, and goes to an admin's browser */
+function pngFrom(value: unknown): Buffer | null {
+  if (typeof value !== 'string' || value.length > (MAX_ICON_BYTES * 4) / 3 + 4) return null;
+  const bytes = Buffer.from(value, 'base64');
+  return bytes.length > PNG_SIGNATURE.length && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ? bytes : null;
+}
 
 /** The device contract of the app: src/utils/CloudSyncService.ts and CloudCommandService.ts */
 @Injectable()
@@ -212,6 +247,7 @@ export class DeviceApiService {
   async heartbeat(device: Device, body: Json, ip: string | null) {
     const now = new Date();
     const deviceVersion = int(body.config_version) ?? 0;
+    const appsHash = str(body.installed_apps_hash, 64);
 
     const data: Prisma.DeviceUpdateInput = {
       lastSeenAt: now,
@@ -266,6 +302,9 @@ export class DeviceApiService {
       force_unenroll: device.forceUnenroll,
       playlist_version: await this.signage.versionFor(device.id),
       device_name: device.name,
+      // The app only sends the list when asked, and an icon only once per version across the fleet
+      installed_apps_wanted: !!appsHash && appsHash !== device.installedAppsHash,
+      app_icons_wanted: device.appIconsWanted ? await this.nextIcons(device.id, reportedApps(device.installedApps)) : [],
     };
   }
 
@@ -404,6 +443,63 @@ export class DeviceApiService {
         download_url: `${env().publicUrl}/api/v1/devices/${device.id}/apk/${apk.id}/`,
       },
     };
+  }
+
+  // ─── Installed apps ───────────────────────────────────────────────────────
+
+  /** The apps this tablet can open. Answers with the first icons the website still lacks */
+  async reportApps(device: Device, body: Json) {
+    const hash = str(body.hash, 64);
+    if (!hash || !Array.isArray(body.apps)) throw new BadRequestException({ error: 'Thiếu danh sách ứng dụng' });
+    const apps = reportedApps(body.apps);
+
+    const known = await this.prisma.appInfo.findMany({ where: { packageName: { in: apps.map((app) => app.package) } }, select: { packageName: true, label: true } });
+    const labels = new Map(known.map((row) => [row.packageName, row.label]));
+    await this.prisma.appInfo.createMany({
+      data: apps.filter((app) => !labels.has(app.package)).map((app) => ({ packageName: app.package, label: app.label })),
+      skipDuplicates: true,
+    });
+    for (const app of apps) {
+      const label = labels.get(app.package);
+      if (label !== undefined && label !== app.label) {
+        await this.prisma.appInfo.update({ where: { packageName: app.package }, data: { label: app.label } });
+      }
+    }
+
+    await this.prisma.device.update({
+      where: { id: device.id },
+      data: { installedApps: apps as unknown as Prisma.InputJsonValue, installedAppsHash: hash, appIconsWanted: true },
+    });
+    return { icons_wanted: await this.nextIcons(device.id, apps) };
+  }
+
+  /** Icons for the packages it reported. One it could not read is noted, so nobody asks for it again */
+  async saveIcons(device: Device, body: Json) {
+    const apps = reportedApps(device.installedApps);
+    const versions = new Map(apps.map((app) => [app.package, app.version_code]));
+    for (const item of Array.isArray(body.icons) ? body.icons.slice(0, ICONS_PER_ROUND * 2) : []) {
+      const packageName = str(obj(item).package, 255);
+      const version = packageName === undefined ? undefined : versions.get(packageName);
+      if (packageName === undefined || version === undefined) continue;
+      const png = pngFrom(obj(item).png_base64);
+      await this.prisma.appInfo.updateMany({
+        where: { packageName, iconVersionCode: { lte: version } },
+        data: { iconVersionCode: version, ...(png ? { icon: new Uint8Array(png) } : {}) },
+      });
+    }
+    return { icons_wanted: await this.nextIcons(device.id, apps) };
+  }
+
+  /** Which icons to ask this tablet for next. The flag stops the asking once there are none */
+  private async nextIcons(deviceId: string, apps: ReportedApp[]): Promise<string[]> {
+    const rows = await this.prisma.appInfo.findMany({
+      where: { packageName: { in: apps.map((app) => app.package) } },
+      select: { packageName: true, iconVersionCode: true },
+    });
+    const held = new Map(rows.map((row) => [row.packageName, row.iconVersionCode]));
+    const wanted = apps.filter((app) => (held.get(app.package) ?? -1) < app.version_code);
+    if (!wanted.length) await this.prisma.device.update({ where: { id: deviceId }, data: { appIconsWanted: false } });
+    return wanted.slice(0, ICONS_PER_ROUND).map((app) => app.package);
   }
 
   async apkFile(apkId: string): Promise<{ path: string; fileName: string }> {

@@ -16,7 +16,7 @@ export interface TestServer {
 }
 
 const TABLES = [
-  'ActivityLog', 'Alert', 'AlertChannel', 'ApkPackage', 'AppSetting', 'Command', 'ConfigProfile', 'Device', 'EnrollmentToken',
+  'ActivityLog', 'Alert', 'AlertChannel', 'ApkPackage', 'AppInfo', 'AppSetting', 'Command', 'ConfigProfile', 'Device', 'EnrollmentToken',
   'Group', 'MediaAsset', 'Playlist', 'PlaylistItem', 'ScheduleRule', 'ScheduledTask', 'Screenshot', 'Session', 'Upload', 'User',
 ];
 

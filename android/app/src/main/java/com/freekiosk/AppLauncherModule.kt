@@ -164,6 +164,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                         val appData = Arguments.createMap()
                         appData.putString("packageName", packageInfo.packageName)
                         appData.putString("appName", appName)
+                        appData.putDouble("versionCode", versionCodeOf(pm, packageInfo.packageName))
                         appList.add(appData)
                     }
                 }
@@ -182,6 +183,21 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                 DebugLog.errorProduction("AppLauncherModule", "Failed to get installed apps: ${e.message}")
                 promise.reject("ERROR_GET_APPS", "Failed to get installed apps: ${e.message}")
             }
+        }
+    }
+
+    /** 0 when it cannot be read: the management website then keeps the icon it has */
+    private fun versionCodeOf(pm: PackageManager, packageName: String): Double {
+        return try {
+            val info = pm.getPackageInfo(packageName, 0)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                info.longVersionCode.toDouble()
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toDouble()
+            }
+        } catch (e: Exception) {
+            0.0
         }
     }
 

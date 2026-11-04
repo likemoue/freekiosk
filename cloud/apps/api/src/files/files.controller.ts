@@ -14,6 +14,7 @@ import { env } from '../config/env';
 import { SignageService } from '../signage/signage.service';
 import { readApkManifest } from './apk-reader';
 import { UploadsService } from './uploads.service';
+import { installCommandData } from '../devices/catalog';
 
 // SVG and HTML are left out on purpose: opened in a browser, they run scripts
 const MEDIA_TYPES: Record<string, { kind: 'image' | 'video'; mime: string }> = {
@@ -223,16 +224,7 @@ export class ApksController {
     const able = devices.filter((d) => d.capabilities.length === 0 || d.capabilities.includes('silent_install'));
     const skipped = devices.filter((d) => !able.includes(d)).map((d) => ({ deviceId: d.id, name: d.name, reason: 'Thiết bị không ở chế độ Device Owner' }));
     if (able.length) {
-      await this.prisma.command.createMany({
-        data: able.map((d) => ({
-          deviceId: d.id,
-          type: 'install_apk',
-          params: { apk_id: apk.id, file_name: apk.fileName, version: apk.versionName } as Prisma.InputJsonValue,
-          createdById: actor.id,
-          createdBy: actor.email,
-          expiresAt: new Date(Date.now() + 7 * 86_400_000),
-        })),
-      });
+      await this.prisma.command.createMany({ data: able.map((d) => installCommandData(d.id, apk, actor)) });
     }
     await this.activity.log({ action: 'apk.deployed', message: `${actor.email} đã gửi ${apk.fileName} tới ${able.length} thiết bị`, user: actor });
     return { sent: able.length, skipped };

@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsObject, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsInt, IsObject, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { TargetDto } from '../common/targets';
+import { PACKAGE_NAME } from './home-apps';
 
 export class SensitiveDto {
   @ApiPropertyOptional({ description: 'Mã PIN mới của thiết bị' })
@@ -77,4 +78,18 @@ export class CreateTokenDto {
   @IsOptional() @IsInt() @Min(1) @Max(1000) maxUses?: number;
   @ApiPropertyOptional({ description: 'Thời hạn, tính bằng giờ' })
   @IsOptional() @IsInt() @Min(1) @Max(720) validHours?: number;
+}
+
+export class HomeAppsPreviewDto {
+  @ApiProperty({ type: TargetDto }) @ValidateNested() @Type(() => TargetDto) target: TargetDto;
+}
+
+export class ApplyHomeAppsDto {
+  @ApiProperty({ type: TargetDto }) @ValidateNested() @Type(() => TargetDto) target: TargetDto;
+  @ApiPropertyOptional({ type: [String], description: 'Tên gói cần thêm vào màn hình chính' })
+  @IsOptional() @IsArray() @ArrayMaxSize(200) @Matches(PACKAGE_NAME, { each: true, message: 'Tên gói không hợp lệ' }) add?: string[];
+  @ApiPropertyOptional({ type: [String], description: 'Tên gói cần gỡ khỏi màn hình chính' })
+  @IsOptional() @IsArray() @ArrayMaxSize(200) @Matches(PACKAGE_NAME, { each: true, message: 'Tên gói không hợp lệ' }) remove?: string[];
+  @ApiPropertyOptional({ description: 'Chuyển các thiết bị chưa ở chế độ nhiều ứng dụng sang chế độ này' })
+  @IsOptional() @IsBoolean() switchToMulti?: boolean;
 }

@@ -55,6 +55,19 @@ jest.mock('../src/services/DeviceControlService', () => ({
   default: { getStatus: () => Promise.resolve(mockStatus) },
 }));
 
+// A real PNG: the server keeps nothing else
+const ICON = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==';
+NativeModules.AppLauncherModule = {
+  getInstalledApps: jest.fn(() => Promise.resolve([
+    { packageName: 'com.freekiosk', appName: 'FreeKiosk', versionCode: 56 },
+    { packageName: 'ismart.edu.vn.iclass', appName: 'iCLASS', versionCode: 3 },
+    { packageName: 'com.android.chrome', appName: 'Chrome', versionCode: 700 },
+  ])),
+  getAppIcon: jest.fn(() => Promise.resolve(`data:image/png;base64,${ICON}`)),
+  addListener: jest.fn(),
+  removeListeners: jest.fn(),
+};
+
 jest.mock('../src/utils/capabilities', () => ({
   getCapabilities: () => Promise.resolve(['brightness', 'screen', 'reload', 'screenshot', 'toast', 'tts', 'audio', 'signage_web', 'signage_youtube', 'device_owner', 'reboot', 'silent_install']),
 }));
@@ -260,6 +273,29 @@ const INFO = { model: 'SM-X210', manufacturer: 'Samsung', android_version: '16',
     await admin('PATCH', `/api/admin/devices/${deviceId}`, { name: 'Lớp 5A - Máy 1' });
     await beat();
     expect(await DeviceDisplayName.current()).toBe('Lớp 5A - Máy 1');
+  });
+
+  it('reports its apps when asked, and the picker of the website can then put one on its screen', async () => {
+    await beat();
+    await settle();
+
+    const target = { deviceIds: [deviceId] };
+    const { apps, notReporting } = await admin('POST', '/api/admin/home-apps/preview', { target });
+    expect(notReporting).toBe(0);
+    const chrome = apps.find((app: any) => app.packageName === 'com.android.chrome');
+    expect(chrome).toMatchObject({ label: 'Chrome', installed: 1, onHome: 0 });
+    expect(chrome.iconUrl).toMatch(/com\.android\.chrome/);
+    expect(apps.some((app: any) => app.packageName === 'com.freekiosk')).toBe(false);
+
+    const icon = await fetch(`${BASE}${chrome.iconUrl}`, { headers: { Cookie: cookie } });
+    expect(icon.status).toBe(200);
+    expect(icon.headers.get('content-type')).toBe('image/png');
+
+    const result = await admin('POST', '/api/admin/home-apps/apply', { target, add: ['com.android.chrome'] });
+    expect(result.sent).toBe(1);
+    await beat();
+    const saved = await StorageService.getManagedApps();
+    expect(saved).toEqual([expect.objectContaining({ packageName: 'com.android.chrome', displayName: 'Chrome', showOnHomeScreen: true })]);
   });
 
   it('finds the newest FreeKiosk uploaded, and downloads it the way the installer does', async () => {

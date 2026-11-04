@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  AppWindow, Ban, Bell, Camera, Code2, Eraser, Globe, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
+  AppWindow, Ban, Bell, Camera, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
 import { ReactNode, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { useCan } from '../auth';
 import { COMMAND_STATUS, dateTime, timeAgo } from '../format';
 import { Badge, Button, Field, Input, notifyError, Select, Tabs, td, th, Table, trow, Textarea, useConfirm, Empty } from '../ui';
 import { DeviceSummary } from './device';
+import { HomeAppsEditor } from './home-apps';
 
 export type Target = { deviceIds?: string[]; groupId?: string; all?: boolean };
 
@@ -27,9 +28,12 @@ interface CommandDef {
   params?: ParamField[];
   /** Not a queued command: goes through the configuration channel, as the app expects */
   config?: (values: Record<string, string>) => Record<string, unknown>;
+  /** Not a form with a send button: a screen of its own */
+  editor?: boolean;
 }
 
 const COMMANDS: CommandDef[] = [
+  { type: 'home_apps', label: 'Ứng dụng trên màn hình', hint: 'Thêm hoặc gỡ ứng dụng trên màn hình chính của tablet.', icon: <LayoutGrid />, category: 'quick', editor: true },
   { type: 'reload', label: 'Tải lại trang', icon: <RefreshCw />, category: 'quick', capability: 'reload' },
   { type: 'screen_on', label: 'Bật màn hình', icon: <Sun />, category: 'quick', capability: 'screen' },
   { type: 'screen_off', label: 'Tắt màn hình', icon: <Moon />, category: 'quick', capability: 'screen' },
@@ -149,6 +153,7 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
               <p className="font-bold">{selected.label}</p>
               {selected.hint && <p className="text-[13px] text-soft">{selected.hint}</p>}
             </div>
+            {selected.editor && <HomeAppsEditor target={target} onSent={onSent} />}
             {selected.params?.map((param) => (
               <Field key={param.name} label={param.label}>
                 {param.type === 'textarea' ? (
@@ -158,13 +163,17 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
                 )}
               </Field>
             ))}
-            <div className="flex items-center gap-3">
-              <Button disabled={!target || missing || !can.operate} busy={send.isPending} onClick={submit}>
-                <Power className="size-4" /> Gửi lệnh
-              </Button>
-              {!target && <span className="text-[13px] text-warn">Chưa chọn thiết bị</span>}
-            </div>
-            <p className="text-xs text-soft">Thiết bị nhận lệnh ở lần báo cáo kế tiếp, tối đa 30 giây. Lệnh hết hạn sau 1 giờ nếu thiết bị vẫn ngoại tuyến.</p>
+            {!selected.editor && (
+              <>
+                <div className="flex items-center gap-3">
+                  <Button disabled={!target || missing || !can.operate} busy={send.isPending} onClick={submit}>
+                    <Power className="size-4" /> Gửi lệnh
+                  </Button>
+                  {!target && <span className="text-[13px] text-warn">Chưa chọn thiết bị</span>}
+                </div>
+                <p className="text-xs text-soft">Thiết bị nhận lệnh ở lần báo cáo kế tiếp, tối đa 30 giây. Lệnh hết hạn sau 1 giờ nếu thiết bị vẫn ngoại tuyến.</p>
+              </>
+            )}
           </div>
         )}
       </div>

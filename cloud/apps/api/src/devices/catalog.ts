@@ -1,3 +1,6 @@
+import type { ApkPackage, User } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
+
 /**
  * The commands the app understands (src/utils/CloudCommandService.ts) and what each one needs.
  * `capability` matches src/utils/capabilities.ts: a device that reports capabilities and lacks
@@ -67,3 +70,18 @@ export const COMMAND_LABELS: Record<string, string> = {
   add_wifi_network: 'Thêm mạng Wi-Fi',
   install_apk: 'Cài APK',
 };
+
+/**
+ * A silent install of an uploaded APK, delivered through GET updates. It lives for a week rather
+ * than an hour: a tablet switched off for the weekend still gets it.
+ */
+export function installCommandData(deviceId: string, apk: ApkPackage, actor: User): Prisma.CommandCreateManyInput {
+  return {
+    deviceId,
+    type: 'install_apk',
+    params: { apk_id: apk.id, file_name: apk.fileName, version: apk.versionName } as Prisma.InputJsonValue,
+    createdById: actor.id,
+    createdBy: actor.email,
+    expiresAt: new Date(Date.now() + 7 * 86_400_000),
+  };
+}
