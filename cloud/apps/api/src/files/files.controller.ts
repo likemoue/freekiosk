@@ -12,7 +12,8 @@ import { StorageService } from '../common/storage.service';
 import { TargetDto, targetWhere } from '../common/targets';
 import { env } from '../config/env';
 import { SignageService } from '../signage/signage.service';
-import { readApkManifest } from './apk-reader';
+import { ApkInspector } from './apk-inspector';
+import { INCOMPLETE_APK, readApkManifest } from './apk-reader';
 import { UploadsService } from './uploads.service';
 import { installCommandData } from '../devices/catalog';
 
@@ -154,11 +155,13 @@ export class ApksController {
     private readonly storage: StorageService,
     private readonly uploads: UploadsService,
     private readonly activity: ActivityService,
+    private readonly inspector: ApkInspector,
   ) {}
 
   @Get()
-  list() {
-    return this.prisma.apkPackage.findMany({ orderBy: { createdAt: 'desc' } });
+  async list() {
+    const rows = await this.prisma.apkPackage.findMany({ orderBy: { createdAt: 'desc' } });
+    return Promise.all(rows.map(async (apk) => ({ ...apk, incomplete: await this.inspector.isIncomplete(apk) })));
   }
 
   @Post('finish/:uploadId')
@@ -168,6 +171,7 @@ export class ApksController {
     if (extname(upload.fileName).toLowerCase() !== '.apk') throw new BadRequestException('Chỉ nhận tệp .apk');
     const manifest = await readApkManifest(file);
     if (!manifest) throw new BadRequestException('Không đọc được tệp APK: tệp hỏng hoặc không phải APK');
+    if (manifest.incomplete) throw new BadRequestException(INCOMPLETE_APK);
     const digest = await this.storage.sha256File(file);
     const storageKey = await this.storage.adopt(file, 'apk', '.apk');
     const apk = await this.prisma.apkPackage.create({
@@ -217,6 +221,7 @@ export class ApksController {
   async deploy(@Param('id', ParseUUIDPipe) id: string, @Body() dto: DeployApkDto, @CurrentUser() actor: User) {
     const apk = await this.prisma.apkPackage.findUnique({ where: { id } });
     if (!apk) throw new NotFoundException('Không tìm thấy APK');
+    if (await this.inspector.isIncomplete(apk)) throw new BadRequestException(INCOMPLETE_APK);
     const where = targetWhere(dto.target);
     if (!where) throw new BadRequestException('Chưa chọn thiết bị');
     const devices = await this.prisma.device.findMany({ where, select: { id: true, name: true, capabilities: true } });

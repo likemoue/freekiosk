@@ -181,6 +181,33 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
   );
 }
 
+/** What the command was about, in words where the type allows it */
+function commandDetail(command: { type: string; params?: Record<string, any> }): string | null {
+  const params = command.params ?? {};
+  if (command.type === 'install_apk') return [params.file_name, params.version].filter(Boolean).join(' ') || null;
+  if (command.type === 'home_apps') {
+    const parts = [
+      params.add?.length ? `Thêm ${params.add.join(', ')}` : '',
+      params.remove?.length ? `Gỡ ${params.remove.join(', ')}` : '',
+      params.switch_to_multi ? 'Chuyển sang chế độ nhiều ứng dụng' : '',
+    ];
+    return parts.filter(Boolean).join('. ') || null;
+  }
+  return Object.keys(params).length ? JSON.stringify(params).slice(0, 80) : null;
+}
+
+// The codes Android answers an install with, in words. The code itself stays on hover
+const INSTALL_ERRORS: Array<[RegExp, string]> = [
+  [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được. Hãy tải lên bản APK đầy đủ (universal APK).'],
+  [/INSTALL_FAILED_UPDATE_INCOMPATIBLE/, 'Máy đang có bản ký bằng khóa khác, cần gỡ bản đó trước.'],
+  [/INSTALL_FAILED_VERSION_DOWNGRADE/, 'Máy đang có bản mới hơn tệp APK này.'],
+  [/INSTALL_FAILED_NO_MATCHING_ABIS/, 'Tệp APK không hợp với loại CPU của máy.'],
+  [/INSTALL_FAILED_OLDER_SDK/, 'Android của máy cũ hơn mức ứng dụng yêu cầu.'],
+  [/INSTALL_FAILED_INSUFFICIENT_STORAGE/, 'Máy không đủ dung lượng trống.'],
+];
+
+const errorInWords = (message: string) => INSTALL_ERRORS.find(([code]) => code.test(message))?.[1] ?? message;
+
 export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; showDevice?: boolean }) {
   const client = useQueryClient();
   const can = useCan();
@@ -224,15 +251,15 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
           <tbody>
             {rows.map((command) => {
               const status = COMMAND_STATUS[command.status];
-              const params = Object.keys(command.params ?? {}).length ? JSON.stringify(command.params) : null;
+              const detail = commandDetail(command);
               return (
                 <tr key={command.id} className={trow}>
                   <td className={clsx(td, 'whitespace-nowrap text-soft')} title={dateTime(command.createdAt)}>{timeAgo(command.createdAt)}</td>
                   {showDevice && <td className={td}>{command.device?.name}</td>}
                   <td className={td}>
                     <span className="font-medium">{COMMAND_LABELS[command.type] ?? command.type}</span>
-                    {params && <span className="ml-2 break-all text-xs text-soft">{params.slice(0, 80)}</span>}
-                    {command.errorMessage && <p className="mt-0.5 text-xs text-bad">{command.errorMessage}</p>}
+                    {detail && <span className="ml-2 break-words text-xs text-soft">{detail}</span>}
+                    {command.errorMessage && <p className="mt-0.5 text-xs text-bad" title={command.errorMessage}>{errorInWords(command.errorMessage)}</p>}
                   </td>
                   <td className={td}><Badge tone={status.tone}>{status.label}</Badge></td>
                   <td className={clsx(td, 'text-soft')}>{command.createdBy ?? (command.source?.startsWith('schedule') ? 'Lịch hẹn giờ' : '—')}</td>

@@ -9,7 +9,9 @@ import { StorageService } from '../common/storage.service';
 import { env } from '../config/env';
 import { AlertsService } from '../alerts/alerts.service';
 import { SensitiveValues } from '../devices/config-sync.service';
+import { HOME_APPS_COMMAND } from '../devices/catalog';
 import { PACKAGE_NAME } from '../devices/home-apps';
+import { HomeAppsService } from '../devices/home-apps.service';
 import { SignageService } from '../signage/signage.service';
 
 const SCREENSHOTS_KEPT_PER_DEVICE = 30;
@@ -74,6 +76,7 @@ export class DeviceApiService {
     private readonly storage: StorageService,
     private readonly activity: ActivityService,
     private readonly alerts: AlertsService,
+    private readonly homeApps: HomeAppsService,
     private readonly signage: SignageService,
   ) {}
 
@@ -268,10 +271,17 @@ export class DeviceApiService {
       // The device reached this version: what was pending is now in its own report. The condition
       // is checked in the statement, or a change saved in the dashboard this very moment, after
       // this device row was read, would be cleared without ever being delivered.
-      await this.prisma.device.updateMany({
+      const { count } = await this.prisma.device.updateMany({
         where: { id: device.id, configVersion: { lte: deviceVersion } },
         data: { pendingConfig: Prisma.DbNull, pendingSensitiveEnc: null, configSyncedAt: now },
       });
+      // What the history said was on its way has arrived, even after a week away
+      if (count) {
+        await this.prisma.command.updateMany({
+          where: { deviceId: device.id, type: HOME_APPS_COMMAND, status: { in: ['SENT', 'EXPIRED'] }, createdAt: { lte: now } },
+          data: { status: 'SUCCESS', completedAt: now },
+        });
+      }
     }
 
     if (!device.online) {
@@ -388,6 +398,7 @@ export class DeviceApiService {
         device,
       });
     }
+    if (ok && command.type === 'install_apk') await this.homeApps.showAfterInstall(device.id, command);
   }
 
   // ─── Screenshots ──────────────────────────────────────────────────────────

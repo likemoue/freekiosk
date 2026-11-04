@@ -14,8 +14,10 @@ interface HomeApp {
   label: string;
   iconUrl: string | null;
   canInstall: boolean;
+  apkIncomplete: boolean;
   onHome: number;
   installed: number;
+  installing: number;
 }
 
 interface HomePreview {
@@ -51,7 +53,11 @@ function AppIcon({ app }: { app: HomeApp }) {
 function tileNote(app: HomeApp, deviceCount: number, reporting: number, change?: Change): string | null {
   // Only a tablet that reports what it has can be said to lack an app
   const missing = Math.max(reporting - app.installed, 0);
-  if (change === 'add' && missing > 0) return app.canInstall ? 'Sẽ cài rồi hiện' : `${missing} máy chưa cài`;
+  if (app.installing > 0) return `Đang cài trên ${app.installing} máy`;
+  if (missing > 0 && app.apkIncomplete && !app.canInstall) return 'APK thiếu phần, không cài được';
+  if (change === 'add' && missing > 0) return app.canInstall ? 'Cài xong sẽ hiện' : `${missing} máy chưa cài`;
+  // On the screen but not on the tablet: a tile that opens nothing, better taken off
+  if (app.onHome > 0 && missing > 0) return `Chưa cài trên ${missing} máy`;
   if (app.onHome > 0 && app.onHome < deviceCount) return `Trên ${app.onHome}/${deviceCount} máy`;
   if (app.onHome === 0 && missing > 0) return app.installed > 0 ? `${missing} máy chưa cài` : 'Chưa cài';
   return null;
@@ -144,14 +150,16 @@ export function HomeAppsEditor({ target, onSent }: { target: HomeTarget | null; 
   const apply = useMutation({
     mutationFn: () => api.post<ApplyResult>('/api/admin/home-apps/apply', { target, add, remove, switchToMulti }),
     onSuccess: (result) => {
-      if (result.sent > 0 || result.installs > 0) toast.success(`Đã gửi tới ${result.sent} thiết bị${result.installs ? `, đang cài ${result.installs} ứng dụng` : ''}`);
-      else if (!result.skipped.length) toast.info('Các thiết bị đã đúng như vậy, không cần gửi gì');
+      if (result.sent > 0) toast.success(`Đã gửi tới ${result.sent} thiết bị`);
+      if (result.installs > 0) toast.info(`Đang cài ${result.installs} ứng dụng. Ứng dụng sẽ hiện trên màn hình sau khi cài xong.`);
+      if (result.sent === 0 && result.installs === 0 && !result.skipped.length) toast.info('Các thiết bị đã đúng như vậy, không cần gửi gì');
       if (result.skipped.length) toast.warning(`Bỏ qua ${result.skipped.length} thiết bị. ${result.skipped[0].name}: ${result.skipped[0].reason}`);
       if (result.profile?.updated) toast.info(`Đã lưu vào hồ sơ ${result.profile.name}: tablet mới vào nhóm cũng nhận các ứng dụng này`);
       if (result.profile && !result.profile.updated) toast.warning(`Hồ sơ ${result.profile.name} còn dùng cho nơi khác nên chưa đổi: tablet mới vào nhóm sẽ theo hồ sơ cũ`);
       setChanges({});
       setSwitchToMulti(false);
       client.invalidateQueries({ queryKey: ['home-apps'] });
+      client.invalidateQueries({ queryKey: ['commands'] });
       onSent?.();
     },
     onError: notifyError,
@@ -210,7 +218,7 @@ export function HomeAppsEditor({ target, onSent }: { target: HomeTarget | null; 
         <p className="py-4 text-center text-sm text-soft">{search.trim() ? 'Không có ứng dụng nào khớp.' : 'Chưa biết ứng dụng nào trên các thiết bị này.'}</p>
       )}
       {shown.length > 0 && section('Đang hiện trên màn hình', shown, 'Nhấn vào ứng dụng để gỡ.')}
-      {others.length > 0 && section('Thêm ứng dụng', others, 'Nhấn vào ứng dụng để thêm. Ứng dụng đã tải lên mục Ứng dụng (APK) sẽ được cài trước nếu máy chưa có.')}
+      {others.length > 0 && section('Thêm ứng dụng', others, 'Nhấn vào ứng dụng để thêm. Máy chưa có ứng dụng thì cài từ mục Ứng dụng (APK), cài xong mới hiện.')}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <Button disabled={nothing || !can.operate} busy={apply.isPending} onClick={() => apply.mutate()}>
