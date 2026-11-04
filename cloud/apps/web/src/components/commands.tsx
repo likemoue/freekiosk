@@ -198,7 +198,7 @@ function commandDetail(command: { type: string; params?: Record<string, any> }):
 
 // The codes Android answers an install with, in words. The code itself stays on hover
 const INSTALL_ERRORS: Array<[RegExp, string]> = [
-  [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được. Hãy tải lên bản APK đầy đủ (universal APK).'],
+  [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được một mình. Hãy tải lên cả bộ tệp của ứng dụng.'],
   [/INSTALL_FAILED_UPDATE_INCOMPATIBLE/, 'Máy đang có bản ký bằng khóa khác, cần gỡ bản đó trước.'],
   [/INSTALL_FAILED_VERSION_DOWNGRADE/, 'Máy đang có bản mới hơn tệp APK này.'],
   [/INSTALL_FAILED_NO_MATCHING_ABIS/, 'Tệp APK không hợp với loại CPU của máy.'],

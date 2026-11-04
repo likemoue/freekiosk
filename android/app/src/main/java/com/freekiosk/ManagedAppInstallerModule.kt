@@ -17,6 +17,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.zip.ZipFile
 
 /**
  * Installs a *managed third-party APK* pushed by FreeKiosk Cloud (OTA).
@@ -86,13 +87,15 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
                 }
 
                 apkFile = downloadApk(downloadUrl, authToken)
+                val parts = partsOf(apkFile)
                 // Verify the downloaded APK actually is the expected package before install.
-                verifyApkPackage(apkFile, expectedPackage)
+                // The base comes first; the installer holds the others to the same package.
+                verifyApkPackage(parts.first(), expectedPackage)
                 // installSilently owns the promise from here (async via receiver).
-                installSilently(apkFile, expectedPackage, promise)
+                installSilently(apkFile, parts, expectedPackage, promise)
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Install error: ${e.message}", e)
-                apkFile?.delete()
+                apkFile?.let { cleanUp(it) }
                 promise.reject("INSTALL_ERROR", e.message ?: "Unknown install error", e)
             }
         }.start()
@@ -127,7 +130,7 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
             }
 
             val dir = File(reactApplicationContext.cacheDir, "managed_apks").apply { mkdirs() }
-            dir.listFiles()?.forEach { it.delete() } // clean up previous downloads
+            dir.listFiles()?.forEach { it.deleteRecursively() } // clean up previous downloads
             val outFile = File(dir, "managed-${System.currentTimeMillis()}.apk")
 
             conn.inputStream.use { input ->
@@ -143,6 +146,38 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
         } finally {
             conn.disconnect()
         }
+    }
+
+    /**
+     * What to install from a download: the APK itself, or the APKs inside it, base first. An app
+     * built as an App Bundle comes from the management server as a zip of its parts. An APK is a
+     * zip too, told apart by the manifest at its root.
+     */
+    private fun partsOf(download: File): List<File> {
+        ZipFile(download).use { zip ->
+            if (zip.getEntry("AndroidManifest.xml") != null) return listOf(download)
+
+            val dir = partsDirOf(download).apply { mkdirs() }
+            val parts = mutableListOf<File>()
+            for (entry in zip.entries()) {
+                // The name alone, never a path from the archive
+                val name = File(entry.name).name
+                if (entry.isDirectory || !name.endsWith(".apk", ignoreCase = true)) continue
+                val part = File(dir, name)
+                zip.getInputStream(entry).use { input -> part.outputStream().use { output -> input.copyTo(output) } }
+                parts.add(part)
+            }
+            val base = parts.firstOrNull { it.name == "base.apk" }
+                ?: throw RuntimeException("Downloaded file has neither a manifest nor a base.apk.")
+            return listOf(base) + parts.filter { it !== base }
+        }
+    }
+
+    private fun partsDirOf(download: File) = File(download.parentFile, "${download.name}.parts")
+
+    private fun cleanUp(download: File) {
+        partsDirOf(download).deleteRecursively()
+        download.delete()
     }
 
     /**
@@ -164,7 +199,7 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    private fun installSilently(apkFile: File, expectedPackage: String?, promise: Promise) {
+    private fun installSilently(download: File, parts: List<File>, expectedPackage: String?, promise: Promise) {
         val context = reactApplicationContext
         val packageInstaller = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(
@@ -176,9 +211,12 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
 
         val sessionId = packageInstaller.createSession(params)
         val session = packageInstaller.openSession(sessionId)
-        session.openWrite("package", 0, apkFile.length()).use { output ->
-            apkFile.inputStream().use { input -> input.copyTo(output) }
-            session.fsync(output)
+        // All the parts of an app go into one session: Android checks them as one install
+        for (part in parts) {
+            session.openWrite(part.name, 0, part.length()).use { output ->
+                part.inputStream().use { input -> input.copyTo(output) }
+                session.fsync(output)
+            }
         }
 
         // Per-session broadcast carries the PackageInstaller result back to us so
@@ -189,7 +227,7 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
             override fun onReceive(c: Context?, intent: Intent?) {
                 if (!settled.compareAndSet(false, true)) return
                 try { context.unregisterReceiver(this) } catch (_: Exception) {}
-                apkFile.delete()
+                cleanUp(download)
 
                 val status = intent?.getIntExtra(
                     PackageInstaller.EXTRA_STATUS,

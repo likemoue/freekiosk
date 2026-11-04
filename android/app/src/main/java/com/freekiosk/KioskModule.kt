@@ -468,6 +468,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         }
                         activity.disableKioskRestrictions()
                         activity.stopLockTask()
+                        leaveForSystemLauncher(activity, dpm, adminComponent)
                         activity.finish()
                         promise.resolve(true)
                     } catch (e: Exception) {
@@ -480,6 +481,57 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to exit kiosk mode: ${e.message}")
         }
+    }
+
+    /**
+     * Finishing the activity goes back to Home, and on a kiosk tablet Home is FreeKiosk itself
+     * (#199, and pinned at provisioning): the admin who chose to leave landed in the kiosk again.
+     * So Home is handed back, and the launcher opened by name. It lasts until FreeKiosk is next
+     * opened or the tablet restarts: MainActivity.applyDefaultLauncherPolicy() pins it again, as
+     * the kiosk itself comes back then (#124, #138).
+     */
+    private fun leaveForSystemLauncher(activity: android.app.Activity, dpm: DevicePolicyManager, admin: ComponentName) {
+        // The monitors are stopped on the way to Settings, but not on every way there, and either
+        // would bring FreeKiosk back in front of the launcher
+        reactApplicationContext.stopService(Intent(reactApplicationContext, OverlayService::class.java))
+        reactApplicationContext.stopService(Intent(reactApplicationContext, BackgroundAppMonitorService::class.java))
+
+        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+            dpm.clearPackagePersistentPreferredActivities(admin, reactApplicationContext.packageName)
+        }
+        val launcher = systemLauncher()
+        if (launcher == null) {
+            android.util.Log.w("KioskModule", "No launcher other than FreeKiosk to leave for")
+            return
+        }
+        activity.startActivity(
+            Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_HOME)
+                .setComponent(launcher)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        android.util.Log.d("KioskModule", "Left kiosk mode for ${launcher.flattenToShortString()}")
+    }
+
+    /**
+     * What Home means without FreeKiosk: the launcher in place if Android has one, or else the
+     * best of the others, as Android ranks them. Android's own package there is the "choose an app"
+     * dialog. Settings has a stand-in Home for early boot, and Samsung Kids is one too, ranked after
+     * the real launcher.
+     */
+    private fun systemLauncher(): ComponentName? {
+        val pm = reactApplicationContext.packageManager
+        val own = reactApplicationContext.packageName
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val isCandidate = { packageName: String -> packageName != own && packageName != "android" && packageName != "com.android.settings" }
+
+        val current = pm.resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
+        if (current != null && isCandidate(current.packageName)) return ComponentName(current.packageName, current.name)
+
+        return pm.queryIntentActivities(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            .map { it.activityInfo }
+            .firstOrNull { isCandidate(it.packageName) }
+            ?.let { ComponentName(it.packageName, it.name) }
     }
 
     /**

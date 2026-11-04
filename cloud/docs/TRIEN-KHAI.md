@@ -266,6 +266,11 @@ lên mục **Ứng dụng (APK)**. Sau đó nhấn **Cài đặt** để đẩy 
 **Kiểm tra cập nhật**. Cả hai đều cài im lặng nên cần Device Owner. Bản này không phát hành trên GitHub, nên tablet chưa
 đăng ký sẽ báo chưa có bản phát hành.
 
+**Ứng dụng khác lấy từ CH Play:** ứng dụng cài từ CH Play thường gồm nhiều tệp, và công cụ trích xuất APK trên điện thoại chỉ
+lấy phần gốc, Android không cài được một mình. Cắm máy đã cài sẵn ứng dụng, chạy `LayApk.bat` trong thư mục công cụ cài USB
+để gom đủ bộ thành tệp `.zip`, rồi tải tệp đó lên mục **Ứng dụng (APK)**. Website cũng nhận `.apks`, `.xapk`, `.apkm`. Tablet
+cần FreeKiosk từ 2.1.0-beta.5 và nên cùng loại CPU với máy đã lấy.
+
 ## Sao lưu và khôi phục
 
 Sao lưu cơ sở dữ liệu và `.env` giữ 14 bản, tệp đã tải lên giữ 1 bản vì nặng. Chạy lúc 2 giờ sáng giờ Việt Nam (VM đang dùng giờ UTC). Bản sao lưu nằm cùng đĩa với dữ liệu nên không cứu được khi hỏng cả VM: hãy chép `/var/backups/freekiosk` sang nơi khác.

@@ -7,7 +7,7 @@ import { deepMerge } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
 import { ApkInspector } from '../files/apk-inspector';
-import { HOME_APPS_COMMAND, installCommandData } from './catalog';
+import { HOME_APPS_COMMAND, installCommandData, whyCannotInstall } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
 import { editHomeApps, generalOf, homeCount, isMultiApp, ManagedApp, managedAppsOf } from './home-apps';
 
@@ -26,11 +26,10 @@ function installedOf(device: TargetDevice): Set<string> | null {
   return new Set(device.installedApps.map((app) => obj(app).package).filter((p): p is string => typeof p === 'string'));
 }
 
-/** Installing with no prompt takes Device Owner. An empty list is an older app, which may have it */
-const canInstall = (device: TargetDevice) => device.capabilities.length === 0 || device.capabilities.includes('silent_install');
-
 /** The name an uploaded APK goes by until a tablet has it installed and says what it is really called */
-const apkLabel = (apk: ApkPackage) => apk.fileName.replace(/\.apk$/i, '');
+const apkLabel = (apk: ApkPackage) => apk.fileName.replace(/\.(apk|apks|xapk|apkm|zip)$/i, '');
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
 /** What was uploaded, for each package: what can be installed, and what cannot be on its own */
 interface Uploads {
@@ -186,9 +185,10 @@ export class HomeAppsService {
       });
     };
 
-    const whyNot = (packageName: string) => {
-      if (uploads.incomplete.has(packageName)) return `Chưa cài ${labelOf(packageName)}: APK đã tải lên chỉ là một phần của ứng dụng, cần bản APK đầy đủ`;
-      if (uploads.installable.has(packageName)) return `Chưa cài ${labelOf(packageName)}: thiết bị không phải Device Owner nên không cài tự động được`;
+    const whyNot = (packageName: string, device: TargetDevice) => {
+      const apk = uploads.installable.get(packageName);
+      if (apk) return `Chưa cài ${labelOf(packageName)}: ${lowerFirst(whyCannotInstall(device.capabilities, apk) ?? '')}`;
+      if (uploads.incomplete.has(packageName)) return `Chưa cài ${labelOf(packageName)}: APK đã tải lên chỉ là một phần của ứng dụng, cần tải lên cả bộ tệp`;
       return `Chưa cài ${labelOf(packageName)} và chưa có APK để cài`;
     };
 
@@ -209,11 +209,11 @@ export class HomeAppsService {
         // A tablet that has not reported gets the app anyway, since nothing says it is missing
         if (!installed || installed.has(packageName)) adding.push(packageName);
         else if (underWay.has(`${device.id}/${packageName}`)) accepted.add(packageName);
-        else if (uploads.installable.has(packageName) && canInstall(device)) toInstall.push(uploads.installable.get(packageName)!);
+        else if (uploads.installable.has(packageName) && !whyCannotInstall(device.capabilities, uploads.installable.get(packageName)!)) toInstall.push(uploads.installable.get(packageName)!);
         else refused.push(packageName);
       }
       if (refused.length) {
-        const reason = refused.map(whyNot).join('. ');
+        const reason = refused.map((packageName) => whyNot(packageName, device)).join('. ');
         skipped.push({ deviceId: device.id, name: device.name, reason });
         record(device.id, { add: refused.map(labelOf) }, reason);
       }

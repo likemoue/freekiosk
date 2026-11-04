@@ -8,9 +8,17 @@ export interface ApkManifest {
   versionCode: number | null;
   /** Only a part of an app: Android refuses to install it on its own */
   incomplete: boolean;
+  /** The name of this part when it is not the base APK of the app */
+  splitName: string | null;
+  /** What this part provides, and what a base APK requires the other parts to provide */
+  splitTypes: string[];
+  requiredSplitTypes: string[];
 }
 
-export const INCOMPLETE_APK = 'Tệp này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được. Hãy dùng bản APK đầy đủ (universal APK).';
+export const INCOMPLETE_APK = 'Tệp này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được một mình. Hãy tải lên cả bộ: tệp .apks, .xapk, .apkm, hoặc tệp .zip chứa đủ các tệp .apk.';
+
+/** A set of APKs is stored as one zip, see apk-bundle.ts */
+export const isApkBundle = (apk: { storageKey: string }) => apk.storageKey.endsWith('.zip');
 
 /**
  * An App Bundle reaches a device as several APKs. Taken from a device or from the store, the base
@@ -26,6 +34,8 @@ export function needsOtherParts(manifest: any): boolean {
   return metaData.some((item) => item?.name === 'com.android.vending.splits.required' && (item.value === true || item.value === 'true'));
 }
 
+const typesIn = (value: unknown): string[] => (typeof value === 'string' ? value.split(',').map((type) => type.trim()).filter(Boolean) : []);
+
 /** Reads the binary AndroidManifest.xml of an APK. Null for a file that is not one */
 export async function readApkManifest(file: string): Promise<ApkManifest | null> {
   try {
@@ -37,6 +47,9 @@ export async function readApkManifest(file: string): Promise<ApkManifest | null>
       versionName: typeof manifest.versionName === 'string' ? manifest.versionName : null,
       versionCode: typeof manifest.versionCode === 'number' ? manifest.versionCode : null,
       incomplete: needsOtherParts(manifest),
+      splitName: typeof manifest.split === 'string' && manifest.split ? manifest.split : null,
+      splitTypes: typesIn(manifest.splitTypes),
+      requiredSplitTypes: typesIn(manifest.requiredSplitTypes),
     };
   } catch {
     return null;

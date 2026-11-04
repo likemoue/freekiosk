@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { StorageService } from '../common/storage.service';
-import { readApkManifest } from './apk-reader';
+import { isApkBundle, readApkManifest } from './apk-reader';
 
 /**
  * Whether an uploaded APK can be installed on its own. New uploads that cannot are refused, so this
@@ -14,6 +14,8 @@ export class ApkInspector {
   constructor(private readonly storage: StorageService) {}
 
   async isIncomplete(apk: { id: string; storageKey: string }): Promise<boolean> {
+    // A set was checked as a whole when it was uploaded
+    if (isApkBundle(apk)) return false;
     const cached = this.known.get(apk.id);
     if (cached !== undefined) return cached;
     const incomplete = (await readApkManifest(this.storage.path(apk.storageKey)))?.incomplete ?? false;

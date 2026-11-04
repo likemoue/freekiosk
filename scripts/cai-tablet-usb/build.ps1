@@ -83,5 +83,6 @@ Remove-Item $iconPath -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $PlatformTools 'adb.exe'), (Join-Path $PlatformTools 'AdbWinApi.dll'), (Join-Path $PlatformTools 'AdbWinUsbApi.dll') (Join-Path $output 'adb') -Force
 Copy-Item $Apk (Join-Path $output 'FreeKiosk.apk') -Force
 Copy-Item (Join-Path $here 'README.md') (Join-Path $output 'HUONG-DAN.txt') -Force
+Copy-Item (Join-Path $here 'LayApk.ps1'), (Join-Path $here 'LayApk.bat') $output -Force
 
 Write-Host "Built $output with $(Split-Path $Apk -Leaf)"

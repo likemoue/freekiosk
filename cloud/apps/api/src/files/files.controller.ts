@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundE
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { mkdir, rm } from 'node:fs/promises';
 import { extname } from 'node:path';
 import type { User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
@@ -13,9 +14,10 @@ import { TargetDto, targetWhere } from '../common/targets';
 import { env } from '../config/env';
 import { SignageService } from '../signage/signage.service';
 import { ApkInspector } from './apk-inspector';
-import { INCOMPLETE_APK, readApkManifest } from './apk-reader';
+import { ApkBundle, BUNDLE_EXTENSIONS, BundleError, readApkBundle } from './apk-bundle';
+import { INCOMPLETE_APK, isApkBundle, readApkManifest } from './apk-reader';
 import { UploadsService } from './uploads.service';
-import { installCommandData } from '../devices/catalog';
+import { installCommandData, whyCannotInstall } from '../devices/catalog';
 
 // SVG and HTML are left out on purpose: opened in a browser, they run scripts
 const MEDIA_TYPES: Record<string, { kind: 'image' | 'video'; mime: string }> = {
@@ -161,24 +163,51 @@ export class ApksController {
   @Get()
   async list() {
     const rows = await this.prisma.apkPackage.findMany({ orderBy: { createdAt: 'desc' } });
-    return Promise.all(rows.map(async (apk) => ({ ...apk, incomplete: await this.inspector.isIncomplete(apk) })));
+    return Promise.all(rows.map(async (apk) => ({ ...apk, incomplete: await this.inspector.isIncomplete(apk), isBundle: isApkBundle(apk) })));
   }
 
   @Post('finish/:uploadId')
   @Roles('ADMIN', 'OPERATOR')
   async finish(@Param('uploadId', ParseUUIDPipe) uploadId: string, @Body() dto: FinishApkDto, @CurrentUser() actor: User) {
     const { upload, file } = await this.uploads.finish(uploadId, 'apk');
-    if (extname(upload.fileName).toLowerCase() !== '.apk') throw new BadRequestException('Chỉ nhận tệp .apk');
-    const manifest = await readApkManifest(file);
-    if (!manifest) throw new BadRequestException('Không đọc được tệp APK: tệp hỏng hoặc không phải APK');
-    if (manifest.incomplete) throw new BadRequestException(INCOMPLETE_APK);
-    const digest = await this.storage.sha256File(file);
-    const storageKey = await this.storage.adopt(file, 'apk', '.apk');
+    const extension = extname(upload.fileName).toLowerCase();
+    const work = this.storage.tmpPath(`bundle-${uploadId}`);
+    const cleanUp = async () => {
+      await rm(work, { recursive: true, force: true });
+      await rm(file, { force: true });
+    };
+    const refuse = async (message: string): Promise<never> => {
+      await cleanUp();
+      throw new BadRequestException(message);
+    };
+    if (extension !== '.apk' && !BUNDLE_EXTENSIONS.includes(extension)) return refuse('Chỉ nhận tệp .apk, .apks, .xapk, .apkm hoặc .zip');
+
+    // A set is unpacked and checked here, so that what is wrong with it is said to the person uploading
+    let bundle: ApkBundle | null = null;
+    if (extension !== '.apk') {
+      await mkdir(work, { recursive: true });
+      try {
+        bundle = await readApkBundle(file, work);
+      } catch (error) {
+        if (error instanceof BundleError) return refuse(error.message);
+        await cleanUp();
+        throw error;
+      }
+    }
+    const final = bundle?.file ?? file;
+    const manifest = bundle?.manifest ?? (await readApkManifest(file));
+    if (!manifest) return refuse('Không đọc được tệp APK: tệp hỏng hoặc không phải APK');
+    if (!bundle && manifest.incomplete) return refuse(INCOMPLETE_APK);
+
+    const digest = await this.storage.sha256File(final);
+    const sizeBytes = await this.storage.size(final);
+    const storageKey = await this.storage.adopt(final, 'apk', bundle?.isBundle ? '.zip' : '.apk');
+    await cleanUp();
     const apk = await this.prisma.apkPackage.create({
       data: {
         fileName: upload.fileName,
         storageKey,
-        sizeBytes: upload.sizeBytes,
+        sizeBytes,
         sha256Hex: digest.toString('hex'),
         // URL-safe base64 with no padding: what Android expects in the provisioning QR
         checksumBase64: digest.toString('base64url'),
@@ -207,6 +236,7 @@ export class ApksController {
     const apk = await this.prisma.apkPackage.findUnique({ where: { id } });
     if (!apk) throw new NotFoundException('Không tìm thấy APK');
     if (apk.packageName !== 'com.freekiosk') throw new BadRequestException('APK cấp phát phải là ứng dụng FreeKiosk (com.freekiosk)');
+    if (isApkBundle(apk)) throw new BadRequestException('APK cấp phát phải là một tệp .apk đầy đủ: trình cài đặt của Android chỉ tải một tệp');
     await this.prisma.$transaction([
       this.prisma.apkPackage.updateMany({ where: { isProvisioning: true }, data: { isProvisioning: false } }),
       this.prisma.apkPackage.update({ where: { id }, data: { isProvisioning: true } }),
@@ -225,9 +255,8 @@ export class ApksController {
     const where = targetWhere(dto.target);
     if (!where) throw new BadRequestException('Chưa chọn thiết bị');
     const devices = await this.prisma.device.findMany({ where, select: { id: true, name: true, capabilities: true } });
-    // Installing with no prompt takes Device Owner: on any other tablet it would only fail
-    const able = devices.filter((d) => d.capabilities.length === 0 || d.capabilities.includes('silent_install'));
-    const skipped = devices.filter((d) => !able.includes(d)).map((d) => ({ deviceId: d.id, name: d.name, reason: 'Thiết bị không ở chế độ Device Owner' }));
+    const able = devices.filter((d) => !whyCannotInstall(d.capabilities, apk));
+    const skipped = devices.filter((d) => !able.includes(d)).map((d) => ({ deviceId: d.id, name: d.name, reason: whyCannotInstall(d.capabilities, apk)! }));
     if (able.length) {
       await this.prisma.command.createMany({ data: able.map((d) => installCommandData(d.id, apk, actor)) });
     }
