@@ -1,5 +1,6 @@
 import type { ApkPackage, User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
+import { isApkBundle } from '../files/apk-reader';
 
 /**
  * The commands the app understands (src/utils/CloudCommandService.ts) and what each one needs.
@@ -74,6 +75,17 @@ export const COMMAND_LABELS: Record<string, string> = {
   add_wifi_network: 'Thêm mạng Wi-Fi',
   install_apk: 'Cài APK',
 };
+
+/**
+ * Why this tablet cannot take this upload, or null if it can. Installing with no prompt takes
+ * Device Owner, and a set of APKs takes a version of the app that knows how. An empty list of
+ * capabilities is an older app, which may be Device Owner but cannot install a set.
+ */
+export function whyCannotInstall(capabilities: string[], apk: { storageKey: string }): string | null {
+  if (capabilities.length > 0 && !capabilities.includes('silent_install')) return 'Thiết bị không ở chế độ Device Owner nên không cài tự động được';
+  if (isApkBundle(apk) && !capabilities.includes('split_install')) return 'Cần cài FreeKiosk bản mới nhất để cài bộ nhiều tệp';
+  return null;
+}
 
 /**
  * A silent install of an uploaded APK, delivered through GET updates. It lives for a week rather

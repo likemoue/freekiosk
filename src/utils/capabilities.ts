@@ -36,6 +36,8 @@ export type Capability =
   | 'device_owner'
   | 'reboot'
   | 'silent_install'
+  // Several APKs of one app in one install: tells a tablet that can from one that needs updating
+  | 'split_install'
   | 'screen_off_lock'
   // Special-access / runtime permission gated
   | 'accessibility'
@@ -93,6 +95,7 @@ export async function getCapabilities(): Promise<string[]> {
     caps.add('device_owner');
     caps.add('reboot');
     caps.add('silent_install');
+    caps.add('split_install');
     caps.add('screen_off_lock');
   }
 

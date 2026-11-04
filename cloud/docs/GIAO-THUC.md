@@ -78,6 +78,7 @@ Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết l
 `GET commands` trả `{ commands: [{ id, type, params, created_at, expires_at }] }` và chuyển lệnh sang trạng thái đã gửi, nên
 mỗi lệnh chỉ giao một lần. `install_apk` đi riêng qua `GET updates`:
 `[{ command_id, package_name, version_name, download_url }]`, tải bằng cùng khóa Bearer.
+Tệp tải về là một APK, hoặc khi ứng dụng gồm nhiều tệp (App Bundle) là một zip chứa `base.apk` và các `split_*.apk`. Ứng dụng phân biệt bằng `AndroidManifest.xml` ở gốc tệp, và ghi mọi tệp vào cùng một phiên cài. Máy chủ chỉ gửi zip cho thiết bị khai báo khả năng `split_install`.
 
 `GET app-update` do bản fork này đặt ra, nên máy chủ khác không có: nhận 404 thì ứng dụng hỏi GitHub. Lời gọi trả bản FreeKiosk có
 `versionCode` cao nhất đã tải lên, `{ update: { version, version_code, notes, published_at, download_url } }`, hoặc `{ update: null }`.

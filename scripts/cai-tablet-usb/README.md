@@ -54,6 +54,19 @@ Công cụ nói rõ cần làm gì. Sửa xong thì bấm Thử lại, hoặc r�
   %LOCALAPPDATA%\FreeKioskCaiTablet\nhat-ky.txt, không chứa mã, PIN hay mật khẩu.
 
 
+LẤY ĐỦ BỘ APK TỪ MÁY ĐÃ CÀI ỨNG DỤNG
+------------------------------------
+Ứng dụng cài từ CH Play thường gồm nhiều tệp, và công cụ trích xuất APK trên điện thoại chỉ lấy
+phần gốc, Android không cài được một mình. Cách lấy đủ bộ:
+
+1. Bật Gỡ lỗi USB trên máy đã cài ứng dụng, cắm cáp, bấm Cho phép trên máy.
+2. Mở LayApk.bat, chọn ứng dụng trong danh sách.
+3. Tải tệp .zip vừa tạo lên mục Ứng dụng (APK) trên website.
+
+Máy lấy nên cùng loại CPU với các tablet. Tablet cần FreeKiosk từ 2.1.0-beta.5 trở lên để cài được
+bộ nhiều tệp.
+
+
 CẬP NHẬT PHIÊN BẢN FREEKIOSK
 ----------------------------
 Thay tệp FreeKiosk.apk trong thư mục này bằng bản mới, giữ nguyên tên tệp.

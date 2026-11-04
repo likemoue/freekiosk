@@ -537,7 +537,7 @@ describe('the apps on the home screen', () => {
       const uploadId = await uploadInParts(admin, server.base, 'iSMART iPro.apk', fakeApk(BASE_ONLY), 'apk');
       const response = await admin.request('POST', `/api/admin/apks/finish/${uploadId}`, {});
       assert.equal(response.status, 400);
-      assert.match(((await response.json()) as any).message, /APK đầy đủ/);
+      assert.match(((await response.json()) as any).message, /cả bộ/);
       assert.equal(await server.prisma.apkPackage.count({ where: { packageName: BASE_ONLY.package } }), 0);
     });
 
@@ -572,7 +572,7 @@ describe('the apps on the home screen', () => {
       const result = await apply(target, { add: ['vn.split.pick'] });
       assert.equal(result.installs, 0);
       assert.equal(result.sent, 0);
-      assert.match(result.skipped[0].reason, /APK đầy đủ/);
+      assert.match(result.skipped[0].reason, /cả bộ/);
       assert.equal((await tablet.heartbeat()).data.config, null);
       assert.deepEqual(await (await tablet.get('updates')).json(), []);
       assert.equal((await historyOf(tablet))[0].status, 'ERROR');
