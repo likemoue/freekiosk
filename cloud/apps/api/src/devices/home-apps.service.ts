@@ -7,12 +7,11 @@ import { deepMerge } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
 import { ApkInspector } from '../files/apk-inspector';
-import { HOME_APPS_COMMAND, installCommandData, whyCannotInstall } from './catalog';
+import { HOME_APPS_COMMAND, installCommandData, THROUGH_CONFIG_DAYS, whyCannotInstall } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
 import { editHomeApps, generalOf, homeCount, isMultiApp, ManagedApp, managedAppsOf } from './home-apps';
 
 const OWN_PACKAGE = 'com.freekiosk';
-const HISTORY_DAYS = 7;
 
 const DEVICE_FIELDS = { id: true, name: true, capabilities: true, installedApps: true, reportedConfig: true, pendingConfig: true } satisfies Prisma.DeviceSelect;
 type TargetDevice = Prisma.DeviceGetPayload<{ select: typeof DEVICE_FIELDS }>;
@@ -166,7 +165,7 @@ export class HomeAppsService {
 
     const now = new Date();
     const batchId = randomUUID();
-    const expiresAt = new Date(now.getTime() + HISTORY_DAYS * 86_400_000);
+    const expiresAt = new Date(now.getTime() + THROUGH_CONFIG_DAYS * 86_400_000);
     // A push is not a command for the tablet to run, but it is something the history must show
     const history: Prisma.CommandCreateManyInput[] = [];
     const record = (deviceId: string, params: Json, errorMessage?: string) => {
@@ -307,7 +306,7 @@ export class HomeAppsService {
         createdById: command.createdById,
         createdBy: command.createdBy,
         sentAt: now,
-        expiresAt: new Date(now.getTime() + HISTORY_DAYS * 86_400_000),
+        expiresAt: new Date(now.getTime() + THROUGH_CONFIG_DAYS * 86_400_000),
       },
     });
   }

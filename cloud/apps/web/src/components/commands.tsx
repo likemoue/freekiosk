@@ -26,8 +26,8 @@ interface CommandDef {
   adminOnly?: boolean;
   danger?: string;
   params?: ParamField[];
-  /** Not a queued command: goes through the configuration channel, as the app expects */
-  config?: (values: Record<string, string>) => Record<string, unknown>;
+  /** The app has no command for this: the server sends it through the configuration, confirmed by a heartbeat */
+  viaConfig?: boolean;
   /** Not a form with a send button: a screen of its own */
   editor?: boolean;
 }
@@ -47,8 +47,8 @@ const COMMANDS: CommandDef[] = [
   { type: 'speak', label: 'Đọc văn bản', icon: <MessageSquareText />, category: 'audio', capability: 'tts', params: [{ name: 'text', label: 'Văn bản cần đọc', type: 'textarea', required: true }] },
   { type: 'play_sound', label: 'Phát âm thanh', icon: <Volume2 />, category: 'audio', capability: 'audio', params: [{ name: 'url', label: 'URL tệp âm thanh', type: 'url', required: true, placeholder: 'https://...' }] },
   { type: 'audio_stop', label: 'Dừng âm thanh', icon: <VolumeX />, category: 'audio', capability: 'audio' },
-  { type: 'set_url', label: 'Đổi URL hiển thị', hint: 'Gửi qua kênh cấu hình: thiết bị áp dụng ở lần báo cáo kế tiếp.', icon: <Globe />, category: 'advanced', params: [{ name: 'url', label: 'URL', type: 'url', required: true, placeholder: 'https://...' }], config: (v) => ({ general: { url: v.url } }) },
-  { type: 'set_brightness', label: 'Đổi độ sáng', hint: 'Gửi qua kênh cấu hình. Nhập từ 0 đến 100.', icon: <Sparkles />, category: 'advanced', params: [{ name: 'percent', label: 'Độ sáng (%)', required: true, placeholder: '70' }], config: (v) => ({ display: { brightnessManagement: true, defaultBrightness: Math.min(100, Math.max(0, Number(v.percent) || 0)) / 100 } }) },
+  { type: 'set_url', label: 'Đổi URL hiển thị', hint: 'Gửi qua kênh cấu hình: thiết bị áp dụng ở lần báo cáo kế tiếp.', icon: <Globe />, category: 'advanced', viaConfig: true, params: [{ name: 'url', label: 'URL', type: 'url', required: true, placeholder: 'https://...' }] },
+  { type: 'set_brightness', label: 'Đổi độ sáng', hint: 'Gửi qua kênh cấu hình. Nhập từ 0 đến 100.', icon: <Sparkles />, category: 'advanced', viaConfig: true, params: [{ name: 'percent', label: 'Độ sáng (%)', required: true, placeholder: '70' }] },
   { type: 'launch_app', label: 'Mở ứng dụng', icon: <AppWindow />, category: 'advanced', params: [{ name: 'package_name', label: 'Tên gói', required: true, placeholder: 'com.example.app' }] },
   { type: 'add_wifi_network', label: 'Thêm mạng Wi-Fi', hint: 'Chỉ lưu để dùng sau, không chuyển mạng ngay. Mật khẩu chỉ gửi tới thiết bị, không lưu lại.', icon: <Wifi />, category: 'advanced', adminOnly: true, params: [{ name: 'ssid', label: 'Tên mạng (SSID)', required: true }, { name: 'password', label: 'Mật khẩu', type: 'password' }] },
   { type: 'execute_js', label: 'Chạy JavaScript', hint: 'Mã chạy ngay trong trang đang hiển thị. Chỉ dùng mã bạn hiểu rõ.', icon: <Code2 />, category: 'advanced', adminOnly: true, danger: 'Mã JavaScript sẽ chạy trong trang kiosk trên các thiết bị đã chọn.', params: [{ name: 'code', label: 'Mã JavaScript', type: 'textarea', required: true }] },
@@ -85,14 +85,7 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
     devices?.length === 1 && command.capability && devices[0].capabilities.length > 0 && !devices[0].capabilities.includes(command.capability);
 
   const send = useMutation({
-    mutationFn: async () => {
-      const command = selected!;
-      if (command.config) {
-        const { count } = await api.post('/api/admin/config/apply', { target, config: command.config(values) });
-        return { sent: count, skipped: [] as Array<{ name: string; reason: string }> };
-      }
-      return api.post('/api/admin/commands', { type: command.type, params: values, target });
-    },
+    mutationFn: () => api.post('/api/admin/commands', { type: selected!.type, params: values, target }),
     onSuccess: (result) => {
       if (result.sent === 0 && !result.skipped?.length) toast.warning('Không có thiết bị nào trong lựa chọn này');
       else toast.success(`Đã gửi tới ${result.sent} thiết bị`);
@@ -171,7 +164,11 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
                   </Button>
                   {!target && <span className="text-[13px] text-warn">Chưa chọn thiết bị</span>}
                 </div>
-                <p className="text-xs text-soft">Thiết bị nhận lệnh ở lần báo cáo kế tiếp, tối đa 30 giây. Lệnh hết hạn sau 1 giờ nếu thiết bị vẫn ngoại tuyến.</p>
+                <p className="text-xs text-soft">
+                  {selected.viaConfig
+                    ? 'Thiết bị nhận thay đổi ở lần báo cáo kế tiếp, tối đa 30 giây. Thiết bị đang ngoại tuyến sẽ nhận khi kết nối lại.'
+                    : 'Thiết bị nhận lệnh ở lần báo cáo kế tiếp, tối đa 30 giây. Lệnh hết hạn sau 1 giờ nếu thiết bị vẫn ngoại tuyến.'}
+                </p>
               </>
             )}
           </div>
@@ -185,6 +182,8 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
 function commandDetail(command: { type: string; params?: Record<string, any> }): string | null {
   const params = command.params ?? {};
   if (command.type === 'install_apk') return [params.file_name, params.version].filter(Boolean).join(' ') || null;
+  if (command.type === 'set_url') return params.url ?? null;
+  if (command.type === 'set_brightness') return params.percent !== undefined ? `${params.percent}%` : null;
   if (command.type === 'home_apps') {
     const parts = [
       params.add?.length ? `Thêm ${params.add.join(', ')}` : '',

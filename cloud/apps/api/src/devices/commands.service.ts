@@ -5,7 +5,8 @@ import { ActivityService } from '../common/activity.service';
 import { CryptoService } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
-import { COMMAND_LABELS, COMMANDS } from './catalog';
+import { COMMAND_LABELS, COMMANDS, CONFIG_COMMANDS, ConfigCommandSpec, THROUGH_CONFIG_DAYS } from './catalog';
+import { ConfigSyncService } from './config-sync.service';
 
 const DEFAULT_TTL_MINUTES = 60;
 
@@ -30,10 +31,12 @@ export class CommandsService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly activity: ActivityService,
+    private readonly configSync: ConfigSyncService,
   ) {}
 
   async send(options: SendOptions): Promise<SendResult> {
     const { type, target, actor } = options;
+    if (Object.hasOwn(CONFIG_COMMANDS, type)) return this.sendThroughConfig(CONFIG_COMMANDS[type], options);
     const spec = COMMANDS[type];
     if (!spec) throw new BadRequestException(`Lệnh không được hỗ trợ: ${type}`);
     if (spec.adminOnly && actor && actor.role !== 'ADMIN') {
@@ -85,16 +88,56 @@ export class CommandsService {
       });
     }
 
+    await this.logQueued(type, actor, reachable, batchId, skipped.length);
+    return { batchId, sent: reachable.length, skipped };
+  }
+
+  /**
+   * Reaches a tablet through its configuration, so there is nothing for it to run or answer: the
+   * line in the history starts as sent, and the heartbeat that confirms the change closes it.
+   */
+  private async sendThroughConfig(spec: ConfigCommandSpec, options: SendOptions): Promise<SendResult> {
+    const { type, target, actor } = options;
+    const params = options.params ?? {};
+    const problem = spec.validate(params);
+    if (problem) throw new BadRequestException(problem);
+
+    const where = targetWhere(target);
+    if (!where) throw new BadRequestException('Chưa chọn thiết bị');
+    const devices = await this.prisma.device.findMany({ where, select: { id: true, name: true } });
+
+    const batchId = randomUUID();
+    const now = new Date();
+    await this.configSync.push(devices.map((device) => device.id), spec.config(params));
+    await this.prisma.command.createMany({
+      data: devices.map((device) => ({
+        deviceId: device.id,
+        type,
+        params: params as Prisma.InputJsonValue,
+        status: 'SENT' as const,
+        batchId,
+        source: options.source ?? 'manual',
+        createdById: actor?.id,
+        createdBy: actor?.email,
+        sentAt: now,
+        expiresAt: new Date(now.getTime() + THROUGH_CONFIG_DAYS * 86_400_000),
+      })),
+    });
+
+    await this.logQueued(type, actor, devices, batchId, 0);
+    return { batchId, sent: devices.length, skipped: [] };
+  }
+
+  private async logQueued(type: string, actor: User | null | undefined, devices: Array<{ id: string; name: string }>, batchId: string, skipped: number): Promise<void> {
     const label = COMMAND_LABELS[type] ?? type;
-    const single = reachable.length === 1 ? reachable[0] : null;
+    const single = devices.length === 1 ? devices[0] : null;
     await this.activity.log({
       action: 'command.queued',
-      message: `${actor?.email ?? 'Lịch hẹn giờ'} gửi lệnh "${label}" tới ${single ? single.name : `${reachable.length} thiết bị`}`,
+      message: `${actor?.email ?? 'Lịch hẹn giờ'} gửi lệnh "${label}" tới ${single ? single.name : `${devices.length} thiết bị`}`,
       device: single,
       user: actor,
-      data: { type, batchId, count: reachable.length, skipped: skipped.length },
+      data: { type, batchId, count: devices.length, skipped },
     });
-    return { batchId, sent: reachable.length, skipped };
   }
 
   /** Commands the device has not run in time will never run */

@@ -10,24 +10,22 @@ namespace CaiTablet
     /// Signs in to the website and makes an enrollment code with the chosen group and profile, so
     /// the operator can pick a profile from here. The password is used once and never saved.
     /// </summary>
-    sealed class WebsiteForm : Form
+    sealed class WebsiteForm : ThemedDialog
     {
-        const int FieldWidth = 400;
-
         readonly WebsiteClient client;
-        readonly TextBox email = new TextBox { Width = FieldWidth };
-        readonly TextBox password = new TextBox { Width = FieldWidth, UseSystemPasswordChar = true };
-        readonly TextBox code = new TextBox { Width = FieldWidth };
-        readonly Label codeLabel = FieldLabel("Mã xác thực 2 bước");
-        readonly ComboBox group = new ComboBox { Width = FieldWidth, DropDownStyle = ComboBoxStyle.DropDownList };
-        readonly ComboBox profile = new ComboBox { Width = FieldWidth, DropDownStyle = ComboBoxStyle.DropDownList };
-        readonly NumericUpDown maxUses = new NumericUpDown { Width = 120, Minimum = 1, Maximum = 1000, Value = 50 };
-        readonly NumericUpDown validHours = new NumericUpDown { Width = 120, Minimum = 1, Maximum = 720, Value = 720 };
-        readonly Label error = new Label { AutoSize = true, MaximumSize = new Size(FieldWidth, 0), ForeColor = Color.FromArgb(180, 40, 40), Margin = new Padding(0, 10, 0, 0) };
-        readonly Button primary = new Button { AutoSize = true, MinimumSize = new Size(110, 32) };
-        readonly Button cancel = new Button { Text = "Hủy", AutoSize = true, MinimumSize = new Size(96, 32), DialogResult = DialogResult.Cancel };
-        readonly TableLayoutPanel signIn = Page();
-        readonly TableLayoutPanel choose = Page();
+        readonly TextBox email = new TextBox();
+        readonly TextBox password = new TextBox { UseSystemPasswordChar = true };
+        readonly TextBox code = new TextBox();
+        readonly Panel codeField;
+        readonly Label codeLabel = Theme.FieldLabel("Mã xác thực 2 bước");
+        readonly ComboBox group = new ComboBox { Width = Theme.FieldWidth, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0) };
+        readonly ComboBox profile = new ComboBox { Width = Theme.FieldWidth, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0) };
+        readonly NumericUpDown maxUses = new NumericUpDown { Minimum = 1, Maximum = 1000, Value = 50, BorderStyle = BorderStyle.None };
+        readonly NumericUpDown validHours = new NumericUpDown { Minimum = 1, Maximum = 720, Value = 720, BorderStyle = BorderStyle.None };
+        readonly Label error = new Label { AutoSize = true, MaximumSize = new Size(Theme.FieldWidth + 32, 0), Dock = DockStyle.Fill, ForeColor = Theme.Problem, BackColor = Theme.ProblemPage, Padding = new Padding(12, 8, 12, 8), Margin = new Padding(0, 12, 0, 0), Visible = false };
+        readonly Button primary = Theme.Primary("Đăng nhập");
+        readonly TableLayoutPanel signIn = Theme.Card(null);
+        readonly TableLayoutPanel choose = Theme.Card(null);
 
         bool signedIn;
 
@@ -35,80 +33,59 @@ namespace CaiTablet
         public string Note { get; private set; }
 
         public WebsiteForm(string serverUrl)
+            : base("Lấy mã từ website", "Đăng nhập website", new Uri(serverUrl).Authority)
         {
             client = new WebsiteClient(serverUrl);
 
-            Text = "Lấy mã từ website";
-            Font = new Font("Segoe UI", 9.75f);
-            AutoScaleMode = AutoScaleMode.Dpi;
-            AutoScaleDimensions = new SizeF(96f, 96f);
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
-            ShowInTaskbar = false;
-            AutoSize = true;
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            Padding = new Padding(20, 14, 20, 14);
-
-            signIn.Controls.Add(Hint("Đăng nhập bằng tài khoản quản trị của website. Mật khẩu chỉ dùng cho lần này và không được lưu."));
-            signIn.Controls.Add(FieldLabel("Email"));
-            signIn.Controls.Add(email);
-            signIn.Controls.Add(FieldLabel("Mật khẩu"));
-            signIn.Controls.Add(password);
+            codeField = Theme.Input(code, Theme.FieldWidth);
+            Label intro = Theme.Hint("Đăng nhập bằng tài khoản quản trị của website. Mật khẩu chỉ dùng cho lần này và không được lưu.");
+            intro.Margin = new Padding(0);
+            signIn.Controls.Add(intro);
+            signIn.Controls.Add(Theme.FieldLabel("Email"));
+            signIn.Controls.Add(Theme.Input(email, Theme.FieldWidth));
+            signIn.Controls.Add(Theme.FieldLabel("Mật khẩu"));
+            signIn.Controls.Add(Theme.Input(password, Theme.FieldWidth));
             signIn.Controls.Add(codeLabel);
-            signIn.Controls.Add(code);
+            signIn.Controls.Add(codeField);
             codeLabel.Visible = false;
-            code.Visible = false;
+            codeField.Visible = false;
 
-            choose.Controls.Add(Hint("Mọi tablet dùng mã này sẽ vào nhóm và nhận hồ sơ bạn chọn."));
-            choose.Controls.Add(FieldLabel("Nhóm"));
+            Label groupLabel = Theme.FieldLabel("Nhóm");
+            groupLabel.Margin = new Padding(0, 0, 0, 4);
+            choose.Controls.Add(groupLabel);
             choose.Controls.Add(group);
-            choose.Controls.Add(FieldLabel("Hồ sơ cấu hình"));
+            choose.Controls.Add(Theme.FieldLabel("Hồ sơ cấu hình"));
             choose.Controls.Add(profile);
-            choose.Controls.Add(FieldLabel("Số máy được dùng"));
-            choose.Controls.Add(maxUses);
-            choose.Controls.Add(FieldLabel("Hiệu lực (giờ)"));
-            choose.Controls.Add(validHours);
+            int half = (Theme.FieldWidth - 16) / 2;
+            Panel usesField = Theme.Frame(maxUses, half);
+            usesField.Margin = new Padding(0, 0, 16, 0);
+            var limits = new TableLayoutPanel { ColumnCount = 2, RowCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0) };
+            limits.Controls.Add(Theme.FieldLabel("Số máy được dùng"), 0, 0);
+            limits.Controls.Add(Theme.FieldLabel("Hiệu lực (giờ)"), 1, 0);
+            limits.Controls.Add(usesField, 0, 1);
+            limits.Controls.Add(Theme.Frame(validHours, half), 1, 1);
+            choose.Controls.Add(limits);
             choose.Visible = false;
             group.SelectedIndexChanged += delegate { DescribeGroupProfile(); };
 
-            var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 14, 0, 0) };
-            buttons.Controls.Add(cancel);
-            buttons.Controls.Add(primary);
-            primary.Text = "Đăng nhập";
+            Content.Controls.Add(signIn);
+            Content.Controls.Add(choose);
+            Content.Controls.Add(error);
+
             primary.Click += OnPrimary;
-
-            var layout = new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Dock = DockStyle.Fill };
-            layout.Controls.Add(signIn);
-            layout.Controls.Add(choose);
-            layout.Controls.Add(error);
-            layout.Controls.Add(buttons);
-            Controls.Add(layout);
-
-            AcceptButton = primary;
-            CancelButton = cancel;
             FormClosed += delegate { if (signedIn) Task.Run(() => client.Logout()); };
+            Finish(primary, Theme.Secondary("Hủy"), null);
         }
 
-        static TableLayoutPanel Page()
+        void ShowError(string message)
         {
-            return new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0) };
-        }
-
-        static Label FieldLabel(string text)
-        {
-            return new Label { Text = text, AutoSize = true, Font = new Font("Segoe UI Semibold", 9.75f), Margin = new Padding(0, 10, 0, 3) };
-        }
-
-        static Label Hint(string text)
-        {
-            return new Label { Text = text, AutoSize = true, MaximumSize = new Size(FieldWidth, 0), ForeColor = Color.FromArgb(95, 105, 120), Margin = new Padding(0, 0, 0, 2) };
+            error.Text = message;
+            error.Visible = message != "";
         }
 
         async void OnPrimary(object sender, EventArgs e)
         {
-            error.Text = "";
+            ShowError("");
             primary.Enabled = false;
             UseWaitCursor = true;
             try
@@ -118,7 +95,7 @@ namespace CaiTablet
             }
             catch (WebsiteError problem)
             {
-                error.Text = problem.Message;
+                ShowError(problem.Message);
             }
             finally
             {
@@ -134,7 +111,7 @@ namespace CaiTablet
             string twoStep = code.Text.Trim();
             if (user == "" || secret == "")
             {
-                error.Text = "Hãy nhập email và mật khẩu.";
+                ShowError("Hãy nhập email và mật khẩu.");
                 return;
             }
 
@@ -142,9 +119,9 @@ namespace CaiTablet
             if (!done)
             {
                 codeLabel.Visible = true;
-                code.Visible = true;
+                codeField.Visible = true;
                 code.Focus();
-                error.Text = "Tài khoản này bật xác thực 2 bước. Hãy nhập mã rồi bấm Đăng nhập.";
+                ShowError("Tài khoản này bật xác thực 2 bước. Hãy nhập mã rồi bấm Đăng nhập.");
                 return;
             }
 
@@ -163,6 +140,8 @@ namespace CaiTablet
             signIn.Visible = false;
             choose.Visible = true;
             primary.Text = "Tạo mã";
+            ShowBand("Tạo mã đăng ký", "Mọi tablet dùng mã này sẽ vào nhóm và nhận hồ sơ bạn chọn.");
+            group.Focus();
         }
 
         /// <summary>A group's profile applies by itself: says so, so nobody picks it twice or thinks there is none.</summary>
