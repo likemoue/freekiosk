@@ -1456,6 +1456,24 @@ class OverlayService : Service() {
         return cachedManagedPackages?.contains(pkg) == true
     }
     
+    private fun isMultiAppMode(): Boolean {
+        return try {
+            val dbPath = getDatabasePath("RKStorage").absolutePath
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(dbPath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
+            val cursor = db.rawQuery(
+                "SELECT value FROM catalystLocalStorage WHERE key = ?",
+                arrayOf("@kiosk_external_app_mode")
+            )
+            val multi = cursor.moveToFirst() && cursor.getString(0) == "multi"
+            cursor.close()
+            db.close()
+            multi
+        } catch (e: Exception) {
+            DebugLog.d("OverlayService", "Could not read external app mode: ${e.message}")
+            false
+        }
+    }
+
     /**
      * Read all managed app package names from AsyncStorage.
      */
@@ -1538,8 +1556,12 @@ class OverlayService : Service() {
      * the external app directly from the native layer, avoiding the JS round-trip.
      */
     private fun bringFreeKioskToFront() {
-        // If we have a locked external app, relaunch it directly
-        val targetPackage = lockedPackage
+        // If we have a locked external app, relaunch it directly. Not in multi-app mode: the grid
+        // is home there, and lockedPackage is only the app last opened from it. This service keeps
+        // running after an involuntary return to the grid, so relaunching it here opened that app
+        // on its own at some later point, for whoever was looking at the grid. Same rule as
+        // MainActivity.onResume and the AppState listener in KioskScreen.
+        val targetPackage = if (isMultiAppMode()) null else lockedPackage
         if (targetPackage != null) {
             try {
                 android.util.Log.i("OverlayService", "Relaunching external app directly: $targetPackage")

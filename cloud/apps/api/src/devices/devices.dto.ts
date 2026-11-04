@@ -65,6 +65,8 @@ export class SaveProfileDto {
   @ApiProperty() @IsObject() config: Record<string, unknown>;
   @ApiPropertyOptional({ type: SensitiveDto })
   @IsOptional() @ValidateNested() @Type(() => SensitiveDto) sensitive?: SensitiveDto;
+  @ApiPropertyOptional({ description: 'Chép thông tin bí mật thiết bị này đã báo cáo vào hồ sơ. Giá trị trong sensitive được ưu tiên.' })
+  @IsOptional() @IsUUID() copySecretsFromDeviceId?: string;
 }
 
 export class CreateTokenDto {

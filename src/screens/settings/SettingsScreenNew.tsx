@@ -143,7 +143,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [showVolume, setShowVolume] = useState<boolean>(true);
   const [showTime, setShowTime] = useState<boolean>(true);
   const [statusBarTheme, setStatusBarTheme] = useState<'dark' | 'light'>('dark');
-  const [language, setLanguage] = useState<SupportedLanguage>('en');
+  // The language in use until the saved one is read: starting from a fixed value showed
+  // another language as selected for a moment every time this screen opened
+  const [language, setLanguage] = useState<SupportedLanguage>(() => resolveSupportedLanguage(i18n.language));
   const [keyboardMode, setKeyboardMode] = useState<string>('default');
   const [allowPowerButton, setAllowPowerButton] = useState<boolean>(true);
   const [blockFactoryReset, setBlockFactoryReset] = useState<boolean>(false);

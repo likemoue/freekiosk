@@ -9,7 +9,7 @@ import { PrismaService } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { env } from '../config/env';
 import { ConfigSyncService, SensitiveValues } from '../devices/config-sync.service';
-import { CreateGroupDto, CreateTokenDto, SaveProfileDto, UpdateGroupDto } from '../devices/devices.dto';
+import { CreateGroupDto, CreateTokenDto, SaveProfileDto, SensitiveDto, UpdateGroupDto } from '../devices/devices.dto';
 import { SignageService } from '../signage/signage.service';
 
 @ApiTags('Nhóm')
@@ -80,6 +80,11 @@ export class GroupsController {
   }
 }
 
+/** The secrets actually filled in: a DTO carries every field, undefined where nothing was sent */
+function filled(sensitive?: SensitiveDto): SensitiveValues {
+  return Object.fromEntries(Object.entries(sensitive ?? {}).filter(([, value]) => value !== undefined));
+}
+
 @ApiTags('Hồ sơ cấu hình')
 @Controller('api/admin/profiles')
 export class ProfilesController {
@@ -118,12 +123,19 @@ export class ProfilesController {
   async create(@Body() dto: SaveProfileDto, @CurrentUser() actor: User) {
     const name = dto.name.trim();
     if (await this.prisma.configProfile.findUnique({ where: { name } })) throw new BadRequestException('Tên hồ sơ đã tồn tại');
+    let copied: SensitiveValues | null = null;
+    if (dto.copySecretsFromDeviceId) {
+      const source = await this.prisma.device.findUnique({ where: { id: dto.copySecretsFromDeviceId }, select: { reportedSensitiveEnc: true } });
+      if (!source) throw new NotFoundException('Không tìm thấy thiết bị');
+      copied = this.crypto.decryptJson<SensitiveValues>(source.reportedSensitiveEnc);
+    }
+    const secret = { ...copied, ...filled(dto.sensitive) };
     const profile = await this.prisma.configProfile.create({
       data: {
         name,
         description: dto.description,
         config: dto.config as Prisma.InputJsonValue,
-        sensitiveEnc: dto.sensitive && Object.keys(dto.sensitive).length ? this.crypto.encryptJson(dto.sensitive) : null,
+        sensitiveEnc: Object.keys(secret).length ? this.crypto.encryptJson(secret) : null,
       },
     });
     await this.activity.log({ action: 'profile.created', message: `${actor.email} đã tạo hồ sơ ${name}`, user: actor });
@@ -140,7 +152,7 @@ export class ProfilesController {
     const taken = await this.prisma.configProfile.findFirst({ where: { name, id: { not: id } } });
     if (taken) throw new BadRequestException('Tên hồ sơ đã tồn tại');
     // A secret left empty in the form keeps its value
-    const secret = { ...this.crypto.decryptJson<SensitiveValues>(before.sensitiveEnc), ...dto.sensitive };
+    const secret = { ...this.crypto.decryptJson<SensitiveValues>(before.sensitiveEnc), ...filled(dto.sensitive) };
     const profile = await this.prisma.configProfile.update({
       where: { id },
       data: {

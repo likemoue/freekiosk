@@ -16,6 +16,7 @@ import { StorageService, toPrintOrigins } from '../utils/storage';
 import { saveSecurePin, saveSecureMqttPassword, getSecureBasicAuthPassword } from '../utils/secureStorage';
 import KioskModule from '../utils/KioskModule';
 import AppLauncherModule from '../utils/AppLauncherModule';
+import { applyProvisioningBackup } from '../utils/BackupService';
 import OverlayServiceModule from '../utils/OverlayServiceModule';
 import BlockingOverlayModule from '../utils/BlockingOverlayModule';
 import AutoBrightnessModule from '../utils/AutoBrightnessModule';
@@ -1339,7 +1340,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       OverlayServiceModule.hideDimOverlay?.().catch(() => {});
     } else if (wasExternalAppScreensaverRef.current) {
       wasExternalAppScreensaverRef.current = false;
-      if (externalAppPackage) {
+      if (externalAppModeRef.current === 'multi') {
+        // externalAppPackage is the single-app setting: waking up on the grid must not open it
+        setIsAppLaunched(false);
+      } else if (externalAppPackage) {
         launchExternalApp(externalAppPackage);
       }
     }
@@ -1739,6 +1743,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   };
 
   const applyPendingAdbConfigNow = async (): Promise<void> => {
+    // First, so what the install tool sends in its own command (the PIN) wins over the file
+    await applyProvisioningBackup();
     try {
       const pendingConfig = await KioskModule.getPendingAdbConfig();
       if (pendingConfig) {

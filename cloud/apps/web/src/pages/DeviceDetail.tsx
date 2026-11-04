@@ -24,7 +24,7 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
   );
 }
 
-function ConfigTab({ deviceId, groupProfile }: { deviceId: string; groupProfile?: string }) {
+function ConfigTab({ deviceId }: { deviceId: string }) {
   const can = useCan();
   const client = useQueryClient();
   const [edits, setEdits] = useState<Record<string, any>>({});
@@ -77,7 +77,6 @@ function ConfigTab({ deviceId, groupProfile }: { deviceId: string; groupProfile?
     <div className="space-y-4 p-5">
       {!reported && <Notice>Thiết bị chưa báo cáo cấu hình. Thay đổi sẽ được gửi ngay khi thiết bị kết nối.</Notice>}
       {config.data.pending && <Notice tone="warn">Đang chờ thiết bị áp dụng cấu hình mới ở lần báo cáo kế tiếp.</Notice>}
-      {groupProfile && <p className="text-[13px] text-soft">Đang áp dụng hồ sơ: <b>{groupProfile}</b></p>}
 
       <ConfigForm base={reported ?? undefined} value={edits} onChange={setEdits} disabled={!can.operate} />
 
@@ -190,6 +189,7 @@ export default function DeviceDetail() {
   const d = device.data;
   const gone = !!d.unenrolledAt;
   const net = (d.telemetry as any)?.network ?? {};
+  const groupProfile = d.group?.profile;
 
   return (
     <>
@@ -252,7 +252,7 @@ export default function DeviceDetail() {
         />
         <div className="grid gap-5 px-5 pb-4 sm:grid-cols-2 lg:grid-cols-3">
           <Metric icon={<BatteryFull />} label="Pin" value={d.batteryLevel === null ? 'Không có pin' : `${d.batteryLevel}%`} detail={d.batteryCharging ? 'Đang sạc' : undefined} />
-          <Metric icon={<Wifi />} label="Mạng" value={d.ethernet ? 'Ethernet' : d.wifiSsid ? d.wifiSsid : net.cellular_connected ? (net.cellular_carrier || 'Di động') : 'Không rõ'} detail={d.wifiSignalDbm ? `${d.wifiSignalDbm} dBm` : undefined} />
+          <Metric icon={<Wifi />} label="Mạng" value={d.ethernet ? 'Ethernet' : d.wifiSsid ? d.wifiSsid : d.wifiSignalDbm ? 'Wi-Fi' : net.cellular_connected ? (net.cellular_carrier || 'Di động') : 'Không rõ'} detail={d.wifiSignalDbm ? `${d.wifiSignalDbm} dBm` : undefined} />
           <Metric icon={<Monitor />} label="Màn hình" value={d.screenOn === null ? '—' : d.screenOn ? 'Đang bật' : 'Đang tắt'} detail={d.brightness !== null ? `Độ sáng ${Math.round(d.brightness)}%` : undefined} />
           <Metric icon={<HardDrive />} label="Bộ nhớ trống" value={megabytes(d.freeStorageMb)} detail={d.freeMemoryMb !== null ? `RAM trống ${megabytes(d.freeMemoryMb)}` : undefined} />
           <Metric icon={<Globe />} label="Địa chỉ IP" value={d.ipAddress ?? '—'} detail={d.publicIp ? `Công khai: ${d.publicIp}` : undefined} />
@@ -285,17 +285,21 @@ export default function DeviceDetail() {
         )}
         {tab === 'config' && (
           <>
-            {can.operate && !gone && (
+            {!gone && (
               <div className="border-b border-line p-5">
-                <Field label="Hồ sơ cấu hình" hint="Hồ sơ gắn trực tiếp được ưu tiên hơn hồ sơ của nhóm.">
-                  <Select className="max-w-sm" value={d.profile?.id ?? ''} onChange={(e) => update.mutate({ profileId: e.target.value || null })}>
-                    <option value="">Không dùng hồ sơ riêng</option>
-                    {profiles.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </Select>
-                </Field>
+                {can.operate ? (
+                  <Field label="Hồ sơ cấu hình" hint={groupProfile ? `Thiết bị đang dùng hồ sơ của nhóm ${d.group.name}. Chọn hồ sơ khác ở đây thì hồ sơ đó được ưu tiên.` : 'Hồ sơ gắn trực tiếp được ưu tiên hơn hồ sơ của nhóm.'}>
+                    <Select className="max-w-sm" value={d.profile?.id ?? ''} onChange={(e) => update.mutate({ profileId: e.target.value || null })}>
+                      <option value="">{groupProfile ? `Theo nhóm: ${groupProfile.name}` : 'Không dùng hồ sơ'}</option>
+                      {profiles.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </Select>
+                  </Field>
+                ) : (
+                  <p className="text-[13px] text-soft">Đang áp dụng hồ sơ: <b>{d.profile?.name ?? (groupProfile ? `${groupProfile.name} (theo nhóm)` : 'Không có')}</b></p>
+                )}
               </div>
             )}
-            {gone ? <div className="p-5 text-sm text-soft">Thiết bị đã rời khỏi hệ thống.</div> : <ConfigTab deviceId={id} groupProfile={d.profile?.name} />}
+            {gone ? <div className="p-5 text-sm text-soft">Thiết bị đã rời khỏi hệ thống.</div> : <ConfigTab deviceId={id} />}
           </>
         )}
         {tab === 'signage' && (
