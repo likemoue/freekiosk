@@ -43,8 +43,8 @@ export default function Groups() {
     onError: notifyError,
   });
   const setGroupUrl = useMutation({
-    mutationFn: () => api.post('/api/admin/config/apply', { target: { groupId: urlFor.id }, config: { general: { url } } }),
-    onSuccess: (result) => { toast.success(`Đã đổi URL cho ${result.count} thiết bị`); setUrlFor(null); setUrl(''); },
+    mutationFn: () => api.post('/api/admin/commands', { type: 'set_url', params: { url }, target: { groupId: urlFor.id } }),
+    onSuccess: (result) => { toast.success(`Đã đổi URL cho ${result.sent} thiết bị`); setUrlFor(null); setUrl(''); },
     onError: notifyError,
   });
 

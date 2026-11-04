@@ -9,7 +9,7 @@ import { StorageService } from '../common/storage.service';
 import { env } from '../config/env';
 import { AlertsService } from '../alerts/alerts.service';
 import { SensitiveValues } from '../devices/config-sync.service';
-import { HOME_APPS_COMMAND } from '../devices/catalog';
+import { THROUGH_CONFIG_TYPES } from '../devices/catalog';
 import { PACKAGE_NAME } from '../devices/home-apps';
 import { HomeAppsService } from '../devices/home-apps.service';
 import { SignageService } from '../signage/signage.service';
@@ -278,7 +278,7 @@ export class DeviceApiService {
       // What the history said was on its way has arrived, even after a week away
       if (count) {
         await this.prisma.command.updateMany({
-          where: { deviceId: device.id, type: HOME_APPS_COMMAND, status: { in: ['SENT', 'EXPIRED'] }, createdAt: { lte: now } },
+          where: { deviceId: device.id, type: { in: THROUGH_CONFIG_TYPES }, status: { in: ['SENT', 'EXPIRED'] }, createdAt: { lte: now } },
           data: { status: 'SUCCESS', completedAt: now },
         });
       }

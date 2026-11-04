@@ -55,8 +55,44 @@ export const COMMANDS: Record<string, CommandSpec> = {
 /** Not a command the tablet runs: a change of its apps through the configuration, kept for the history */
 export const HOME_APPS_COMMAND = 'home_apps';
 
+/** A number from 0 to 100, as the page sends it (text) or as anyone else would (a number) */
+function percentOf(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return number >= 0 && number <= 100 ? number : null;
+}
+
+export interface ConfigCommandSpec {
+  validate: (params: Record<string, unknown>) => string | null;
+  config: (params: Record<string, unknown>) => Record<string, unknown>;
+}
+
+/**
+ * What reads as a command on the page but is really a change of settings: the app has no command
+ * for these and takes them with a heartbeat, like any other setting. Kept out of COMMANDS, which
+ * is what a tablet can run and what a schedule can repeat.
+ */
+export const CONFIG_COMMANDS: Record<string, ConfigCommandSpec> = {
+  set_url: {
+    validate: httpUrl('url'),
+    config: (params) => ({ general: { url: params.url } }),
+  },
+  set_brightness: {
+    validate: (params) => (percentOf(params.percent) === null ? 'Độ sáng phải là số từ 0 đến 100' : null),
+    config: (params) => ({ display: { brightnessManagement: true, defaultBrightness: percentOf(params.percent)! / 100 } }),
+  },
+};
+
+/**
+ * The lines of the history a heartbeat confirms, since the tablet has nothing to run or answer.
+ * They last a week rather than an hour: a tablet switched off for the weekend still gets the change.
+ */
+export const THROUGH_CONFIG_TYPES = [HOME_APPS_COMMAND, ...Object.keys(CONFIG_COMMANDS)];
+export const THROUGH_CONFIG_DAYS = 7;
+
 export const COMMAND_LABELS: Record<string, string> = {
   [HOME_APPS_COMMAND]: 'Ứng dụng trên màn hình',
+  set_url: 'Đổi URL hiển thị',
+  set_brightness: 'Đổi độ sáng',
   screen_on: 'Bật màn hình',
   screen_off: 'Tắt màn hình',
   wake: 'Đánh thức',
