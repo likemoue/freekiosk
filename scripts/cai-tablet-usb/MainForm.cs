@@ -215,7 +215,8 @@ namespace CaiTablet
                 new KeyValuePair<string, int>("2. Đi hết các bước thiết lập, bỏ qua Wi-Fi, không đăng nhập tài khoản nào.", 2),
                 new KeyValuePair<string, int>("3. Vào Cài đặt, Thông tin máy tính bảng, Thông tin phần mềm. Chạm 7 lần vào Số hiệu bản tạo.", 3),
                 new KeyValuePair<string, int>("4. Quay lại Cài đặt, vào Tùy chọn cho nhà phát triển, bật Gỡ lỗi USB.", 2),
-                new KeyValuePair<string, int>("5. Cắm cáp vào máy tính này, rồi bấm Cho phép trên tablet.", 2),
+                new KeyValuePair<string, int>("5. Máy Lenovo: Cài đặt, One Vision, Window buttons and window menus, tắt Full screen window button.", 3),
+                new KeyValuePair<string, int>("6. Cắm cáp vào máy tính này, rồi bấm Cho phép trên tablet.", 2),
             };
             var guide = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = steps.Length, BackColor = Color.White };
             foreach (KeyValuePair<string, int> step in steps)
