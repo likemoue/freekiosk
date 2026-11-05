@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DeviceWakeService } from '../common/device-wake.service';
-import { configDifferences, profileStatus } from './profile-state';
+import { profileDifferences, profileStatus } from './profile-state';
 import type { Device, Prisma, User } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
 import { CryptoService } from '../common/crypto.service';
@@ -133,7 +133,7 @@ export class DevicesService {
     return {
       profileStatus: profileStatus(device),
       // Each one with both values, to show what would change
-      profileDifferences: inEffect ? configDifferences(inEffect.config, device.reportedConfig) : [],
+      profileDifferences: inEffect ? profileDifferences(device, inEffect.config) : [],
       reported: device.reportedConfig,
       reportedAt: device.reportedConfigAt,
       pending: device.pendingConfig,
@@ -171,7 +171,7 @@ export class DevicesService {
       if (profileId) {
         const profile = await this.prisma.configProfile.findUnique({ where: { id: profileId } });
         if (profile) {
-          await this.configSync.push([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
+          await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
         }
       }
     }
@@ -190,7 +190,7 @@ export class DevicesService {
     if (!inEffect) throw new BadRequestException('Thiết bị này chưa dùng hồ sơ cấu hình nào');
     const profile = await this.prisma.configProfile.findUnique({ where: { id: inEffect.id } });
     if (!profile) throw new BadRequestException('Không tìm thấy hồ sơ');
-    await this.configSync.push([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
+    await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
     await this.activity.log({ action: 'device.profile_applied', message: `${actor.email} đã áp lại hồ sơ ${profile.name} cho ${device.name}`, user: actor, device });
     return { ok: true };
   }

@@ -41,6 +41,23 @@ export function configDifferences(wanted: unknown, reported: unknown, prefix = '
   return out;
 }
 
+/**
+ * What a device differs in, leaving out the player a playlist put it in: the app remembers the mode it
+ * came from and goes back there when the list is taken away, so that is not a setting gone astray.
+ */
+export function profileDifferences(device: { reportedConfig: unknown; signagePlaylistVersion?: string | null }, config: unknown): ConfigDifference[] {
+  const differences = configDifferences(config, device.reportedConfig);
+  return device.signagePlaylistVersion ? differences.filter((d) => d.path !== 'general.displayMode') : differences;
+}
+
+/** A profile for a device playing a list: the rest of it applies, the mode waits until the list is gone */
+export function withoutDisplayMode(config: Record<string, unknown>): Record<string, unknown> {
+  const general = config.general;
+  if (!isObject(general) || !('displayMode' in general)) return config;
+  const { displayMode: _mode, ...rest } = general;
+  return { ...config, general: rest };
+}
+
 export type ProfileState = 'none' | 'match' | 'different' | 'pending' | 'not_reported';
 
 interface ProfileRef {
@@ -55,6 +72,7 @@ export interface DeviceForProfile {
   reportedConfig: unknown;
   pendingConfig: unknown;
   pendingSensitiveEnc?: string | null;
+  signagePlaylistVersion?: string | null;
 }
 
 export interface ProfileStatus {
@@ -79,6 +97,6 @@ export function profileStatus(device: DeviceForProfile): ProfileStatus {
   if (device.pendingConfig !== null && device.pendingConfig !== undefined) return { ...base, state: 'pending', differences: [] };
   if (device.pendingSensitiveEnc) return { ...base, state: 'pending', differences: [] };
   if (!isObject(device.reportedConfig)) return { ...base, state: 'not_reported', differences: [] };
-  const differences = configDifferences(profile.config, device.reportedConfig).map((d) => d.path);
+  const differences = profileDifferences(device, profile.config).map((d) => d.path);
   return { ...base, state: differences.length ? 'different' : 'match', differences };
 }

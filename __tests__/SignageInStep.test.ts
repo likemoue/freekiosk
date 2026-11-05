@@ -8,7 +8,7 @@ jest.mock('react-native-webview', () => ({ WebView: 'WebView' }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 const AsyncStorage = require('@react-native-async-storage/async-storage');
-const { SIGNAGE_TIMELINE_JS } = require('../src/utils/SignageTimeline');
+const { IN_STEP_PLAYER_JS, SIGNAGE_TIMELINE_JS } = require('../src/utils/SignageTimeline');
 const { generatePlayerHTML } = require('../src/components/MediaPlayerComponent');
 const { manifestToItems, SignagePlaylist } = require('../src/utils/SignagePlaylist');
 const { activeRuleStart } = require('../src/utils/SignageSchedule');
@@ -65,19 +65,101 @@ describe('closing a gap', () => {
   });
 
   it('plays a little slower when ahead, a little faster when behind', () => {
-    expect(page.correctionFor(0.2).rate).toBeCloseTo(0.9);
-    expect(page.correctionFor(-0.2).rate).toBeCloseTo(1.1);
-    expect(page.correctionFor(0.1).rate).toBeCloseTo(0.95);
+    expect(page.correctionFor(0.2).rate).toBeCloseTo(0.8);
+    expect(page.correctionFor(-0.2).rate).toBeCloseTo(1.2);
+    expect(page.correctionFor(0.1).rate).toBeCloseTo(0.9);
   });
 
   it('never bends the speed further than a person would not notice', () => {
-    expect(page.correctionFor(0.59).rate).toBeCloseTo(0.9);
-    expect(page.correctionFor(-0.59).rate).toBeCloseTo(1.1);
+    expect(page.correctionFor(0.59).rate).toBeCloseTo(0.75);
+    expect(page.correctionFor(-0.59).rate).toBeCloseTo(1.25);
   });
 
   it('seeks when the gap is too big for that', () => {
     expect(page.correctionFor(0.7).seek).toBe(true);
     expect(page.correctionFor(-30).seek).toBe(true);
+  });
+});
+
+describe('a video that takes time to begin', () => {
+  // The player itself, with a clock and a tablet made up: this video begins 300 ms after it is told to
+  const BEGINS_AFTER_MS = 300;
+  const setUp = () => {
+    let now = 1_000_000;
+    const timers: Array<{ at: number; run: () => void }> = [];
+    const videos: any[] = [];
+    const slot = () => ({ innerHTML: '', classList: { add() {}, remove() {} }, appendChild() {}, querySelector: () => null });
+    const slots = { A: slot(), B: slot() };
+    const makeVideo = () => {
+      const video: any = {
+        paused: true, ended: false, seeking: false, readyState: 4, duration: 10, playbackRate: 1, muted: false, toldAt: null,
+        listeners: {} as Record<string, () => void>,
+        setAttribute() {},
+        removeEventListener() {},
+        addEventListener(name: string, listener: () => void) { video.listeners[name] = listener; },
+        play() {
+          video.paused = false;
+          if (video.toldAt === null) video.toldAt = now;
+          return Promise.resolve();
+        },
+        pause() { video.paused = true; },
+        get currentTime() {
+          if (video.toldAt === null) return 0;
+          return Math.max(0, now - video.toldAt - BEGINS_AFTER_MS) / 1000;
+        },
+        set currentTime(_seconds: number) {},
+      };
+      videos.push(video);
+      return video;
+    };
+    const fakes = {
+      playlist: [{ type: 'video', url: 'a', durationMs: 5000, duration: 5 }],
+      SETTINGS: { muteVideo: true, transitionEnabled: false, transitionDuration: 0 },
+      SYNC: { epochMs: now, offsetMs: 0 },
+      document: { createElement: makeVideo },
+      window: {},
+      Date: { now: () => now },
+      setTimeout: (run: () => void, ms: number) => { timers.push({ at: now + ms, run }); return timers.length; },
+      clearTimeout() {},
+      setInterval() { return 0; },
+      showLoading() {},
+      hideLoading() {},
+      isOffline: () => false,
+      makeFrame: () => null,
+      getActiveSlot: () => slots.A,
+      getInactiveSlot: () => slots.B,
+      activeSlot: 'A',
+    };
+    const names = Object.keys(fakes);
+    const player = new Function(...names, `${SIGNAGE_TIMELINE_JS}\n${IN_STEP_PLAYER_JS}\nreturn { stepRun, stepTick, leads: stepLeadMs };`)(...names.map((n) => (fakes as any)[n]));
+    const passTo = (end: number) => {
+      while (now < end) {
+        now += 50;
+        timers.filter((t) => t.at <= now).forEach((t) => { timers.splice(timers.indexOf(t), 1); t.run(); });
+        if (now % 200 === 0) player.stepTick();
+        videos.forEach((v) => v.listeners.loadeddata?.());
+      }
+    };
+    player.stepRun([5000], () => { throw new Error('fell back'); });
+    return { player, videos, passTo, start: now };
+  };
+
+  it('finds out how late it began', () => {
+    const { player, passTo, start } = setUp();
+    passTo(start + 1000);
+    expect(player.leads[0]).toBeGreaterThan(100);
+    expect(player.leads[0]).toBeLessThanOrEqual(BEGINS_AFTER_MS);
+  });
+
+  it('is told that much earlier the next time, and the time after it begins on time', () => {
+    const { videos, passTo, start } = setUp();
+    passTo(start + 16_000);
+    // The turns begin every 5 seconds. The first is told when it comes, the later ones ever closer to what it takes
+    const early = videos.slice(0, 4).map((video, i) => start + i * 5000 - video.toldAt);
+    expect(early[0]).toBeLessThanOrEqual(0);
+    expect(early[1]).toBeGreaterThan(100);
+    expect(early[2]).toBeGreaterThan(early[1] - 1);
+    expect(Math.abs(early[3] - BEGINS_AFTER_MS)).toBeLessThan(100);
   });
 });
 
