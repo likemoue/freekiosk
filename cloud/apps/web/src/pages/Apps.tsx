@@ -2,14 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Download, Package, QrCode, Rocket, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { useCan } from '../auth';
 import { DeviceSelect } from '../components/commands';
 import { DeviceSummary } from '../components/device';
+import { FleetVersions, needsLooking, useFleetVersions } from '../components/fleet-versions';
 import { UploadButton } from '../components/upload';
 import { bytes, dateTime } from '../format';
-import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, notifyError, Notice, PageHeader, Pills, Select, Table, td, th, trow, useConfirm } from '../ui';
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, notifyError, Notice, PageHeader, Pills, Select, Table, Tabs, td, th, trow, useConfirm } from '../ui';
 
 function DeployDialog({ apk, onClose }: { apk: any; onClose: () => void }) {
   const [scope, setScope] = useState<'device' | 'group' | 'all'>('group');
@@ -50,6 +52,10 @@ export default function Apps() {
   const confirm = useConfirm();
   const client = useQueryClient();
   const [deploying, setDeploying] = useState<any>(null);
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<'library' | 'versions'>(params.get('tab') === 'versions' ? 'versions' : 'library');
+  const versions = useFleetVersions();
+  const problems = versions.data?.filter(needsLooking).length ?? 0;
   const apks = useQuery<any[]>({ queryKey: ['apks'], queryFn: () => api.get('/api/admin/apks') });
   const refresh = () => client.invalidateQueries({ queryKey: ['apks'] });
 
@@ -80,6 +86,17 @@ export default function Apps() {
           />
         )}
       />
+      <Tabs
+        className="mb-5"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'library', label: 'Thư viện APK' },
+          { id: 'versions', label: problems ? `Phiên bản trên thiết bị (${problems} cần xem)` : 'Phiên bản trên thiết bị' },
+        ]}
+      />
+      {tab === 'versions' && <FleetVersions />}
+      {tab === 'library' && <>
       <Notice className="mb-5">
         Cấp phát bằng QR cần bản <code>assembleRelease -Pcloudprovi</code>: bản GitHub khai báo dịch vụ trợ năng nên bị Play Protect chặn giữa chừng. Bản GitHub vẫn dùng được khi cài qua ADB.
         {' '}Ứng dụng cài từ CH Play gồm nhiều tệp: hãy tải lên cả bộ (<code>.apks</code>, <code>.xapk</code>, <code>.apkm</code>, hoặc <code>.zip</code> chứa đủ các tệp <code>.apk</code>). Công cụ <code>LayApk</code> đi kèm công cụ cài USB lấy đủ bộ từ máy đã cài sẵn.
@@ -121,6 +138,7 @@ export default function Apps() {
           </Table>
         )}
       </Card>
+      </>}
       {deploying && <DeployDialog apk={deploying} onClose={() => setDeploying(null)} />}
     </>
   );

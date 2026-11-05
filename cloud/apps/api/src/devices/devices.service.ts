@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DeviceWakeService } from '../common/device-wake.service';
+import { configDifferences, profileStatus } from './profile-state';
 import type { Device, Prisma, User } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
 import { CryptoService } from '../common/crypto.service';
@@ -8,16 +10,22 @@ import { SignageService } from '../signage/signage.service';
 import { ConfigSyncService, SensitiveValues } from './config-sync.service';
 import { UpdateDeviceDto } from './devices.dto';
 
+interface ProfileRow {
+  id: string;
+  name: string;
+  config: unknown;
+}
+
 type DeviceWithRelations = Device & {
-  group?: { id: string; name: string; color: string | null; profile?: { id: string; name: string } | null } | null;
-  profile?: { id: string; name: string } | null;
+  group?: { id: string; name: string; color: string | null; profile?: ProfileRow | null } | null;
+  profile?: ProfileRow | null;
   playlist?: { id: string; name: string } | null;
 };
 
 const RELATIONS = {
   // The group's profile too: it is what a device with no profile of its own is using
-  group: { select: { id: true, name: true, color: true, profile: { select: { id: true, name: true } } } },
-  profile: { select: { id: true, name: true } },
+  group: { select: { id: true, name: true, color: true, profile: { select: { id: true, name: true, config: true } } } },
+  profile: { select: { id: true, name: true, config: true } },
   playlist: { select: { id: true, name: true } },
 } satisfies Prisma.DeviceInclude;
 
@@ -30,6 +38,7 @@ export class DevicesService {
     private readonly activity: ActivityService,
     private readonly configSync: ConfigSyncService,
     private readonly signage: SignageService,
+    private readonly wake: DeviceWakeService,
   ) {}
 
   /** A list row: never the configuration, the secrets or the API key hash */
@@ -38,8 +47,11 @@ export class DevicesService {
       id: d.id,
       name: d.name,
       notes: d.notes,
-      group: d.group ?? null,
-      profile: d.profile ?? null,
+      group: d.group
+        ? { id: d.group.id, name: d.group.name, color: d.group.color, profile: d.group.profile ? { id: d.group.profile.id, name: d.group.profile.name } : null }
+        : null,
+      profile: d.profile ? { id: d.profile.id, name: d.profile.name } : null,
+      profileStatus: profileStatus(d),
       playlist: d.playlist ?? null,
       model: d.model,
       manufacturer: d.manufacturer,
@@ -117,7 +129,11 @@ export class DevicesService {
     const device = await this.mustFind(id);
     const pendingSecret = this.crypto.decryptJson<SensitiveValues>(device.pendingSensitiveEnc);
     const reportedSecret = this.crypto.decryptJson<SensitiveValues>(device.reportedSensitiveEnc);
+    const inEffect = device.profile ?? device.group?.profile ?? null;
     return {
+      profileStatus: profileStatus(device),
+      // Each one with both values, to show what would change
+      profileDifferences: inEffect ? configDifferences(inEffect.config, device.reportedConfig) : [],
       reported: device.reportedConfig,
       reportedAt: device.reportedConfigAt,
       pending: device.pendingConfig,
@@ -160,9 +176,23 @@ export class DevicesService {
       }
     }
     if (groupChanged || dto.playlistId !== undefined) this.signage.invalidate();
+    // The name shows on its home screen, and the group may bring a playlist with it
+    this.wake.notify([id], 'config');
 
     await this.activity.log({ action: 'device.updated', message: `${actor.email} đã cập nhật thiết bị ${device.name}`, device, user: actor, data: { ...dto } });
     return this.toSummary(device);
+  }
+
+  /** Sends the profile in effect to this device again, to undo what changed it since */
+  async applyProfile(id: string, actor: User) {
+    const device = await this.mustFind(id);
+    const inEffect = device.profile ?? device.group?.profile ?? null;
+    if (!inEffect) throw new BadRequestException('Thiết bị này chưa dùng hồ sơ cấu hình nào');
+    const profile = await this.prisma.configProfile.findUnique({ where: { id: inEffect.id } });
+    if (!profile) throw new BadRequestException('Không tìm thấy hồ sơ');
+    await this.configSync.push([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
+    await this.activity.log({ action: 'device.profile_applied', message: `${actor.email} đã áp lại hồ sơ ${profile.name} cho ${device.name}`, user: actor, device });
+    return { ok: true };
   }
 
   /** Asks the tablet to leave: it wipes its settings at its next heartbeat, and the row goes then */
@@ -170,6 +200,7 @@ export class DevicesService {
     const device = await this.mustFind(id);
     if (device.unenrolledAt) throw new BadRequestException('Thiết bị này đã rời khỏi hệ thống');
     await this.prisma.device.update({ where: { id }, data: { forceUnenroll: true } });
+    this.wake.notify([id], 'config');
     await this.activity.log({ action: 'device.unenroll_requested', severity: 'warning', message: `${actor.email} yêu cầu hủy đăng ký ${device.name}`, device, user: actor });
   }
 

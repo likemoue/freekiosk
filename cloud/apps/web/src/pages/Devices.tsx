@@ -2,20 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { ArrowDown, ArrowUp, ChevronsUpDown, FolderInput, Plus, Search, ShieldCheck, Smartphone, Tv, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { useCan } from '../auth';
 import { CommandPicker } from '../components/commands';
-import { BatteryMeter, DeviceState, deviceSubtitle, DeviceSummary } from '../components/device';
+import { BatteryMeter, DeviceState, deviceSubtitle, DeviceSummary, ProfileCell } from '../components/device';
 import { megabytes, timeAgo } from '../format';
 import { Button, Card, Empty, ErrorBox, Input, Loading, Modal, notifyError, PageHeader, Select, Table, td, th, trow } from '../ui';
 
-type SortKey = 'name' | 'group' | 'url' | 'battery' | 'storage' | 'seen';
+type SortKey = 'name' | 'group' | 'profile' | 'url' | 'battery' | 'storage' | 'seen';
 
 const VALUE: Record<SortKey, (d: DeviceSummary) => string | number> = {
   name: (d) => d.name.toLowerCase(),
   group: (d) => d.group?.name.toLowerCase() ?? '',
+  profile: (d) => d.profileStatus.profile?.name.toLowerCase() ?? '',
   url: (d) => d.currentUrl ?? '',
   battery: (d) => d.batteryLevel ?? -1,
   storage: (d) => d.freeStorageMb ?? -1,
@@ -29,6 +30,8 @@ export default function Devices() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [group, setGroup] = useState('');
+  const [params] = useSearchParams();
+  const [profile, setProfile] = useState(params.get('ho-so') ?? '');
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'name', desc: false });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'command' | 'group' | null>(null);
@@ -46,6 +49,9 @@ export default function Devices() {
       if (status === 'unenrolled' && !d.unenrolledAt) return false;
       if (status !== 'unenrolled' && d.unenrolledAt && status) return false;
       if (group === 'none' ? !!d.group : group && d.group?.id !== group) return false;
+      if (profile === 'different' && d.profileStatus.state !== 'different' && !d.profileStatus.groupProfile) return false;
+      if (profile === 'none' && d.profileStatus.profile) return false;
+      if (profile && profile !== 'different' && profile !== 'none' && d.profileStatus.profile?.id !== profile) return false;
       return true;
     });
     const value = VALUE[sort.key];
@@ -54,7 +60,14 @@ export default function Devices() {
       const order = typeof x === 'number' ? x - (y as number) : x.localeCompare(y as string, 'vi', { numeric: true });
       return sort.desc ? -order : order;
     });
-  }, [devices.data, search, status, group, sort]);
+  }, [devices.data, search, status, group, profile, sort]);
+
+  const profiles = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const d of devices.data ?? []) if (d.profileStatus.profile) seen.set(d.profileStatus.profile.id, d.profileStatus.profile.name);
+    return [...seen].sort((a, b) => a[1].localeCompare(b[1], 'vi'));
+  }, [devices.data]);
+  const differing = (devices.data ?? []).filter((d) => !d.unenrolledAt && (d.profileStatus.state === 'different' || d.profileStatus.groupProfile)).length;
 
   const active = rows.filter((d) => !d.unenrolledAt);
   const allChecked = active.length > 0 && active.every((d) => selected.has(d.id));
@@ -112,6 +125,12 @@ export default function Devices() {
             <option value="none">Chưa có nhóm</option>
             {groups.data?.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </Select>
+          <Select className="w-48" aria-label="Lọc theo hồ sơ cấu hình" value={profile} onChange={(e) => setProfile(e.target.value)}>
+            <option value="">Mọi hồ sơ</option>
+            <option value="different">Lệch hồ sơ ({differing})</option>
+            <option value="none">Không có hồ sơ</option>
+            {profiles.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </Select>
         </div>
 
         {selected.size > 0 && can.operate && (
@@ -145,6 +164,7 @@ export default function Devices() {
                 )}
                 <Header id="name">Thiết bị</Header>
                 <Header id="group">Nhóm</Header>
+                <Header id="profile">Hồ sơ</Header>
                 <Header id="url">Đang hiển thị</Header>
                 <Header id="battery">Pin</Header>
                 <Header id="storage">Bộ nhớ trống</Header>
@@ -172,6 +192,7 @@ export default function Devices() {
                     </Link>
                   </td>
                   <td className={clsx(td, 'text-soft')}>{device.group?.name ?? '—'}</td>
+                  <td className={td}><ProfileCell status={device.profileStatus} /></td>
                   <td className={clsx(td, 'max-w-56 truncate text-soft')} title={device.currentUrl ?? undefined}>{device.currentUrl?.replace(/^https?:\/\//, '') || '—'}</td>
                   <td className={td}>{device.lastSeenAt ? <BatteryMeter level={device.batteryLevel} charging={device.batteryCharging} /> : '—'}</td>
                   <td className={clsx(td, 'tabular-nums text-soft')}>{megabytes(device.freeStorageMb)}</td>

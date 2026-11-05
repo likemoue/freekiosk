@@ -151,7 +151,7 @@ export default function Signage() {
   return (
     <>
       <PageHeader
-        title="Bảng hiệu số"
+        title="Trình phát video/ảnh"
         hint="Màn hình của bạn phát gì, và khi nào."
         action={can.operate && (
           <>

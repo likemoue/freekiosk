@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { DeviceWakeService } from '../common/device-wake.service';
 import { randomUUID } from 'node:crypto';
 import type { ApkPackage, User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
@@ -43,6 +44,7 @@ export class HomeAppsService {
     private readonly configSync: ConfigSyncService,
     private readonly activity: ActivityService,
     private readonly inspector: ApkInspector,
+    private readonly wake: DeviceWakeService,
   ) {}
 
   private async devices(target: TargetDto): Promise<TargetDevice[]> {
@@ -248,6 +250,7 @@ export class HomeAppsService {
     }
 
     if (installs.length || history.length) await this.prisma.command.createMany({ data: [...installs, ...history] });
+    this.wake.notify(installs.map((install) => install.deviceId), 'commands');
 
     const profileAdd = add.filter((packageName) => accepted.has(packageName));
     const hasProfileChange = profileAdd.length > 0 || remove.length > 0 || switchToMulti;

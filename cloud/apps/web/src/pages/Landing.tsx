@@ -10,7 +10,7 @@ const FEATURES: Array<{ icon: ReactNode; color: string; title: string; text: str
   { icon: <Zap />, color: 'bg-violet-500', title: 'Lệnh từ xa', text: 'Bật tắt màn hình, tải lại, khởi động lại, chụp màn hình, đọc văn bản, phát âm thanh, mở ứng dụng.' },
   { icon: <FolderTree />, color: 'bg-rose-500', title: 'Nhóm và thao tác hàng loạt', text: 'Chia máy theo cơ sở, phòng ban. Đổi URL hay gửi lệnh cho cả nhóm chỉ với một thao tác.' },
   { icon: <SlidersHorizontal />, color: 'bg-orange-500', title: 'Hồ sơ cấu hình', text: 'Đặt URL, độ sáng, chế độ khóa một lần. Sửa hồ sơ là mọi máy đang dùng hồ sơ đó tự cập nhật.' },
-  { icon: <Presentation />, color: 'bg-teal-500', title: 'Bảng hiệu số', text: 'Danh sách phát gồm video, ảnh, trang web và YouTube, có lịch theo giờ và phát được khi mất mạng.' },
+  { icon: <Presentation />, color: 'bg-teal-500', title: 'Trình phát video/ảnh', text: 'Danh sách phát gồm video, ảnh, trang web và YouTube, có lịch theo giờ và phát được khi mất mạng.' },
   { icon: <BellRing />, color: 'bg-cyan-500', title: 'Cảnh báo', text: 'Mất kết nối, pin yếu, sắp hết bộ nhớ: báo qua email, webhook có chữ ký, Slack, Discord và ntfy.' },
   { icon: <Camera />, color: 'bg-indigo-500', title: 'Ảnh màn hình từ xa', text: 'Xem màn hình đang hiển thị gì mà không cần có mặt tại chỗ, lưu lại thành thư viện theo từng máy.' },
   { icon: <Package />, color: 'bg-emerald-500', title: 'Phân phối APK', text: 'Tải APK lên một lần, cài im lặng cho cả nhóm, và cấp phát máy mới chỉ bằng một mã QR.' },
@@ -170,7 +170,7 @@ export default function Landing() {
               ))}
             </ol>
             <div className="mt-8 flex items-center gap-2 text-sm text-slate-500">
-              <CalendarClock className="size-4" /> Hẹn giờ lệnh theo ngày, lịch phát bảng hiệu theo khung giờ.
+              <CalendarClock className="size-4" /> Hẹn giờ lệnh theo ngày, lịch phát video và ảnh theo khung giờ.
             </div>
           </div>
           <Preview />

@@ -7,6 +7,7 @@ import { extname } from 'node:path';
 import type { User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
+import { DeviceWakeService } from '../common/device-wake.service';
 import { AuthedRequest, CurrentUser, Roles } from '../common/http';
 import { PrismaService } from '../common/prisma.service';
 import { StorageService } from '../common/storage.service';
@@ -18,6 +19,7 @@ import { ApkBundle, BUNDLE_EXTENSIONS, BundleError, readApkBundle } from './apk-
 import { INCOMPLETE_APK, isApkBundle, readApkManifest } from './apk-reader';
 import { UploadsService } from './uploads.service';
 import { installCommandData, whyCannotInstall } from '../devices/catalog';
+import { fleetVersions } from '../devices/fleet-versions';
 
 // SVG and HTML are left out on purpose: opened in a browser, they run scripts
 const MEDIA_TYPES: Record<string, { kind: 'image' | 'video'; mime: string }> = {
@@ -158,7 +160,29 @@ export class ApksController {
     private readonly uploads: UploadsService,
     private readonly activity: ActivityService,
     private readonly inspector: ApkInspector,
+    private readonly wake: DeviceWakeService,
   ) {}
+
+  /** Which version of each app the tablets have, and what is newer in the library */
+  @Get('fleet-versions')
+  async versions() {
+    const [devices, rows, infos, icons] = await Promise.all([
+      this.prisma.device.findMany({
+        where: { unenrolledAt: null },
+        select: { id: true, name: true, online: true, appVersion: true, installedApps: true, reportedConfig: true, pendingConfig: true },
+      }),
+      this.prisma.apkPackage.findMany(),
+      this.prisma.appInfo.findMany({ select: { packageName: true, label: true, iconVersionCode: true } }),
+      this.prisma.appInfo.findMany({ where: { icon: { not: null } }, select: { packageName: true } }),
+    ]);
+    const apks = await Promise.all(rows.map(async (apk) => ({ ...apk, installable: !(await this.inspector.isIncomplete(apk)) })));
+    const withIcon = new Set(icons.map((row) => row.packageName));
+    const version = new Map(infos.map((row) => [row.packageName, row.iconVersionCode]));
+    return fleetVersions(devices, apks, new Map(infos.map((row) => [row.packageName, row.label]))).map((app) => ({
+      ...app,
+      iconUrl: withIcon.has(app.packageName) ? `/api/admin/home-apps/icons/${app.packageName}?v=${version.get(app.packageName)}` : null,
+    }));
+  }
 
   @Get()
   async list() {
@@ -259,6 +283,7 @@ export class ApksController {
     const skipped = devices.filter((d) => !able.includes(d)).map((d) => ({ deviceId: d.id, name: d.name, reason: whyCannotInstall(d.capabilities, apk)! }));
     if (able.length) {
       await this.prisma.command.createMany({ data: able.map((d) => installCommandData(d.id, apk, actor)) });
+      this.wake.notify(able.map((d) => d.id), 'commands');
     }
     await this.activity.log({ action: 'apk.deployed', message: `${actor.email} đã gửi ${apk.fileName} tới ${able.length} thiết bị`, user: actor });
     return { sent: able.length, skipped };

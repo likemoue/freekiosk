@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { CryptoService, deepMerge } from '../common/crypto.service';
+import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
 
 export interface SensitiveValues {
@@ -24,6 +25,7 @@ export class ConfigSyncService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly wake: DeviceWakeService,
   ) {}
 
   private clean(sensitive: SensitiveValues | null | undefined): SensitiveValues | null {
@@ -58,6 +60,7 @@ export class ConfigSyncService {
         });
       }),
     );
+    this.wake.notify(devices.map((device) => device.id), 'config');
     return devices.length;
   }
 

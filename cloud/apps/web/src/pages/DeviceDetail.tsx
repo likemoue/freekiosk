@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { api } from '../api';
 import { useCan } from '../auth';
 import { CommandHistory, CommandPicker } from '../components/commands';
-import { ConfigForm, SECRET_FIELDS } from '../components/config';
+import { ConfigForm, SECRET_FIELDS, settingLabel } from '../components/config';
 import { DeviceState, deviceSubtitle, StatusDot } from '../components/device';
 import { dateTime, duration, megabytes, timeAgo } from '../format';
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, Field, Input, Loading, Modal, notifyError, Notice, Select, Tabs, Textarea, useConfirm } from '../ui';
@@ -23,6 +23,14 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
     </div>
   );
 }
+
+const shortValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return 'trống';
+  if (value === true) return 'bật';
+  if (value === false) return 'tắt';
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+};
 
 function ConfigTab({ deviceId }: { deviceId: string }) {
   const can = useCan();
@@ -49,11 +57,21 @@ function ConfigTab({ deviceId }: { deviceId: string }) {
       return api.patch(`/api/admin/devices/${deviceId}/config`, { config: { ...extra, ...edits }, sensitive: Object.keys(sensitive).length ? sensitive : undefined });
     },
     onSuccess: () => {
-      toast.success('Đã lưu. Thiết bị sẽ áp dụng ở lần báo cáo kế tiếp');
+      toast.success('Đã lưu. Thiết bị áp dụng ngay khi nhận được');
       setEdits({});
       setSecrets({});
       setRaw('');
       client.invalidateQueries({ queryKey: ['device-config', deviceId] });
+    },
+    onError: notifyError,
+  });
+
+  const applyProfile = useMutation({
+    mutationFn: () => api.post(`/api/admin/devices/${deviceId}/apply-profile`),
+    onSuccess: () => {
+      toast.success('Đã gửi lại hồ sơ cho thiết bị');
+      client.invalidateQueries({ queryKey: ['device-config', deviceId] });
+      client.invalidateQueries({ queryKey: ['devices'] });
     },
     onError: notifyError,
   });
@@ -76,7 +94,18 @@ function ConfigTab({ deviceId }: { deviceId: string }) {
   return (
     <div className="space-y-4 p-5">
       {!reported && <Notice>Thiết bị chưa báo cáo cấu hình. Thay đổi sẽ được gửi ngay khi thiết bị kết nối.</Notice>}
-      {config.data.pending && <Notice tone="warn">Đang chờ thiết bị áp dụng cấu hình mới ở lần báo cáo kế tiếp.</Notice>}
+      {config.data.pending && <Notice tone="warn">Đang chờ thiết bị áp dụng cấu hình mới.</Notice>}
+      {config.data.profileStatus?.state === 'different' && (
+        <Notice tone="warn">
+          <p className="font-semibold">Máy này khác hồ sơ {config.data.profileStatus.profile.name} ở {config.data.profileDifferences.length} mục:</p>
+          <ul className="my-1.5 space-y-0.5 text-[13px]">
+            {config.data.profileDifferences.map((difference: any) => (
+              <li key={difference.path}>{settingLabel(difference.path)}: máy đang là <b>{shortValue(difference.reported)}</b>, hồ sơ là <b>{shortValue(difference.wanted)}</b></li>
+            ))}
+          </ul>
+          {can.operate && <Button size="sm" variant="outline" busy={applyProfile.isPending} onClick={() => applyProfile.mutate()}>Áp lại hồ sơ</Button>}
+        </Notice>
+      )}
 
       <ConfigForm base={reported ?? undefined} value={edits} onChange={setEdits} disabled={!can.operate} />
 
@@ -170,7 +199,7 @@ export default function DeviceDetail() {
   });
   const unenroll = useMutation({
     mutationFn: () => api.post(`/api/admin/devices/${id}/unenroll`),
-    onSuccess: () => { toast.success('Thiết bị sẽ rời khỏi hệ thống ở lần báo cáo kế tiếp'); refresh(); },
+    onSuccess: () => { toast.success('Thiết bị sẽ rời khỏi hệ thống ngay khi nhận được yêu cầu'); refresh(); },
     onError: notifyError,
   });
   const remove = useMutation({
@@ -180,7 +209,7 @@ export default function DeviceDetail() {
   });
   const screenshot = useMutation({
     mutationFn: () => api.post('/api/admin/commands', { type: 'screenshot', target: { deviceIds: [id] } }),
-    onSuccess: () => toast.success('Đã yêu cầu. Ảnh sẽ về trong khoảng 30 giây'),
+    onSuccess: () => toast.success('Đã yêu cầu. Ảnh sẽ về trong vài giây'),
     onError: notifyError,
   });
 
@@ -224,7 +253,7 @@ export default function DeviceDetail() {
             </label>
             {can.admin && !gone && (
               <Button variant="outline" disabled={d.forceUnenroll} onClick={async () => {
-                if (await confirm({ title: 'Hủy đăng ký thiết bị?', message: 'Ở lần báo cáo kế tiếp, thiết bị xóa toàn bộ cài đặt FreeKiosk và thoát khỏi hệ thống. Không thể hoàn tác.', confirm: 'Hủy đăng ký', danger: true })) unenroll.mutate();
+                if (await confirm({ title: 'Hủy đăng ký thiết bị?', message: 'Ngay khi nhận được yêu cầu, thiết bị xóa toàn bộ cài đặt FreeKiosk và thoát khỏi hệ thống. Không thể hoàn tác.', confirm: 'Hủy đăng ký', danger: true })) unenroll.mutate();
               }}><Link2Off className="size-4" /> Hủy đăng ký</Button>
             )}
             {can.admin && (
@@ -242,7 +271,7 @@ export default function DeviceDetail() {
           <p className="mt-0.5">Hủy đăng ký {timeAgo(d.unenrolledAt)}. Thiết bị không còn kết nối và không nhận được lệnh. Hãy xóa khỏi trang quản lý sau khi đã ghi lại những gì cần.</p>
         </Notice>
       )}
-      {d.forceUnenroll && !gone && <Notice tone="warn" className="mb-4">Đang chờ thiết bị nhận yêu cầu hủy đăng ký ở lần báo cáo kế tiếp.</Notice>}
+      {d.forceUnenroll && !gone && <Notice tone="warn" className="mb-4">Đang chờ thiết bị nhận yêu cầu hủy đăng ký.</Notice>}
       {d.openAlerts?.map((alert: any) => <Notice key={alert.id} tone={alert.severity === 'critical' ? 'bad' : 'warn'} className="mb-4">{alert.message}</Notice>)}
 
       <Card>
@@ -271,7 +300,7 @@ export default function DeviceDetail() {
           tabs={[
             { id: 'commands', label: 'Lệnh' },
             { id: 'config', label: 'Cấu hình' },
-            { id: 'signage', label: 'Bảng hiệu' },
+            { id: 'signage', label: 'Trình phát' },
             { id: 'screenshots', label: 'Ảnh màn hình' },
             { id: 'activity', label: 'Nhật ký' },
           ]}

@@ -54,6 +54,13 @@ export class DevicesController {
     return { ok: true };
   }
 
+  @Post(':id/apply-profile')
+  @HttpCode(200)
+  @Roles('ADMIN', 'OPERATOR')
+  applyProfile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
+    return this.devices.applyProfile(id, actor);
+  }
+
   @Get(':id/config')
   config(@Param('id', ParseUUIDPipe) id: string) {
     return this.devices.config(id);

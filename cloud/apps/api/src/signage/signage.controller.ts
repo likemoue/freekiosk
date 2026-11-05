@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import type { User } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
+import { DeviceWakeService } from '../common/device-wake.service';
 import { CurrentUser, Roles } from '../common/http';
 import { PrismaService } from '../common/prisma.service';
 import { parseYoutubeId, SignageService } from './signage.service';
@@ -57,15 +58,25 @@ export class CheckUrlDto {
 
 const WEB_MIN_SECONDS = 5;
 const WEB_MAX_SECONDS = 3600;
+/** Time for the word to reach the screens and for them to load the first item, so they start together */
+const START_LEAD_MS = 6_000;
+const startSoon = () => new Date(Date.now() + START_LEAD_MS);
 
-@ApiTags('Bảng hiệu số')
+@ApiTags('Trình phát video/ảnh')
 @Controller('api/admin/signage')
 export class SignageController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly signage: SignageService,
     private readonly activity: ActivityService,
+    private readonly wake: DeviceWakeService,
   ) {}
+
+  /** What screens play changed: they hear of it now rather than at their next heartbeat */
+  private changed(): void {
+    this.signage.invalidate();
+    this.wake.notifyConnected('config');
+  }
 
   /** Every screen with what it should play and what it says it plays */
   @Get('screens')
@@ -148,7 +159,9 @@ export class SignageController {
         const reported = device.signagePlaylistVersion;
         const tooOld = device.capabilities.length > 0 && [...needs].some((c) => !device.capabilities.includes(c));
         const state = tooOld ? 'app_too_old' : reported === null ? 'not_reported' : reported === wanted ? 'up_to_date' : 'waiting';
-        return { id: device.id, name: device.name, online: device.online, state };
+        // It plays the list, but on its own time
+        const inStep = device.capabilities.includes('signage_sync');
+        return { id: device.id, name: device.name, online: device.online, state, inStep };
       }),
     );
     const items = playlist.items.map((item) => ({
@@ -170,7 +183,7 @@ export class SignageController {
   @Roles('ADMIN', 'OPERATOR')
   async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SavePlaylistDto) {
     const playlist = await this.prisma.playlist.update({ where: { id }, data: { name: dto.name.trim(), description: dto.description } });
-    this.signage.invalidate();
+    this.changed();
     return playlist;
   }
 
@@ -180,7 +193,7 @@ export class SignageController {
     const playlist = await this.prisma.playlist.findUnique({ where: { id } });
     if (!playlist) throw new NotFoundException('Không tìm thấy danh sách phát');
     await this.prisma.playlist.delete({ where: { id } });
-    this.signage.invalidate();
+    this.changed();
     await this.activity.log({ action: 'playlist.deleted', severity: 'warning', message: `${actor.email} đã xóa danh sách phát ${playlist.name}`, user: actor });
     return { ok: true };
   }
@@ -214,9 +227,10 @@ export class SignageController {
     await this.prisma.$transaction([
       this.prisma.playlistItem.deleteMany({ where: { playlistId: id } }),
       this.prisma.playlistItem.createMany({ data: items.map((item) => ({ ...item, playlistId: id })) }),
-      this.prisma.playlist.update({ where: { id }, data: { updatedAt: new Date() } }),
+      // New content starts from its first item, everywhere at once
+      this.prisma.playlist.update({ where: { id }, data: { updatedAt: new Date(), syncEpochAt: startSoon() } }),
     ]);
-    this.signage.invalidate();
+    this.changed();
     await this.activity.log({ action: 'playlist.updated', message: `${actor.email} đã sửa danh sách phát ${playlist.name} (${items.length} mục)`, user: actor });
     return this.playlist(id);
   }
@@ -230,14 +244,31 @@ export class SignageController {
       this.prisma.device.updateMany({ where: { id: { in: dto.deviceIds } }, data: { playlistId: id } }),
       this.prisma.group.updateMany({ where: { playlistId: id, id: { notIn: dto.groupIds } }, data: { playlistId: null } }),
       this.prisma.group.updateMany({ where: { id: { in: dto.groupIds } }, data: { playlistId: id } }),
+      // Nobody was playing it: it starts from its first item. Screens added to a list already playing
+      // join it where it is, so that the others are not sent back to the start
+      ...(playlist.devices.length === 0 && playlist.groups.length === 0
+        ? [this.prisma.playlist.update({ where: { id }, data: { syncEpochAt: startSoon() } })]
+        : []),
     ]);
-    this.signage.invalidate();
+    this.changed();
     await this.activity.log({
       action: 'playlist.assigned',
       message: `${actor.email} đã gán ${playlist.name} cho ${dto.deviceIds.length} thiết bị và ${dto.groupIds.length} nhóm`,
       user: actor,
     });
     return this.playlist(id);
+  }
+
+  /** Every screen playing the list goes back to its first item, at the same moment */
+  @Post('playlists/:id/restart')
+  @HttpCode(200)
+  @Roles('ADMIN', 'OPERATOR')
+  async restart(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
+    const playlist = await this.mustFindPlaylist(id);
+    await this.prisma.playlist.update({ where: { id }, data: { syncEpochAt: startSoon() } });
+    this.changed();
+    await this.activity.log({ action: 'playlist.restarted', message: `${actor.email} đã cho phát lại từ đầu danh sách ${playlist.name}`, user: actor });
+    return { ok: true };
   }
 
   private checkRule(dto: ScheduleRuleDto): void {
@@ -264,7 +295,7 @@ export class SignageController {
         priority: dto.priority ?? 0,
       },
     });
-    this.signage.invalidate();
+    this.changed();
     await this.activity.log({ action: 'schedule.created', message: `${actor.email} đã thêm một lịch phát`, user: actor });
     return rule;
   }
@@ -273,7 +304,7 @@ export class SignageController {
   @Roles('ADMIN', 'OPERATOR')
   async removeRule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
     await this.prisma.scheduleRule.delete({ where: { id } });
-    this.signage.invalidate();
+    this.changed();
     await this.activity.log({ action: 'schedule.deleted', message: `${actor.email} đã xóa một lịch phát`, user: actor });
     return { ok: true };
   }

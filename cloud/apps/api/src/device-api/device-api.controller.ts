@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -38,6 +38,24 @@ export class DeviceApiController {
     const ip = clientIp(req);
     rateLimit(`enroll:${ip ?? 'unknown'}`, 30, 60_000, 'Quá nhiều yêu cầu đăng ký. Thử lại sau một phút.');
     return this.service.enroll(body ?? {}, ip);
+  }
+
+  /** A screen that plays in step with others needs the time to the millisecond: nothing else happens here */
+  @Public()
+  @Get('time')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Giờ của máy chủ, để các màn hình phát đồng bộ' })
+  time() {
+    return { now: Date.now() };
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Get('devices/:deviceId/wait')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Giữ kết nối tới khi có lệnh hoặc cấu hình mới, tối đa 25 giây' })
+  wait(@CurrentDevice() device: Device, @Query('hold') hold: string | undefined, @Res({ passthrough: true }) res: Response) {
+    return this.service.waitForWork(device, hold, (cancel) => res.once('close', cancel));
   }
 
   @UseGuards(DeviceGuard)

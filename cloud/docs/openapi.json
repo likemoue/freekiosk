@@ -16,6 +16,41 @@
         ]
       }
     },
+    "/api/v1/time": {
+      "get": {
+        "operationId": "DeviceApiController_time",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Giờ của máy chủ, để các màn hình phát đồng bộ",
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/wait": {
+      "get": {
+        "operationId": "DeviceApiController_wait",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Giữ kết nối tới khi có lệnh hoặc cấu hình mới, tối đa 25 giây",
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
     "/api/v1/devices/{deviceId}/heartbeat": {
       "post": {
         "operationId": "DeviceApiController_heartbeat",
@@ -569,6 +604,29 @@
         ]
       }
     },
+    "/api/admin/devices/{id}/apply-profile": {
+      "post": {
+        "operationId": "DevicesController_applyProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Thiết bị"
+        ]
+      }
+    },
     "/api/admin/devices/{id}/config": {
       "get": {
         "operationId": "DevicesController_config",
@@ -1011,6 +1069,52 @@
         ]
       }
     },
+    "/api/admin/profiles/{id}/duplicate": {
+      "post": {
+        "operationId": "ProfilesController_duplicate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Hồ sơ cấu hình"
+        ]
+      }
+    },
+    "/api/admin/profiles/{id}/apply": {
+      "post": {
+        "operationId": "ProfilesController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Hồ sơ cấu hình"
+        ]
+      }
+    },
     "/api/admin/profiles/{id}": {
       "put": {
         "operationId": "ProfilesController_save",
@@ -1272,6 +1376,20 @@
         ]
       }
     },
+    "/api/admin/apks/fleet-versions": {
+      "get": {
+        "operationId": "ApksController_versions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Phân phối APK"
+        ]
+      }
+    },
     "/api/admin/apks": {
       "get": {
         "operationId": "ApksController_list",
@@ -1439,7 +1557,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1453,7 +1571,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       },
       "post": {
@@ -1475,7 +1593,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1498,7 +1616,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       },
       "patch": {
@@ -1529,7 +1647,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       },
       "delete": {
@@ -1550,7 +1668,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1583,7 +1701,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1616,7 +1734,30 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
+        ]
+      }
+    },
+    "/api/admin/signage/playlists/{id}/restart": {
+      "post": {
+        "operationId": "SignageController_restart",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1640,7 +1781,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1663,7 +1804,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },
@@ -1687,7 +1828,7 @@
           }
         },
         "tags": [
-          "Bảng hiệu số"
+          "Trình phát video/ảnh"
         ]
       }
     },

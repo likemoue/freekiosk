@@ -64,7 +64,7 @@ export default function GettingStarted() {
       <p className="mb-4 text-sm text-soft">Máy báo cáo 30 giây một lần và hiện ngoại tuyến sau hai phút không có tín hiệu.</p>
       <Card className="p-6">
         <ul className="grid gap-4 md:grid-cols-2">
-          <Tip icon={<SlidersHorizontal />}>Đổi nội dung hiển thị ở trang của từng máy. Cấu hình được đẩy xuống ở lần báo cáo kế tiếp.</Tip>
+          <Tip icon={<SlidersHorizontal />}>Đổi nội dung hiển thị ở trang của từng máy. Cấu hình xuống thiết bị trong vài giây.</Tip>
           <Tip icon={<Copy />}>Lưu cấu hình thành hồ sơ để áp dụng cho cả nhóm một lần.</Tip>
           <Tip icon={<Zap />}>Gửi lệnh (tải lại, chụp màn hình, đọc văn bản, khởi động lại) và xem kết quả trong lịch sử.</Tip>
           <Tip icon={<CalendarClock />}>Hẹn giờ các thao tác lặp lại, và nhận cảnh báo khi máy mất kết nối hay yếu pin.</Tip>
