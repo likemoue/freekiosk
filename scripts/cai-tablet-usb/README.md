@@ -34,9 +34,10 @@ CÀI TỪNG TABLET
 2. Đi hết các bước thiết lập, bỏ qua Wi-Fi, không đăng nhập tài khoản nào.
 3. Vào Cài đặt, Thông tin máy tính bảng, Thông tin phần mềm. Chạm 7 lần vào Số hiệu bản tạo.
 4. Quay lại Cài đặt, vào Tùy chọn cho nhà phát triển, bật Gỡ lỗi USB.
-5. Máy Lenovo: vào Cài đặt, One Vision, Window buttons and window menus, tắt Full screen window button
-   rồi xác nhận. Để bật thì học sinh có thể thoát khỏi kiosk từ nút ba chấm ở mép trên màn hình.
-6. Cắm cáp vào máy tính, bấm Cho phép trên tablet.
+5. Cắm cáp vào máy tính, bấm Cho phép trên tablet.
+
+Trên máy Lenovo, công cụ tự tắt nút ba chấm và các cử chỉ ba ngón của One Vision, vì học sinh có thể
+thoát khỏi kiosk từ nút ba chấm, và tắt cả nút bút ở mép phải màn hình. Smart Rotate vẫn để nguyên.
 
 Khi công cụ báo Xong, rút cáp và cắm tablet tiếp theo. Có thể cắm nhiều tablet qua hub,
 công cụ cài lần lượt từng máy.

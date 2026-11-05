@@ -519,9 +519,28 @@ class MainActivity : ReactActivity() {
     DebugLog.d("MainActivity", "Kiosk enabled: $kioskEnabled")
 
     if (kioskEnabled) {
+      turnOffLenovoExtras()
       startLockTaskIfPossible()
     } else {
       DebugLog.d("MainActivity", "Kiosk mode disabled - normal mode")
+    }
+  }
+
+  /**
+   * What a Lenovo adds over a full-screen app: the three dots of One Vision's Full screen window
+   * button, an item in whose menu leaves the kiosk, and the pen at the edge of the screen. Both count
+   * as on with no value. Writing them takes WRITE_SECURE_SETTINGS, which the USB tool grants, and the
+   * tool writes them too: this is for a tablet where they were turned back on, or that was set up
+   * before the tool did so. One Vision's gestures are `system` settings, which an app may not write.
+   */
+  private fun turnOffLenovoExtras() {
+    if (!Build.MANUFACTURER.equals("LENOVO", ignoreCase = true)) return
+    if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
+    try {
+      android.provider.Settings.Secure.putString(contentResolver, "show_ov_top_bar", "0")
+      android.provider.Settings.Secure.putString(contentResolver, "pen_set_show_button", "0")
+    } catch (e: Exception) {
+      DebugLog.errorProduction("MainActivity", "Could not turn off the Lenovo extras: ${e.message}")
     }
   }
 

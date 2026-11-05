@@ -218,6 +218,7 @@ namespace CaiTablet
 
                 Begin(Step.Install);
                 InstallApp();
+                TurnOffLenovoExtras();
 
                 Begin(Step.Owner);
                 if (ownerPackage == Package)
@@ -403,6 +404,37 @@ namespace CaiTablet
             CommandResult result = adb.Shell(serial, command, 20000);
             ThrowIfDisconnected(result);
             if (result.ExitCode != 0) view.Log("Không chạy được: " + command + " (" + result.Output.Trim() + ")");
+        }
+
+        /// <summary>
+        /// What a Lenovo adds over a full-screen app, each one a switch in its Settings. A tablet out of
+        /// a factory reset may have no value for these, which counts as on. Smart Rotate stays: it only
+        /// changes how an app is laid out.
+        /// </summary>
+        static readonly string[][] LenovoExtras =
+        {
+            // One Vision, Window buttons and window menus, Full screen window button: three dots at the top, and an item in their menu leaves the kiosk
+            new[] { "secure", "show_ov_top_bar" },
+            // One Vision, Split Screen: double-tap with three fingers
+            new[] { "system", "three_finger_double_tap_enabled" },
+            // One Vision, Floating Window: spread three fingers
+            new[] { "system", "three_finger_spread_enabled" },
+            // The pen at the edge of the screen. Its menu can cover the app with Easy jot, whose way back is not obvious
+            new[] { "secure", "pen_set_show_button" },
+        };
+
+        void TurnOffLenovoExtras()
+        {
+            if (Prop("ro.product.manufacturer").IndexOf("lenovo", StringComparison.OrdinalIgnoreCase) < 0) return;
+            var left = new List<string>();
+            foreach (string[] setting in LenovoExtras)
+            {
+                Try("settings put " + setting[0] + " " + setting[1] + " 0");
+                if (Sh("settings get " + setting[0] + " " + setting[1]) != "0") left.Add(setting[1]);
+            }
+            view.Log(left.Count == 0
+                ? "Đã tắt One Vision và nút bút của Lenovo"
+                : "Chưa tắt được " + string.Join(", ", left) + ". Hãy tắt tay trong Cài đặt của tablet, mục One Vision và Pen & keyboard.");
         }
 
         void SetOwner()
