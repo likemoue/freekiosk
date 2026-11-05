@@ -3,6 +3,7 @@ import { Prisma } from '../generated/prisma/client';
 import { CryptoService, deepMerge } from '../common/crypto.service';
 import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
+import { withoutDisplayMode } from './profile-state';
 
 export interface SensitiveValues {
   pin?: string;
@@ -64,6 +65,14 @@ export class ConfigSyncService {
     return devices.length;
   }
 
+  /** A profile for these devices. One playing a list stays in the player, or the list would stop */
+  async pushProfileTo(deviceIds: string[], config: Record<string, unknown>, sensitive?: SensitiveValues | null): Promise<number> {
+    const devices = await this.prisma.device.findMany({ where: { id: { in: deviceIds } }, select: { id: true, signagePlaylistVersion: true } });
+    const playing = devices.filter((d) => d.signagePlaylistVersion).map((d) => d.id);
+    const others = devices.filter((d) => !d.signagePlaylistVersion).map((d) => d.id);
+    return (await this.push(others, config, sensitive)) + (await this.push(playing, withoutDisplayMode(config), sensitive));
+  }
+
   /** The devices a profile applies to: assigned directly, or through their group */
   async pushProfile(profileId: string): Promise<number> {
     const profile = await this.prisma.configProfile.findUnique({ where: { id: profileId } });
@@ -78,7 +87,7 @@ export class ConfigSyncService {
       },
       select: { id: true },
     });
-    return this.push(
+    return this.pushProfileTo(
       devices.map((d) => d.id),
       profile.config as Record<string, unknown>,
       this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc),

@@ -10,7 +10,7 @@ import { SettingsService } from '../common/settings.service';
 import { env } from '../config/env';
 import { ConfigSyncService, SensitiveValues } from '../devices/config-sync.service';
 import { CreateGroupDto, CreateTokenDto, SaveProfileDto, SensitiveDto, UpdateGroupDto } from '../devices/devices.dto';
-import { configDifferences } from '../devices/profile-state';
+import { profileDifferences } from '../devices/profile-state';
 import { SignageService } from '../signage/signage.service';
 
 @ApiTags('Nhóm')
@@ -119,13 +119,13 @@ export class ProfilesController {
       }),
       this.prisma.device.findMany({
         where: { unenrolledAt: null },
-        select: { profileId: true, reportedConfig: true, pendingConfig: true, group: { select: { profileId: true } } },
+        select: { profileId: true, reportedConfig: true, pendingConfig: true, signagePlaylistVersion: true, group: { select: { profileId: true } } },
       }),
     ]);
     return profiles.map((p) => {
       // Counting those reached through their group too: they are what "uses this profile" means
       const users = devices.filter((d) => (d.profileId ?? d.group?.profileId) === p.id);
-      const different = users.filter((d) => d.pendingConfig === null && d.reportedConfig !== null && configDifferences(p.config, d.reportedConfig).length > 0);
+      const different = users.filter((d) => d.pendingConfig === null && d.reportedConfig !== null && profileDifferences(d, p.config).length > 0);
       return { ...this.view(p), usedBy: users.length, differentCount: different.length };
     });
   }

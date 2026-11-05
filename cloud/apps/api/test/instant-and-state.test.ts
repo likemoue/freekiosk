@@ -372,6 +372,30 @@ describe('on the server', () => {
       assert.equal((await rowOf()).profileStatus.state, 'match');
     });
 
+    it('does not call a tablet different for being in the player of its list, nor takes it out', async () => {
+      const profile = await profileWith({ general: { displayMode: 'external_app', url: 'https://a/' } });
+      const tablet = await enrolled(undefined, { profileId: profile.id });
+      await tablet.heartbeat();
+      const inThePlayer = { config: { general: { displayMode: 'media_player', url: 'https://a/' } }, system: { signage_playlist_version: 'v1' } };
+      await tablet.heartbeat(inThePlayer);
+      const rowOf = async () => (await admin.json<any[]>('GET', '/api/admin/devices')).find((d) => d.id === tablet.deviceId);
+      assert.equal((await rowOf()).profileStatus.state, 'match');
+      assert.equal((await admin.json<any[]>('GET', '/api/admin/profiles')).find((p) => p.id === profile.id).differentCount, 0);
+      assert.deepEqual((await admin.json<any>('GET', `/api/admin/devices/${tablet.deviceId}/config`)).profileDifferences, []);
+
+      await admin.json('POST', `/api/admin/devices/${tablet.deviceId}/apply-profile`);
+      const sent = (await tablet.heartbeat(inThePlayer)).data.config;
+      assert.equal(sent.general.url, 'https://a/');
+      assert.equal(sent.general.displayMode, undefined);
+
+      // The list is gone and it stayed in the player: now it is different, and the profile takes it back
+      await tablet.heartbeat({ config: { general: { displayMode: 'media_player', url: 'https://a/' } }, system: { signage_playlist_version: '' } });
+      await tablet.heartbeat({ config: { general: { displayMode: 'media_player', url: 'https://a/' } }, system: { signage_playlist_version: '' } });
+      assert.deepEqual((await rowOf()).profileStatus.differences, ['general.displayMode']);
+      await admin.json('POST', `/api/admin/devices/${tablet.deviceId}/apply-profile`);
+      assert.equal((await tablet.heartbeat()).data.config.general.displayMode, 'external_app');
+    });
+
     it('says a tablet has no profile', async () => {
       const tablet = await enrolled();
       assert.equal((await admin.json<any[]>('GET', '/api/admin/devices')).find((d) => d.id === tablet.deviceId).profileStatus.state, 'none');
