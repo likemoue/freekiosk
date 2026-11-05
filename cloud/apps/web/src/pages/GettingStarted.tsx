@@ -1,4 +1,4 @@
-import { BatteryWarning, Camera, Check, Copy, Download, KeyRound, QrCode, SlidersHorizontal, Tv, Zap, CalendarClock, WifiOff } from 'lucide-react';
+import { BatteryWarning, Camera, Check, Copy, Download, KeyRound, QrCode, SlidersHorizontal, Smartphone, Tv, Zap, CalendarClock, WifiOff } from 'lucide-react';
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useCan } from '../auth';
@@ -78,6 +78,7 @@ export default function GettingStarted() {
           <Tip icon={<BatteryWarning />}>Hãy cấp quyền bỏ tối ưu hóa pin khi ứng dụng hỏi. Thiếu quyền này, Android sẽ ngắt máy khỏi mạng sau một lúc chạy bằng pin.</Tip>
           <Tip icon={<Camera />}>Cấp quyền camera và micrô trước khi bật chế độ khóa: Android ẩn hộp thoại xin quyền khi đang khóa.</Tip>
           <Tip icon={<WifiOff />}>Máy ở chế độ ứng dụng ngoài vẫn báo cáo, nhưng lệnh chạy qua JavaScript có thể chậm cho tới khi FreeKiosk trở lại tiền cảnh.</Tip>
+          <Tip icon={<Smartphone />}>Trên máy Lenovo, hãy vào Cài đặt, One Vision, Window buttons and window menus, rồi tắt Full screen window button. Để bật thì học sinh có thể thoát khỏi kiosk từ nút ba chấm ở mép trên màn hình.</Tip>
           <Tip icon={<QrCode />}>Cấp phát bằng QR phải dùng bản build <code>-Pcloudprovi</code>. Bản có dịch vụ trợ năng bị Play Protect chặn ngay trong trình cài đặt.</Tip>
         </ul>
       </Card>

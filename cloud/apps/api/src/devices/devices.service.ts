@@ -73,8 +73,10 @@ export class DevicesService {
   }
 
   async list() {
-    const devices = await this.prisma.device.findMany({ orderBy: { name: 'asc' }, include: RELATIONS });
-    return devices.map((d) => this.toSummary(d));
+    const devices = await this.prisma.device.findMany({ include: RELATIONS });
+    // Here rather than in the query: the database puts "Tablet 10" before "Tablet 2"
+    const byName = new Intl.Collator('vi', { numeric: true });
+    return devices.sort((a, b) => byName.compare(a.name, b.name)).map((d) => this.toSummary(d));
   }
 
   private async mustFind(id: string) {

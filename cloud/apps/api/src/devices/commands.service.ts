@@ -37,7 +37,7 @@ export class CommandsService {
   async send(options: SendOptions): Promise<SendResult> {
     const { type, target, actor } = options;
     if (Object.hasOwn(CONFIG_COMMANDS, type)) return this.sendThroughConfig(CONFIG_COMMANDS[type], options);
-    const spec = COMMANDS[type];
+    const spec = Object.hasOwn(COMMANDS, type) ? COMMANDS[type] : null;
     if (!spec) throw new BadRequestException(`Lệnh không được hỗ trợ: ${type}`);
     if (spec.adminOnly && actor && actor.role !== 'ADMIN') {
       throw new ForbiddenException('Chỉ quản trị viên mới được gửi lệnh này');
@@ -64,14 +64,33 @@ export class CommandsService {
     const reachable = devices.filter((device) => {
       const caps = device.capabilities;
       if (spec.capability && caps.length > 0 && !caps.includes(spec.capability)) {
-        skipped.push({ deviceId: device.id, name: device.name, reason: 'Thiết bị không hỗ trợ lệnh này' });
+        skipped.push({ deviceId: device.id, name: device.name, reason: spec.lacking ?? 'Thiết bị không hỗ trợ lệnh này' });
         return false;
       }
       return true;
     });
 
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (options.ttlMinutes ?? DEFAULT_TTL_MINUTES) * 60_000);
+    if (skipped.length) {
+      await this.prisma.command.createMany({
+        data: skipped.map((line) => ({
+          deviceId: line.deviceId,
+          type,
+          params: params as Prisma.InputJsonValue,
+          status: 'ERROR' as const,
+          errorMessage: line.reason,
+          batchId,
+          source: options.source ?? 'manual',
+          createdById: actor?.id,
+          createdBy: actor?.email,
+          completedAt: now,
+          expiresAt,
+        })),
+      });
+    }
+
     if (reachable.length) {
-      const expiresAt = new Date(Date.now() + (options.ttlMinutes ?? DEFAULT_TTL_MINUTES) * 60_000);
       const secretEnc = Object.keys(secret).length ? this.crypto.encryptJson(secret) : null;
       await this.prisma.command.createMany({
         data: reachable.map((device) => ({
@@ -133,7 +152,7 @@ export class CommandsService {
     const single = devices.length === 1 ? devices[0] : null;
     await this.activity.log({
       action: 'command.queued',
-      message: `${actor?.email ?? 'Lịch hẹn giờ'} gửi lệnh "${label}" tới ${single ? single.name : `${devices.length} thiết bị`}`,
+      message: `${actor?.email ?? 'Lịch hẹn giờ'} gửi lệnh "${label}" tới ${single ? single.name : `${devices.length} thiết bị`}${skipped ? `, bỏ qua ${skipped} thiết bị` : ''}`,
       device: single,
       user: actor,
       data: { type, batchId, count: devices.length, skipped },

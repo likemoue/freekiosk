@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  AppWindow, Ban, Bell, Camera, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
+  AppWindow, Ban, Bell, Camera, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
 import { ReactNode, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import { HomeAppsEditor } from './home-apps';
 
 export type Target = { deviceIds?: string[]; groupId?: string; all?: boolean };
 
-type ParamField = { name: string; label: string; type?: 'text' | 'textarea' | 'password' | 'url'; placeholder?: string; required?: boolean; hint?: string };
+type ParamField = { name: string; label: string; type?: 'text' | 'textarea' | 'password' | 'url' | 'select'; placeholder?: string; required?: boolean; hint?: string; options?: Array<{ value: string; label: string }> };
 
 interface CommandDef {
   type: string;
@@ -23,6 +23,8 @@ interface CommandDef {
   icon: ReactNode;
   category: 'quick' | 'screensaver' | 'audio' | 'advanced';
   capability?: string;
+  /** What to say of a device without the capability */
+  lacking?: string;
   adminOnly?: boolean;
   danger?: string;
   params?: ParamField[];
@@ -31,6 +33,16 @@ interface CommandDef {
   /** Not a form with a send button: a screen of its own */
   editor?: boolean;
 }
+
+const SCREEN_TIMEOUTS = [
+  { value: '30', label: '30 giây' },
+  { value: '60', label: '1 phút' },
+  { value: '120', label: '2 phút' },
+  { value: '300', label: '5 phút' },
+  { value: '600', label: '10 phút' },
+  { value: '1800', label: '30 phút' },
+  { value: '-1', label: 'Không tự tắt' },
+];
 
 const COMMANDS: CommandDef[] = [
   { type: 'home_apps', label: 'Ứng dụng trên màn hình', hint: 'Thêm hoặc gỡ ứng dụng trên màn hình chính của tablet.', icon: <LayoutGrid />, category: 'quick', editor: true },
@@ -41,6 +53,7 @@ const COMMANDS: CommandDef[] = [
   { type: 'screenshot', label: 'Chụp màn hình', hint: 'Cần bật "Cho phép chụp màn hình từ xa" trên thiết bị. Ảnh xuất hiện ở mục Ảnh màn hình.', icon: <Camera />, category: 'quick', capability: 'screenshot' },
   { type: 'toast', label: 'Hiện thông báo', icon: <Bell />, category: 'quick', capability: 'toast', params: [{ name: 'message', label: 'Nội dung', required: true, placeholder: 'Ví dụ: Bảo trì lúc 17:00' }] },
   { type: 'reboot', label: 'Khởi động lại', hint: 'Cần thiết bị ở chế độ Device Owner.', icon: <RotateCcw />, category: 'quick', capability: 'reboot', danger: 'Thiết bị sẽ khởi động lại ngay khi nhận lệnh.' },
+  { type: 'stop_apps', label: 'Dừng mọi ứng dụng', hint: 'Đóng hẳn các ứng dụng đang chạy và đưa tablet về màn hình chính. Dữ liệu và đăng nhập trong ứng dụng vẫn giữ nguyên. Cần FreeKiosk bản mới nhất và chế độ Device Owner.', icon: <CircleStop />, category: 'quick', capability: 'stop_apps', lacking: 'Thiết bị này cần FreeKiosk bản mới nhất và chế độ Device Owner. Bản mới cài ở mục Ứng dụng (APK).', danger: 'Ứng dụng đang mở trên các thiết bị đã chọn sẽ bị đóng ngay, kể cả khi có người đang dùng.' },
   { type: 'clear_cache', label: 'Xóa bộ nhớ đệm', icon: <Eraser />, category: 'quick' },
   { type: 'screensaver_on', label: 'Bật bảo vệ màn hình', icon: <SunDim />, category: 'screensaver' },
   { type: 'screensaver_off', label: 'Tắt bảo vệ màn hình', icon: <Ban />, category: 'screensaver' },
@@ -49,6 +62,7 @@ const COMMANDS: CommandDef[] = [
   { type: 'audio_stop', label: 'Dừng âm thanh', icon: <VolumeX />, category: 'audio', capability: 'audio' },
   { type: 'set_url', label: 'Đổi URL hiển thị', hint: 'Gửi qua kênh cấu hình: thiết bị áp dụng ở lần báo cáo kế tiếp.', icon: <Globe />, category: 'advanced', viaConfig: true, params: [{ name: 'url', label: 'URL', type: 'url', required: true, placeholder: 'https://...' }] },
   { type: 'set_brightness', label: 'Đổi độ sáng', hint: 'Gửi qua kênh cấu hình. Nhập từ 0 đến 100.', icon: <Sparkles />, category: 'advanced', viaConfig: true, params: [{ name: 'percent', label: 'Độ sáng (%)', required: true, placeholder: '70' }] },
+  { type: 'set_screen_timeout', label: 'Thời gian sáng màn hình', hint: 'Màn hình tự tắt sau bao lâu khi không có thao tác, kể cả khi đang mở ứng dụng khác.', icon: <Timer />, category: 'advanced', capability: 'screen_timeout', lacking: 'Thiết bị này cần FreeKiosk bản mới nhất. Bản mới cài ở mục Ứng dụng (APK).', params: [{ name: 'seconds', label: 'Tắt màn hình sau', type: 'select', required: true, options: SCREEN_TIMEOUTS }] },
   { type: 'launch_app', label: 'Mở ứng dụng', icon: <AppWindow />, category: 'advanced', params: [{ name: 'package_name', label: 'Tên gói', required: true, placeholder: 'com.example.app' }] },
   { type: 'add_wifi_network', label: 'Thêm mạng Wi-Fi', hint: 'Chỉ lưu để dùng sau, không chuyển mạng ngay. Mật khẩu chỉ gửi tới thiết bị, không lưu lại.', icon: <Wifi />, category: 'advanced', adminOnly: true, params: [{ name: 'ssid', label: 'Tên mạng (SSID)', required: true }, { name: 'password', label: 'Mật khẩu', type: 'password' }] },
   { type: 'execute_js', label: 'Chạy JavaScript', hint: 'Mã chạy ngay trong trang đang hiển thị. Chỉ dùng mã bạn hiểu rõ.', icon: <Code2 />, category: 'advanced', adminOnly: true, danger: 'Mã JavaScript sẽ chạy trong trang kiosk trên các thiết bị đã chọn.', params: [{ name: 'code', label: 'Mã JavaScript', type: 'textarea', required: true }] },
@@ -87,8 +101,8 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
   const send = useMutation({
     mutationFn: () => api.post('/api/admin/commands', { type: selected!.type, params: values, target }),
     onSuccess: (result) => {
-      if (result.sent === 0 && !result.skipped?.length) toast.warning('Không có thiết bị nào trong lựa chọn này');
-      else toast.success(`Đã gửi tới ${result.sent} thiết bị`);
+      if (result.sent > 0) toast.success(`Đã gửi tới ${result.sent} thiết bị`);
+      else if (!result.skipped?.length) toast.warning('Không có thiết bị nào trong lựa chọn này');
       if (result.skipped?.length) toast.warning(`Bỏ qua ${result.skipped.length} thiết bị: ${result.skipped[0].reason}`);
       setValues({});
       client.invalidateQueries({ queryKey: ['commands'] });
@@ -114,16 +128,19 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
       {!search.trim() && <Tabs className="mt-3" tabs={[...CATEGORIES]} value={category} onChange={setCategory} />}
       <div className="mt-3 flex flex-wrap gap-2">
         {shown.map((command) => {
-          const off = unsupported(command) || (command.adminOnly && !can.admin);
+          // A device that cannot run it can still be told why: only the send button is off then
+          const off = command.adminOnly && !can.admin;
+          const cannot = unsupported(command);
           return (
             <button
               key={command.type}
               type="button"
               disabled={!!off}
-              title={off ? (command.adminOnly && !can.admin ? 'Chỉ quản trị viên' : 'Thiết bị không hỗ trợ') : undefined}
+              title={off ? 'Chỉ quản trị viên' : cannot ? 'Thiết bị không hỗ trợ' : undefined}
               onClick={() => { setSelected(command); setValues({}); }}
               className={clsx(
                 'inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-colors [&_svg]:size-4 disabled:cursor-not-allowed disabled:opacity-45',
+                cannot && 'opacity-60',
                 selected?.type === command.type ? 'border-brand-strong bg-brand-soft text-brand-strong dark:text-brand' : 'border-line bg-card hover:bg-raised',
               )}
             >
@@ -149,7 +166,12 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
             {selected.editor && <HomeAppsEditor target={target} onSent={onSent} />}
             {selected.params?.map((param) => (
               <Field key={param.name} label={param.label}>
-                {param.type === 'textarea' ? (
+                {param.type === 'select' ? (
+                  <Select aria-label={param.label} value={values[param.name] ?? ''} onChange={(e) => setValues({ ...values, [param.name]: e.target.value })}>
+                    <option value="">Chọn…</option>
+                    {param.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </Select>
+                ) : param.type === 'textarea' ? (
                   <Textarea rows={3} placeholder={param.placeholder} value={values[param.name] ?? ''} onChange={(e) => setValues({ ...values, [param.name]: e.target.value })} />
                 ) : (
                   <Input type={param.type === 'password' ? 'password' : 'text'} autoComplete="off" placeholder={param.placeholder} value={values[param.name] ?? ''} onChange={(e) => setValues({ ...values, [param.name]: e.target.value })} />
@@ -158,8 +180,9 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
             ))}
             {!selected.editor && (
               <>
+                {unsupported(selected) && <p className="text-[13px] text-warn">{selected.lacking ?? 'Thiết bị này không hỗ trợ lệnh này.'}</p>}
                 <div className="flex items-center gap-3">
-                  <Button disabled={!target || missing || !can.operate} busy={send.isPending} onClick={submit}>
+                  <Button disabled={!target || missing || !can.operate || !!unsupported(selected)} busy={send.isPending} onClick={submit}>
                     <Power className="size-4" /> Gửi lệnh
                   </Button>
                   {!target && <span className="text-[13px] text-warn">Chưa chọn thiết bị</span>}
@@ -179,9 +202,11 @@ export function CommandPicker({ target, devices, onSent }: { target: Target | nu
 }
 
 /** What the command was about, in words where the type allows it */
-function commandDetail(command: { type: string; params?: Record<string, any> }): string | null {
+function commandDetail(command: { type: string; params?: Record<string, any>; result?: Record<string, any> | null }): string | null {
   const params = command.params ?? {};
   if (command.type === 'install_apk') return [params.file_name, params.version].filter(Boolean).join(' ') || null;
+  if (command.type === 'stop_apps') return Array.isArray(command.result?.stopped) ? `Đã dừng ${command.result.stopped.length} ứng dụng` : null;
+  if (command.type === 'set_screen_timeout') return SCREEN_TIMEOUTS.find((option) => option.value === String(params.seconds))?.label ?? `${params.seconds} giây`;
   if (command.type === 'set_url') return params.url ?? null;
   if (command.type === 'set_brightness') return params.percent !== undefined ? `${params.percent}%` : null;
   if (command.type === 'home_apps') {
@@ -207,14 +232,19 @@ const INSTALL_ERRORS: Array<[RegExp, string]> = [
 
 const errorInWords = (message: string) => INSTALL_ERRORS.find(([code]) => code.test(message))?.[1] ?? message;
 
+const HISTORY_PAGE = 200;
+
 export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; showDevice?: boolean }) {
   const client = useQueryClient();
   const can = useCan();
   const [search, setSearch] = useState('');
+  // One command to a fleet is a line per tablet, so what fits on a page goes back only a few commands
+  const [limit, setLimit] = useState(HISTORY_PAGE);
   const { data = [] } = useQuery<any[]>({
-    queryKey: ['commands', deviceId ?? 'all'],
-    queryFn: () => api.get(`/api/admin/commands${deviceId ? `?deviceId=${deviceId}` : ''}`),
+    queryKey: ['commands', deviceId ?? 'all', limit],
+    queryFn: () => api.get(`/api/admin/commands?take=${limit}${deviceId ? `&deviceId=${deviceId}` : ''}`),
     refetchInterval: 5000,
+    placeholderData: keepPreviousData,
   });
   const cancel = useMutation({
     mutationFn: (id: string) => api.post(`/api/admin/commands/${id}/cancel`),
@@ -234,7 +264,9 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
         <Input className="max-w-56" placeholder="Tìm lệnh…" aria-label="Tìm trong lịch sử lệnh" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       {rows.length === 0 ? (
-        <Empty title="Chưa có lệnh nào" hint="Lệnh đã gửi và kết quả sẽ hiện ở đây." />
+        search.trim() && data.length > 0
+          ? <Empty title="Không có lệnh nào khớp" hint="Chỉ tìm trong các dòng đã tải. Bấm Tải thêm để tìm xa hơn." />
+          : <Empty title="Chưa có lệnh nào" hint="Lệnh đã gửi và kết quả sẽ hiện ở đây." />
       ) : (
         <Table>
           <thead>
@@ -272,6 +304,11 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
             })}
           </tbody>
         </Table>
+      )}
+      {data.length >= limit && (
+        <div className="flex justify-center px-5 py-3">
+          <Button size="sm" variant="outline" onClick={() => setLimit(limit + HISTORY_PAGE)}>Tải thêm</Button>
+        </div>
       )}
     </div>
   );

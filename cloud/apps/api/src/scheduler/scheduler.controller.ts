@@ -11,6 +11,9 @@ import { COMMANDS } from '../devices/catalog';
 import { CommandsService } from '../devices/commands.service';
 import { computeNextRun, isValidTimeZone } from './next-run';
 
+/** As long as a scheduled command itself lasts: past that, its moment has gone */
+const MAX_LATE_MINUTES = 30;
+
 export class SaveTaskDto {
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(120) name: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() enabled?: boolean;
@@ -31,6 +34,7 @@ export class SchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly commands: CommandsService,
+    private readonly activity: ActivityService,
   ) {}
 
   private target(task: ScheduledTask) {
@@ -39,14 +43,22 @@ export class SchedulerService {
     return { deviceIds: task.deviceIds };
   }
 
-  /** A task late because the server was down runs once, not once per missed day */
+  /**
+   * A task late because the server was down runs once, not once per missed day. Not at all when it
+   * is well past its time: stopping the apps at 17:00 must not close them in the next morning's lesson.
+   */
   @Interval(30_000)
   async runDue(now: Date = new Date()): Promise<void> {
     const due = await this.prisma.scheduledTask.findMany({ where: { enabled: true, nextRunAt: { lte: now } } });
     for (const task of due) {
       try {
         const nextRunAt = computeNextRun(task.days, task.time, task.timezone, now);
-        await this.prisma.scheduledTask.update({ where: { id: task.id }, data: { lastRunAt: now, nextRunAt } });
+        const missed = !!task.nextRunAt && now.getTime() - task.nextRunAt.getTime() > MAX_LATE_MINUTES * 60_000;
+        await this.prisma.scheduledTask.update({ where: { id: task.id }, data: { nextRunAt, ...(missed ? {} : { lastRunAt: now }) } });
+        if (missed) {
+          await this.activity.log({ action: 'schedule.task_missed', severity: 'warning', message: `Lịch "${task.name}" đã quá giờ hơn ${MAX_LATE_MINUTES} phút nên không chạy` });
+          continue;
+        }
         await this.commands.send({
           type: task.commandType,
           params: task.params as Record<string, unknown>,
@@ -75,7 +87,7 @@ export class SchedulerController {
   }
 
   private data(dto: SaveTaskDto) {
-    const spec = COMMANDS[dto.commandType];
+    const spec = Object.hasOwn(COMMANDS, dto.commandType) ? COMMANDS[dto.commandType] : null;
     if (!spec) throw new BadRequestException('Lệnh không được hỗ trợ');
     // A secret would sit in the schedule for good, and code would run with nobody watching
     if (spec.secretParams || spec.adminOnly) throw new BadRequestException('Không thể hẹn giờ lệnh này');

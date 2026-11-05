@@ -9,7 +9,7 @@ import { TargetDto, targetWhere } from '../common/targets';
 import { ApkInspector } from '../files/apk-inspector';
 import { HOME_APPS_COMMAND, installCommandData, THROUGH_CONFIG_DAYS, whyCannotInstall } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
-import { editHomeApps, generalOf, homeCount, isMultiApp, ManagedApp, managedAppsOf } from './home-apps';
+import { editHomeApps, generalOf, isMultiApp, ManagedApp, managedAppsOf } from './home-apps';
 
 const OWN_PACKAGE = 'com.freekiosk';
 
@@ -218,13 +218,6 @@ export class HomeAppsService {
       }
 
       const next = editHomeApps(current, adding, remove, labelOf);
-      // With nothing left, the tablet would fall back to the single app screen, or to nothing at all
-      if (homeCount(next) === 0 && homeCount(current) > 0) {
-        const reason = 'Phải còn ít nhất một ứng dụng trên màn hình';
-        skipped.push({ deviceId: device.id, name: device.name, reason });
-        record(device.id, { remove: remove.map(labelOf) }, reason);
-        continue;
-      }
 
       // An app it lacks is installed first, and joins the screen only once that has worked
       // (showAfterInstall): a tile that opens nothing helps nobody, and an install can fail

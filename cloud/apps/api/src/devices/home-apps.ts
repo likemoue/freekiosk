@@ -54,5 +54,3 @@ export function editHomeApps(list: ManagedApp[], add: string[], remove: string[]
   }
   return next;
 }
-
-export const homeCount = (list: ManagedApp[]): number => list.filter((app) => app.showOnHomeScreen).length;

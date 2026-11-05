@@ -10,6 +10,8 @@ import { isApkBundle } from '../files/apk-reader';
  */
 export interface CommandSpec {
   capability?: string;
+  /** What to say of a device without the capability, when there is more to say than that it cannot */
+  lacking?: string;
   adminOnly?: boolean;
   /** Parameters kept encrypted until delivery, and never shown back */
   secretParams?: string[];
@@ -40,6 +42,15 @@ export const COMMANDS: Record<string, CommandSpec> = {
   audio_stop: { capability: 'audio' },
   reboot: { capability: 'reboot' },
   clear_cache: {},
+  stop_apps: { capability: 'stop_apps', lacking: 'Cần FreeKiosk bản mới nhất và chế độ Device Owner' },
+  set_screen_timeout: {
+    capability: 'screen_timeout',
+    lacking: 'Cần FreeKiosk bản mới nhất',
+    validate: (params) => {
+      const seconds = Number(params.seconds);
+      return seconds === -1 || (Number.isInteger(seconds) && seconds >= 15 && seconds <= 86_400) ? null : 'Thời gian sáng màn hình không hợp lệ';
+    },
+  },
   toast: { capability: 'toast', validate: text('message', 'nội dung thông báo', 500) },
   // Runs code in the page shown on the kiosk: the most powerful command, and the most dangerous
   execute_js: { adminOnly: true, validate: text('code', 'mã JavaScript', 20_000) },
@@ -104,6 +115,8 @@ export const COMMAND_LABELS: Record<string, string> = {
   audio_stop: 'Dừng âm thanh',
   reboot: 'Khởi động lại',
   clear_cache: 'Xóa bộ nhớ đệm',
+  stop_apps: 'Dừng mọi ứng dụng',
+  set_screen_timeout: 'Thời gian sáng màn hình',
   toast: 'Hiện thông báo',
   execute_js: 'Chạy JavaScript',
   launch_app: 'Mở ứng dụng',
