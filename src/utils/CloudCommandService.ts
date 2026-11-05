@@ -23,6 +23,7 @@ import { ApiService, ActionResult } from './ApiService';
 import { getCloudCredentials, CloudCredentials } from './secureStorage';
 import { StorageService } from './storage';
 import ManagedAppInstaller from './ManagedAppInstaller';
+import KioskModule from './KioskModule';
 
 const { HttpServerModule, WifiControlModule } = NativeModules;
 
@@ -140,10 +141,8 @@ class CloudCommandServiceClass {
       if (this.processed.has(cmd.id)) continue;
       this.processed.add(cmd.id);
 
-      // Skip already-expired commands (don't bother executing/reporting).
-      if (cmd.expires_at && new Date(cmd.expires_at).getTime() < Date.now()) {
-        continue;
-      }
+      // The server only hands over what has not expired, by its own clock. This tablet's may be
+      // hours off, and going by it dropped commands with no word to the server.
 
       // Persist before dispatch: `reboot` takes the device down and a self-update
       // replaces this very process, so without a marker on disk their result could
@@ -236,8 +235,16 @@ class CloudCommandServiceClass {
     if (cmd.type === 'add_wifi_network') {
       return this.saveWifiNetwork(cmd.params || {});
     }
+    // Here too, for the same reason: nobody on the LAN should be able to close what is on the screen.
+    if (cmd.type === 'stop_apps') {
+      return this.stopRunningApps();
+    }
+    if (cmd.type === 'set_screen_timeout') {
+      return this.setScreenTimeout(cmd.params || {});
+    }
 
-    const mapper = COMMAND_MAP[cmd.type];
+    // Own keys only: "constructor" is a key of every object, and it would run whatever was in the params
+    const mapper = Object.prototype.hasOwnProperty.call(COMMAND_MAP, cmd.type) ? COMMAND_MAP[cmd.type] : undefined;
     if (!mapper) {
       return { ok: false, error: `Unsupported command type: ${cmd.type}` };
     }
@@ -272,6 +279,45 @@ class CloudCommandServiceClass {
         ok: true,
         result: { saved: true, ssid: saved?.ssid ?? ssid, secured: !!saved?.secured },
       };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /** How long the screen stays on with no touch. Android keeps it, across restarts too. */
+  private async setScreenTimeout(params: Record<string, any>): Promise<ActionResult> {
+    const seconds = Number(params.seconds);
+    if (!Number.isInteger(seconds)) {
+      return { ok: false, error: 'Missing screen timeout' };
+    }
+    if (!KioskModule?.setScreenOffTimeout) {
+      return { ok: false, error: 'This app version cannot change the screen timeout' };
+    }
+    try {
+      await KioskModule.setScreenOffTimeout(seconds);
+      return { ok: true, result: { seconds } };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /** Closes what was left open at the end of a lesson, and says which apps that was. */
+  private async stopRunningApps(): Promise<ActionResult> {
+    if (!KioskModule?.stopRunningApps) {
+      return { ok: false, error: 'This app version cannot stop apps' };
+    }
+    try {
+      const [managed, single, mode, displayMode] = await Promise.all([
+        StorageService.getManagedApps(),
+        StorageService.getExternalAppPackage(),
+        StorageService.getExternalAppMode(),
+        StorageService.getDisplayMode(),
+      ]);
+      const packages = managed.map((app) => app.packageName);
+      if (single) packages.push(single);
+      // Single-app mode reopens its app on any return to FreeKiosk, which is not what was asked
+      const blockRelaunch = displayMode === 'external_app' && mode === 'single';
+      return { ok: true, result: { stopped: await KioskModule.stopRunningApps(packages, blockRelaunch) } };
     } catch (error: any) {
       return { ok: false, error: error?.message ?? String(error) };
     }

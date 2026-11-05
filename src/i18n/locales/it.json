@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Rimuovi Device Owner",
       "exitKioskMode": "Esci dalla modalità kiosk"
     },
+    "screenTimeout": {
+      "title": "Spegnimento dello schermo",
+      "hint": "Per quanto tempo lo schermo resta acceso senza tocchi, anche con un'altra app aperta. Si applica subito.",
+      "s30": "30 secondi",
+      "m1": "1 minuto",
+      "m2": "2 minuti",
+      "m5": "5 minuti",
+      "m10": "10 minuti",
+      "m30": "30 minuti",
+      "never": "Non spegnere mai",
+      "failed": "Impossibile modificare lo spegnimento dello schermo: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Puoi usare il pulsante Indietro di Android per tornare a FreeKiosk.",
       "returnToApp": "Torna all'app",
       "settings": "Impostazioni",
-      "hint": "Suggerimento: nell'app esterna, tocca 5× il pulsante segreto per tornare qui (posizione configurabile)"
+      "hint": "Suggerimento: nell'app esterna, tocca 5× il pulsante segreto per tornare qui (posizione configurabile)",
+      "noApps": "Ancora nessuna app nella schermata iniziale"
     },
     "permissionWizard": {
       "setupPermissions": "Configura le autorizzazioni",
@@ -1431,7 +1444,6 @@
       "invalidPackageFormat": "Formato del nome del pacchetto non valido (es. com.example.app)",
       "appNotInstalled": "App non installata: {{package}}",
       "unableToVerifyApp": "Impossibile verificare l'app: {{error}}",
-      "multiAppNeedsHomeScreen": "La modalità Multi-app richiede almeno un'app con \"Mostra nella schermata Home\" attivo",
       "securityErrorTitle": "Errore di sicurezza",
       "urlNotAllowed": "Questo tipo di URL non è consentito. Usa http://, https:// o file://",
       "urlUpdatedTitle": "URL aggiornato",

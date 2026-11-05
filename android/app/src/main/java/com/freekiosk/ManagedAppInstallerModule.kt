@@ -36,6 +36,8 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
     companion object {
         private const val TAG = "ManagedAppInstaller"
         private const val INSTALL_ACTION = "com.freekiosk.MANAGED_APP_INSTALL_RESULT"
+        private const val DOWNLOAD_ATTEMPTS = 3
+        private const val DOWNLOAD_RETRY_DELAY_MS = 5_000L
         private const val MIN_APK_BYTES = 50_000L // anything smaller is almost certainly an HTML error page
     }
 
@@ -101,7 +103,25 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
         }.start()
     }
 
+    /**
+     * School Wi-Fi drops connections ("Connection reset"), and an install that failed for that would
+     * wait for someone to send it again. A broken connection gets more tries, a refusal does not.
+     */
     private fun downloadApk(downloadUrl: String, authToken: String?): File {
+        var attempt = 1
+        while (true) {
+            try {
+                return downloadOnce(downloadUrl, authToken)
+            } catch (e: java.io.IOException) {
+                if (attempt >= DOWNLOAD_ATTEMPTS) throw e
+                android.util.Log.w(TAG, "Download attempt $attempt failed, trying again: ${e.message}")
+                Thread.sleep(DOWNLOAD_RETRY_DELAY_MS * attempt)
+                attempt++
+            }
+        }
+    }
+
+    private fun downloadOnce(downloadUrl: String, authToken: String?): File {
         // Enforce HTTPS: this APK is installed silently with Device Owner privileges, so a
         // cleartext download (which the app otherwise permits) would let a network MITM swap
         // in a malicious APK. HttpURLConnection does not auto-follow cross-protocol redirects
@@ -125,6 +145,9 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
 
         try {
             conn.connect()
+            if (conn.responseCode in 500..599) {
+                throw java.io.IOException("Download failed: HTTP ${conn.responseCode}")
+            }
             if (conn.responseCode !in 200..299) {
                 throw RuntimeException("Download failed: HTTP ${conn.responseCode}")
             }

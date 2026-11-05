@@ -152,7 +152,8 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   
   // Only show multi-app grid when explicitly in multi mode
   const homeScreenApps = externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [];
-  const isMultiAppMode = externalAppMode === 'multi' && homeScreenApps.length > 0;
+  // With no apps too: the grid is still home, and the single-app screen would wait for an app forever
+  const isMultiAppMode = externalAppMode === 'multi';
   const homeScreenPackages = homeScreenApps.map(app => app.packageName).join(',');
   
   // Resolve app labels and icons for display
@@ -221,13 +222,9 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
     );
   };
 
-  // Multi-app mode: app is currently running — show empty view (Android shows the app)
-  if (isMultiAppMode && isAppLaunched) {
-    return <View style={styles.container} />;
-  }
-
-  // Multi-app mode: show app grid (home screen)
-  if (isMultiAppMode && !isAppLaunched) {
+  // Multi-app mode: the app grid is home. While an app is open Android shows that app above it, so
+  // the grid stays, and a return this screen has not heard about never strands anyone on a blank one.
+  if (isMultiAppMode) {
     return (
       <View style={styles.container} onTouchStart={handleGridTouch}>
         {showStatusBar && (
@@ -255,6 +252,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           numColumns={APP_GRID_NUM_COLUMNS}
           contentContainerStyle={styles.appGrid}
           columnWrapperStyle={styles.appGridRow}
+          ListEmptyComponent={<Text style={styles.noAppsText}>{t('components.externalAppOverlay.noApps')}</Text>}
         />
         
         {/* Test mode warning */}
@@ -559,6 +557,12 @@ const styles = StyleSheet.create({
   appGrid: {
     paddingHorizontal: 16,
     paddingTop: 20,
+  },
+  noAppsText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    paddingTop: 40,
   },
   appGridRow: {
     justifyContent: 'flex-start',

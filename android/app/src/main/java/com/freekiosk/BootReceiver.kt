@@ -135,6 +135,8 @@ class BootReceiver : BroadcastReceiver() {
 
             // ── From here: BOOT_COMPLETED / QUICKBOOT / REBOOT — CE storage is available ──
 
+            AppStopper.recover(context)
+
             // Re-enable accessibility service if Device Owner (includes managed apps whitelist)
             reEnableAccessibilityIfDeviceOwner(context)
 
@@ -143,6 +145,14 @@ class BootReceiver : BroadcastReceiver() {
                 DebugLog.d("BootReceiver", "Auto-launch is disabled, not starting app")
                 // Update DE flag so next LOCKED_BOOT_COMPLETED also respects the setting
                 updateDeBootFlag(context, false)
+                // Leaving the kiosk lasts until a restart, and nothing else here would end it
+                try {
+                    if (DefaultHome.endLeaveOnRestart(context)) {
+                        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                } catch (e: Exception) {
+                    DebugLog.errorProduction("BootReceiver", "Could not end the leave from the kiosk: ${e.message}")
+                }
                 return
             }
 

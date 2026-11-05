@@ -14,6 +14,9 @@ export const settingsStyles = StyleSheet.create({
   },
   
   // Scrollable content
+  loading: {
+    marginTop: 48,
+  },
   scrollContent: {
     padding: Spacing.screenHorizontal,
     paddingBottom: 40,

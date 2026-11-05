@@ -310,6 +310,7 @@ class MainActivity : ReactActivity() {
       insets
     }
 
+    AppStopper.recover(this)
     readExternalAppConfig()
     ensureBootReceiverEnabled()
     hideSystemUI()
@@ -541,16 +542,10 @@ class MainActivity : ReactActivity() {
     val enabled = getAsyncStorageValue("@kiosk_default_launcher", "false") == "true"
     try {
       // Only ever clears persistent preferences set by THIS admin (we set none other than HOME),
-      // so this is safe and idempotent — it prevents duplicate entries accumulating.
-      devicePolicyManager.clearPackagePersistentPreferredActivities(adminComponent, packageName)
+      // so this is safe and idempotent — it prevents duplicate entries accumulating. That includes
+      // the launcher pinned on leaving the kiosk: opening FreeKiosk is what brings the kiosk back.
+      DefaultHome.applyKioskPolicy(this, devicePolicyManager, adminComponent, enabled)
       if (enabled) {
-        val filter = IntentFilter(Intent.ACTION_MAIN).apply {
-          addCategory(Intent.CATEGORY_HOME)
-          addCategory(Intent.CATEGORY_DEFAULT)
-        }
-        devicePolicyManager.addPersistentPreferredActivity(
-          adminComponent, filter, ComponentName(this, MainActivity::class.java)
-        )
         DebugLog.d("MainActivity", "Default launcher policy applied (FreeKiosk = persistent Home)")
       } else {
         DebugLog.d("MainActivity", "Default launcher policy off — persistent Home cleared")
@@ -810,6 +805,9 @@ class MainActivity : ReactActivity() {
 
     cookieFlushHandler.removeCallbacks(cookieFlushRunnable)
     cookieFlushHandler.postDelayed(cookieFlushRunnable, COOKIE_FLUSH_INTERVAL_MS)
+
+    // Opened again after the admin left the kiosk, if the activity outlived the leaving
+    if (DefaultHome.hasLeftKiosk(this)) applyDefaultLauncherPolicy()
 
     readExternalAppConfig()
     syncCameraForegroundService()

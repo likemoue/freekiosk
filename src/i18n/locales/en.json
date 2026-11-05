@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Remove Device Owner",
       "exitKioskMode": "Exit Kiosk Mode"
     },
+    "screenTimeout": {
+      "title": "Screen timeout",
+      "hint": "How long the screen stays on with no touch, also while another app is open. Applies right away.",
+      "s30": "30 seconds",
+      "m1": "1 minute",
+      "m2": "2 minutes",
+      "m5": "5 minutes",
+      "m10": "10 minutes",
+      "m30": "30 minutes",
+      "never": "Never turn off",
+      "failed": "Could not change the screen timeout: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "You can use the Android back button to return to FreeKiosk.",
       "returnToApp": "Return to Application",
       "settings": "Settings",
-      "hint": "Tip: While in the external app, tap 5× on the secret button to return here (position configurable)"
+      "hint": "Tip: While in the external app, tap 5× on the secret button to return here (position configurable)",
+      "noApps": "No apps on the home screen yet"
     },
     "permissionWizard": {
       "setupPermissions": "Set up permissions",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Invalid package name format (e.g., com.example.app)",
       "appNotInstalled": "App not installed: {{package}}",
       "unableToVerifyApp": "Unable to verify app: {{error}}",
-      "multiAppNeedsHomeScreen": "Multi App mode requires at least one app with \"Show on Home Screen\" enabled",
       "securityErrorTitle": "Security Error",
       "urlNotAllowed": "This type of URL is not allowed. Use http://, https:// or file://",
       "urlUpdatedTitle": "URL Updated",

@@ -54,6 +54,9 @@ interface KioskScreenProps {
 /** Duration (ms) the motion pre-check window runs before activating the screensaver. */
 const MOTION_PRE_CHECK_DELAY_MS = 10_000;
 
+// Boot apps open once per run of the app. A ref would not do: leaving Settings remounts this screen.
+let bootAppsLaunched = false;
+
 const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const isFocused = useIsFocused();
   const [url, setUrl] = useState<string>('');
@@ -109,6 +112,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [appCrashCount, setAppCrashCount] = useState<number>(0);
   const relaunchTimerRef = useRef<any>(null);
   const [isAppLaunched, setIsAppLaunched] = useState<boolean>(false);
+  // Single-app mode: what was last opened, so that a pushed setting does not open it a second time
+  const launchedPackageRef = useRef<string | null>(null);
   const [backButtonMode, setBackButtonMode] = useState<string>('test');
   const [backButtonTimerDelay, setBackButtonTimerDelay] = useState<number>(10);
   const [countdownActive, setCountdownActive] = useState<boolean>(false);
@@ -120,7 +125,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const appStateRef = useRef(AppState.currentState);
   const appLaunchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isNavigatingToPinRef = useRef<boolean>(false); // Guard to prevent relaunch during 5-tap→PIN navigation
-  const bootAppsLaunchedRef = useRef<boolean>(false); // Boot apps launched once per app session (never on Settings/PIN return)
   const tapCountRef = useRef<number>(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -490,7 +494,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       ? DeviceEventEmitter.addListener(CONFIG_UPDATED_EVENT, async () => {
           const previousMode = displayModeRef.current;
           const previousInjected = injectedWebViewSettingsRef.current;
-          await loadSettings();
+          await loadSettings({ afterPush: true });
 
           // Storage already holds the pushed values by the time this event fires, so
           // this reads the new ones and compares them with what the mounted page was
@@ -1833,7 +1837,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     }
   };
 
-  const loadSettings = async (): Promise<void> => {
+  const loadSettings = async (options: { afterPush?: boolean } = {}): Promise<void> => {
     try {
       // Check for pending ADB config FIRST - apply to AsyncStorage before reading
       await applyPendingAdbConfig();
@@ -2305,22 +2309,30 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         }
       }
 
+      if (savedDisplayMode !== 'external_app' || savedExternalAppMode !== 'single') {
+        launchedPackageRef.current = null;
+      }
+
       if (savedDisplayMode === 'external_app') {
         // Launch managed apps with launchOnBoot=true — only once per app session.
         // Calling this on every loadSettings() (e.g. return from Settings) would
         // launch boot apps again, bring Velocity to foreground, then bringFreeKioskToFront
         // would trigger onResume() fast-path → double-launch loop (#launchOnBoot-loop).
-        if (!bootAppsLaunchedRef.current) {
-          bootAppsLaunchedRef.current = true;
+        if (!bootAppsLaunched) {
+          bootAppsLaunched = true;
           // Start OverlayService BEFORE launching boot apps so kiosk protection is
           // active from the moment the boot app appears in foreground — preventing
           // the user from navigating outside authorized apps during the launch window.
-          // Only for single-app mode; multi-app grid has its own protection.
-          if (savedExternalAppMode === 'single' && savedExternalAppPackage) {
+          // With several apps, for the app that opens by itself: it is the taps on it that lead to
+          // Settings. Nothing to start when no app opens, and the grid has its own protection.
+          const overlayPackage = savedExternalAppMode === 'single'
+            ? savedExternalAppPackage
+            : savedManagedApps.find(app => app.launchOnBoot)?.packageName;
+          if (overlayPackage) {
             try {
               await OverlayServiceModule.startOverlayService(
                 savedReturnTapCount, savedReturnTapTimeout, savedReturnMode,
-                savedReturnButtonPosition, savedExternalAppPackage,
+                savedReturnButtonPosition, overlayPackage,
                 autoRelaunchApp, allowNotifications
               );
             } catch (e) {
@@ -2364,6 +2376,11 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           } catch (e) {
             console.warn('[KioskScreen] Failed to sync back button mode:', e);
           }
+          // A pushed setting is no reason to open the app again: it is on the screen already, and
+          // launching it takes it back to its first screen. Another package is a change to show.
+          if (options.afterPush && launchedPackageRef.current === savedExternalAppPackage) {
+            return;
+          }
           // FINAL CHECK: verify native blockAutoRelaunch flag right before launch.
           // This catches the race condition where 5-tap sets the flag AFTER our
           // earlier isNavigatingToPinRef check but BEFORE we reach this line.
@@ -2379,6 +2396,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           }
           console.log('[KioskScreen] Launching external app:', savedExternalAppPackage);
           await launchExternalApp(savedExternalAppPackage, savedReturnTapCount, savedReturnTapTimeout, savedReturnMode, savedReturnButtonPosition);
+          launchedPackageRef.current = savedExternalAppPackage;
         } else if (savedExternalAppMode === 'multi') {
           // Multi-app mode: sync overlay settings for when user launches an app from grid
           const savedTestMode = bool(K.EXTERNAL_APP_TEST_MODE, true);
@@ -2390,22 +2408,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             console.warn('[KioskScreen] Failed to sync overlay settings for multi-app:', e);
           }
 
-          // If only one app is visible on the home screen, skip the grid and automatically launch it
-          const homeScreenApps = savedManagedApps.filter(app => app.showOnHomeScreen);
-          if (homeScreenApps.length === 1) {
-            const soleApp = homeScreenApps[0];
-            console.log('[KioskScreen] Multi-app mode with single home screen app - launching:', soleApp.packageName);
-            const blockBeforeLaunch = await KioskModule.shouldBlockAutoRelaunch();
-            if (blockBeforeLaunch || isNavigatingToPinRef.current) {
-              console.log('[KioskScreen] Skipping auto-launch (blockAutoRelaunch=' + blockBeforeLaunch + ', navigatingToPin=' + isNavigatingToPinRef.current + ')');
-              if (blockBeforeLaunch) {
-                await KioskModule.clearBlockAutoRelaunch();
-              }
-              return;
-            }
-            await launchExternalApp(soleApp.packageName, savedReturnTapCount, savedReturnTapTimeout, savedReturnMode, savedReturnButtonPosition);
-          } else {
-            console.log('[KioskScreen] Multi-app mode: showing app grid (' + homeScreenApps.length + ' apps)');
+          // The grid is home, however few apps it shows: nothing opens until someone taps it. An app
+          // meant to open at start says so with its own launchOnBoot, handled above. This used to open
+          // the app when there was only one, on every run of this function: at start, on the way
+          // back from Settings, and for each setting the website pushed.
+          console.log('[KioskScreen] Multi-app mode: showing app grid');
+          // The flag said not to open an app, and now nothing does. Left set after a 5-tap, it would
+          // make onDestroy lift the kiosk restrictions behind the next app opened (#237).
+          if (!options.afterPush) {
+            await KioskModule.clearBlockAutoRelaunch().catch(() => {});
           }
         }
       } else {
@@ -3021,14 +3032,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const handleReturnToExternalApp = async (): Promise<void> => {
     // Read fresh mode from ref (most up-to-date)
     if (externalAppModeRef.current === 'multi') {
-      // Multi-app mode: if only one home screen app, re-launch it directly
-      const homeScreenApps = managedApps.filter(app => app.showOnHomeScreen);
-      if (homeScreenApps.length === 1) {
-        await launchExternalApp(homeScreenApps[0].packageName);
-      } else {
-        // Multiple apps: return to the app grid
-        setIsAppLaunched(false);
-      }
+      // Multi-app mode: the grid is where to return to, whatever is on it
+      setIsAppLaunched(false);
     } else {
       // Single-app mode: read current package from storage (avoid stale state)
       const currentPkg = await StorageService.getExternalAppPackage();

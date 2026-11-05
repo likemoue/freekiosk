@@ -23,6 +23,8 @@ class HomeActivity : AppCompatActivity() {
         val displayMode = getAsyncStorageValue("@kiosk_display_mode", "webview")
         val externalAppPackage = getAsyncStorageValue("@kiosk_external_app_package", "")
         val externalAppActivity = getAsyncStorageValue("@kiosk_external_app_activity", "")
+        // With several apps the grid is home: the package above is the single-app setting, maybe an old one
+        val multiApp = getAsyncStorageValue("@kiosk_external_app_mode", "single") == "multi"
         
         // Load tap settings
         val tapCountStr = getAsyncStorageValue("@kiosk_return_tap_count", "5")
@@ -38,7 +40,7 @@ class HomeActivity : AppCompatActivity() {
         DebugLog.d("HomeActivity", "External app: $externalAppPackage / $externalAppActivity")
         DebugLog.d("HomeActivity", "Tap settings: count=$tapCount, timeout=${tapTimeout}ms, mode=$returnMode, position=$buttonPosition")
 
-        if (displayMode == "external_app" && !externalAppPackage.isNullOrEmpty()) {
+        if (displayMode == "external_app" && !multiApp && !externalAppPackage.isNullOrEmpty()) {
             // Démarrer l'OverlayService avec le bouton de retour
             startOverlayService(tapCount, tapTimeout, returnMode, buttonPosition)
 

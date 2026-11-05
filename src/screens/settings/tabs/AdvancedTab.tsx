@@ -11,6 +11,7 @@ import {
   SettingsInfoBox,
   SettingsInput,
   BackupRestoreSection,
+  ScreenTimeoutSection,
 } from '../../../components/settings';
 import { ApiSettingsSection } from '../../../components/ApiSettingsSection';
 import { MqttSettingsSection } from '../../../components/MqttSettingsSection';
@@ -505,6 +506,8 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
 
       {/* Backup & Restore */}
       <BackupRestoreSection onRestoreComplete={onRestoreComplete} />
+
+      <ScreenTimeoutSection />
 
       {/* Android System Settings */}
       <SettingsSection title={t('advanced.androidSettings.title')} icon="android">

@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   NativeModules,
+  ActivityIndicator,
   Alert,
   Linking,
   FlatList,
@@ -121,6 +122,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [dashboardModeEnabled, setDashboardModeEnabled] = useState<boolean>(false);
 
   // External app states
+  const [settingsLoaded, setSettingsLoaded] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<'webview' | 'external_app' | 'media_player'>('webview');
   const [externalAppPackage, setExternalAppPackage] = useState<string>('');
   const [autoRelaunchApp, setAutoRelaunchApp] = useState<boolean>(true);
@@ -345,7 +347,11 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   }, [fetchCamera2Fallback]);
 
   useEffect(() => {
-    loadSettings();
+    // The tabs show defaults until this ends, field by field: Web page turning into Apps, then into
+    // several apps, right after the PIN. Nor should a default be there to save.
+    loadSettings()
+      .catch((error) => console.error('[Settings] Error loading settings:', error))
+      .finally(() => setSettingsLoaded(true));
     loadCertificates();
     checkOverlayPermission();
     checkUsageStatsPermission();
@@ -1479,14 +1485,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
           Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.unableToVerifyApp', { error }));
           return;
         }
-      } else {
-        // Multi mode: require at least one managed app with showOnHomeScreen
-        const homeScreenApps = managedApps.filter(a => a.showOnHomeScreen);
-        if (homeScreenApps.length === 0) {
-          Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.multiAppNeedsHomeScreen'));
-          return;
-        }
       }
+      // Multi mode needs nothing checked: a home screen with no apps yet is a valid one
     }
 
     // URL validation for webview
@@ -2538,10 +2538,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         contentContainerStyle={settingsStyles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {renderTab()}
-        
-        {/* Save Button - Always visible */}
-        {activeTab !== 'advanced' && (
+        {settingsLoaded ? renderTab() : <ActivityIndicator style={settingsStyles.loading} size="large" color={Colors.primary} />}
+
+        {/* Save Button - Always visible, once there is something to save */}
+        {settingsLoaded && activeTab !== 'advanced' && (
           <TouchableOpacity style={[styles.saveButton, styles.saveButtonRow]} onPress={handleSave}>
             <Icon name="content-save" size={20} color={Colors.textOnPrimary} style={styles.saveButtonIcon} />
             <Text style={styles.saveButtonText}>{t('screens.settingsMain.save')}</Text>

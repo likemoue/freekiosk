@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Device Owner entfernen",
       "exitKioskMode": "Kioskmodus beenden"
     },
+    "screenTimeout": {
+      "title": "Bildschirm-Timeout",
+      "hint": "Wie lange der Bildschirm ohne Berührung an bleibt, auch während eine andere App geöffnet ist. Gilt sofort.",
+      "s30": "30 Sekunden",
+      "m1": "1 Minute",
+      "m2": "2 Minuten",
+      "m5": "5 Minuten",
+      "m10": "10 Minuten",
+      "m30": "30 Minuten",
+      "never": "Nie ausschalten",
+      "failed": "Bildschirm-Timeout konnte nicht geändert werden: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Mit der Android-Zurück-Taste kannst du zu FreeKiosk zurückkehren.",
       "returnToApp": "Zur App zurückkehren",
       "settings": "Einstellungen",
-      "hint": "Tipp: In der externen App 5× auf die geheime Schaltfläche tippen, um hierher zurückzukehren (Position konfigurierbar)"
+      "hint": "Tipp: In der externen App 5× auf die geheime Schaltfläche tippen, um hierher zurückzukehren (Position konfigurierbar)",
+      "noApps": "Noch keine Apps auf dem Startbildschirm"
     },
     "permissionWizard": {
       "setupPermissions": "Berechtigungen einrichten",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Ungültiges Paketnamenformat (z. B. com.example.app)",
       "appNotInstalled": "App nicht installiert: {{package}}",
       "unableToVerifyApp": "App konnte nicht überprüft werden: {{error}}",
-      "multiAppNeedsHomeScreen": "Der Multi-App-Modus erfordert mindestens eine App mit aktiviertem „Auf Startbildschirm anzeigen“",
       "securityErrorTitle": "Sicherheitsfehler",
       "urlNotAllowed": "Dieser URL-Typ ist nicht erlaubt. Verwende http://, https:// oder file://",
       "urlUpdatedTitle": "URL aktualisiert",
