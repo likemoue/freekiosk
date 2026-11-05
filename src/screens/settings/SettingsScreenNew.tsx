@@ -2348,6 +2348,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
         return (
           <SecurityTab
             displayMode={displayMode}
+            externalAppMode={externalAppMode}
             isDeviceOwner={isDeviceOwner}
             navigation={navigation}
             kioskEnabled={kioskEnabled}

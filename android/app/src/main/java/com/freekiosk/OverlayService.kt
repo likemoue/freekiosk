@@ -11,6 +11,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
@@ -68,6 +69,30 @@ class OverlayService : Service() {
         // Instance du service pour pouvoir mettre à jour le bouton
         @Volatile
         private var instance: OverlayService? = null
+
+        // #190: the native inactivity countdown of External App mode. Here and not on the instance,
+        // since the service comes and goes with each app opened, and the setting has to outlive that.
+        @Volatile
+        private var inactivityEnabled = false
+        @Volatile
+        private var inactivityDelayMs = 0L
+
+        fun setInactivity(enabled: Boolean, delayMs: Long) {
+            inactivityEnabled = enabled
+            inactivityDelayMs = delayMs
+            DebugLog.d("OverlayService", "Inactivity config: enabled=$enabled, delay=${delayMs}ms")
+            instance?.let { service ->
+                Handler(Looper.getMainLooper()).post {
+                    service.armInactivityTimer()
+                    service.syncTouchWatcher()
+                }
+            }
+        }
+
+        /** Someone touched FreeKiosk's own screen: starts the countdown over, if one is running */
+        fun noteUserActivity() {
+            instance?.let { service -> Handler(Looper.getMainLooper()).post { service.armInactivityTimer() } }
+        }
 
         fun updateButtonOpacity(opacity: Float) {
             buttonOpacity = opacity
@@ -153,8 +178,6 @@ class OverlayService : Service() {
     // timer never fires there. This native handler runs regardless and emits an event for
     // JS to activate the screensaver. One-shot: after firing it disarms until JS re-arms.
     private val inactivityHandler = Handler(Looper.getMainLooper())
-    private var inactivityEnabled = false
-    private var inactivityDelayMs = 0L
     private val inactivityRunnable = Runnable {
         DebugLog.d("OverlayService", "Native inactivity expired (${inactivityDelayMs}ms) — notifying JS")
         inactivityEnabled = false // one-shot: JS re-arms on screensaver dismiss
@@ -172,6 +195,12 @@ class OverlayService : Service() {
     private var requiredTaps = 5 // Default, will be overridden from intent
     private var returnMode = "tap_anywhere" // 'tap_anywhere' or 'button'
     private var buttonPosition = "bottom-right" // 'top-left', 'top-right', 'bottom-left', 'bottom-right'
+    // False while this runs only for the inactivity countdown, on FreeKiosk's own screens, which have
+    // their own way to Settings. A window here came up watching every touch, whatever had been chosen
+    private var overlayWanted = false
+    // Whether touches lead to Settings from inside an app. Only with a single app, which has no kiosk
+    // screen to go back to. With several, whoever is in an app stays in it: Settings is for the kiosk screen.
+    private var escapeInApp = true
     private val CHANNEL_ID = "FreeKioskOverlay"
     private val NOTIFICATION_ID = 1001
     private val STATUS_UPDATE_INTERVAL = 15000L // Update every 15 seconds (was 5s, reduced for low-end device performance)
@@ -251,6 +280,9 @@ class OverlayService : Service() {
         
         // Charger l'opacité depuis SharedPreferences
         loadButtonOpacity()
+
+        // What was chosen in Settings: Android restarts this service with no intent after killing it
+        loadReturnSettings()
         
         // Démarrer comme Foreground Service pour survivre à la mise en veille
         startForegroundService()
@@ -277,11 +309,27 @@ class OverlayService : Service() {
         // Start MQTT watchdog — periodically checks MQTT health
         startMqttWatchdog()
         
-        // Créer l'overlay seulement si la permission est accordée
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
-            createOverlay()
-        } else {
-            DebugLog.d("OverlayService", "Overlay permission not granted - running without visible button")
+        armInactivityTimer()
+        // The overlay comes with onStartCommand, which knows why this service was started
+    }
+
+    private fun loadReturnSettings() {
+        try {
+            val db = SQLiteDatabase.openDatabase(getDatabasePath("RKStorage").absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+            db.use {
+                val stored = { key: String ->
+                    it.rawQuery("SELECT value FROM catalystLocalStorage WHERE key = ?", arrayOf(key)).use { row ->
+                        if (row.moveToFirst()) row.getString(0) else null
+                    }
+                }
+                escapeInApp = stored("@kiosk_external_app_mode") != "multi"
+                stored("@kiosk_return_mode")?.let { mode -> returnMode = mode }
+                stored("@kiosk_return_button_position")?.let { position -> buttonPosition = position }
+                stored("@kiosk_return_tap_count")?.toIntOrNull()?.let { taps -> requiredTaps = taps.coerceIn(2, 20) }
+                stored("@kiosk_return_tap_timeout")?.toLongOrNull()?.let { timeout -> tapTimeout = timeout.coerceIn(500L, 5000L) }
+            }
+        } catch (e: Exception) {
+            DebugLog.errorProduction("OverlayService", "Could not read the return settings: ${e.message}")
         }
     }
 
@@ -339,15 +387,15 @@ class OverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // When START_STICKY restarts the service after OOM kill, intent is null.
         // In that case, just ensure the overlay exists without full recreation.
-        // #190 — Inactivity config update (External App native screensaver trigger).
-        // Handled before the param-reading block below so it never resets tap/return params.
+        // #190 — Keeps the inactivity countdown running (External App native screensaver trigger).
+        // Handled before the param-reading block below so it never resets tap/return params, and it asks
+        // for no overlay: that takes a start from someone who knows an app is about to open.
         if (intent?.action == "UPDATE_INACTIVITY") {
-            inactivityEnabled = intent.getBooleanExtra("SCREENSAVER_INACTIVITY_ENABLED", false)
-            inactivityDelayMs = intent.getLongExtra("INACTIVITY_DELAY", 0L)
-            DebugLog.d("OverlayService", "Inactivity config: enabled=$inactivityEnabled, delay=${inactivityDelayMs}ms")
             armInactivityTimer()
             return START_STICKY
         }
+
+        overlayWanted = true
 
         if (intent == null) {
             DebugLog.d("OverlayService", "onStartCommand with null intent (service restarted by system)")
@@ -375,20 +423,24 @@ class OverlayService : Service() {
         // Track if overlay parameters changed — avoid unnecessary destroy/recreate
         val oldReturnMode = returnMode
         val oldButtonPosition = buttonPosition
+        val oldEscapeInApp = escapeInApp
 
-        // Get required taps from intent (default 5)
-        intent.getIntExtra("REQUIRED_TAPS", 5).let { taps ->
+        // The settings may have changed since this service started, from the website say
+        loadReturnSettings()
+
+        // Get required taps from intent, or keep what Settings holds
+        intent.getIntExtra("REQUIRED_TAPS", requiredTaps).let { taps ->
             requiredTaps = taps.coerceIn(2, 20)
             DebugLog.d("OverlayService", "Required taps set to: $requiredTaps")
         }
         
-        // Get tap timeout from intent (default 1500ms)
-        intent.getLongExtra("TAP_TIMEOUT", 1500L).let { timeout ->
+        // Get tap timeout from intent, or keep what Settings holds
+        intent.getLongExtra("TAP_TIMEOUT", tapTimeout).let { timeout ->
             tapTimeout = timeout.coerceIn(500L, 5000L)
             DebugLog.d("OverlayService", "Tap timeout set to: ${tapTimeout}ms")
         }
         
-        // Get return mode from intent (default 'tap_anywhere')
+        // Get return mode from intent, or keep what Settings holds
         intent.getStringExtra("RETURN_MODE")?.let { mode ->
             returnMode = mode
             DebugLog.d("OverlayService", "Return mode set to: $returnMode")
@@ -434,7 +486,7 @@ class OverlayService : Service() {
         val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
         
         // Only recreate overlay if parameters changed or overlay doesn't exist
-        val overlayParamsChanged = returnMode != oldReturnMode || buttonPosition != oldButtonPosition
+        val overlayParamsChanged = returnMode != oldReturnMode || buttonPosition != oldButtonPosition || escapeInApp != oldEscapeInApp
         if (hasOverlayPermission) {
             if (overlayView != null && overlayParamsChanged) {
                 DebugLog.d("OverlayService", "Overlay params changed, recreating")
@@ -456,13 +508,32 @@ class OverlayService : Service() {
 
 
     private fun createOverlay() {
-        DebugLog.d("OverlayService", "createOverlay() called with returnMode='$returnMode', buttonPosition='$buttonPosition'")
-        if (returnMode == "button") {
+        if (!overlayWanted) return
+        DebugLog.d("OverlayService", "createOverlay() called with returnMode='$returnMode', buttonPosition='$buttonPosition', escapeInApp=$escapeInApp")
+        if (!escapeInApp) {
+            // No way to Settings here, whatever was chosen. Touches matter only to the inactivity countdown
+            if (inactivityEnabled) createTapAnywhereModeOverlay { noteTouch() }
+        } else if (returnMode == "button") {
             DebugLog.d("OverlayService", "Creating BUTTON mode overlay")
             createButtonModeOverlay()
         } else {
             DebugLog.d("OverlayService", "Creating TAP_ANYWHERE mode overlay")
-            createTapAnywhereModeOverlay()
+            createTapAnywhereModeOverlay { handleTap() }
+        }
+    }
+
+    /** The countdown was turned on or off while an app is open, with several apps: see createOverlay */
+    private fun syncTouchWatcher() {
+        if (escapeInApp || !overlayWanted) return
+        if (inactivityEnabled) {
+            if (overlayView == null) createOverlay()
+        } else {
+            overlayView?.let {
+                try { windowManager?.removeView(it) } catch (e: Exception) {
+                    DebugLog.d("OverlayService", "Touch watcher already detached: ${e.message}")
+                }
+            }
+            overlayView = null
         }
     }
     
@@ -554,7 +625,7 @@ class OverlayService : Service() {
         }
     }
     
-    private fun createTapAnywhereModeOverlay() {
+    private fun createTapAnywhereModeOverlay(onTouch: () -> Unit) {
         // MODE TAP ANYWHERE: Overlay invisible UNIQUEMENT
         // Overlay INVISIBLE de 1x1 pixel avec FLAG_WATCH_OUTSIDE_TOUCH
         // Détecte TOUS les taps de l'écran sans bloquer l'app en dessous
@@ -569,7 +640,7 @@ class OverlayService : Service() {
             setOnTouchListener { _, event ->
                 if (event.action == android.view.MotionEvent.ACTION_OUTSIDE ||
                     event.action == android.view.MotionEvent.ACTION_DOWN) {
-                    handleTap()
+                    onTouch()
                 }
                 false // Ne jamais bloquer
             }
@@ -1037,12 +1108,18 @@ class OverlayService : Service() {
         DebugLog.d("OverlayService", "Status updates stopped")
     }
 
-    private fun handleTap() {
+    /** Someone touched the screen, which matters only while the inactivity countdown runs */
+    private fun noteTouch() {
+        if (!inactivityEnabled) return
         // Notify FreeKiosk of user activity so the inactivity timer resets in External App mode
         try { KioskModule.sendEventFromNative("screensaverActivity", null) } catch (e: Exception) {}
 
         // #190 — Reset the native inactivity countdown on any tap (External App mode).
         armInactivityTimer()
+    }
+
+    private fun handleTap() {
+        noteTouch()
 
         val now = System.currentTimeMillis()
 
@@ -1259,6 +1336,9 @@ class OverlayService : Service() {
      * each cycle. Does NOT touch the status bar.
      */
     private fun repinOverlay() {
+        // Nothing to keep on top without a way to Settings: a touch watcher is not pressed, and sees all the same
+        if (!escapeInApp) return
+
         // #281: nothing is on screen to be eclipsed while the display is off, and the
         // SCREEN_ON receiver already restores the overlay on wake.
         val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
@@ -1600,7 +1680,6 @@ class OverlayService : Service() {
         instance = null
         try {
             // #190 — Stop the native inactivity countdown so it can't fire after teardown
-            inactivityEnabled = false
             inactivityHandler.removeCallbacks(inactivityRunnable)
 
             // #266: never leave a dimming window behind once the service is gone
@@ -1743,6 +1822,7 @@ class OverlayService : Service() {
         }
         
         // Recreate the return button and status bar with new dimensions
+        if (!overlayWanted) return
         try {
             destroyOverlay()
             createOverlay()

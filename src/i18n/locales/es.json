@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Permite también presionar el botón Subir/Bajar volumen varias veces para acceder a la configuración",
       "infoButtonMode": "Toca el botón de retorno ({{position}}) {{count}} veces para acceder a la configuración",
       "infoAnywhereMode": "Toca en cualquier lugar de la pantalla {{count}} veces en {{timeout}} para acceder a la configuración",
-      "pinRequired": " (se requiere PIN)"
+      "pinRequired": " (se requiere PIN)",
+      "kioskScreenOnly": "Solo funciona en la pantalla del quiosco. Con una aplicación abierta, ni los toques, ni el botón, ni las teclas de volumen llevan a los ajustes: vuelve primero a la pantalla del quiosco."
     },
     "touchBlocking": {
       "title": "Bloqueo táctil",

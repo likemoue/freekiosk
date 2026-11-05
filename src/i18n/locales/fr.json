@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Autoriser aussi l'appui multiple sur le bouton Volume haut/bas pour accéder aux réglages",
       "infoButtonMode": "Touchez le bouton retour ({{position}}) {{count}} fois pour accéder aux réglages",
       "infoAnywhereMode": "Touchez n'importe où sur l'écran {{count}} fois en {{timeout}} pour accéder aux réglages",
-      "pinRequired": " (PIN requis)"
+      "pinRequired": " (PIN requis)",
+      "kioskScreenOnly": "Fonctionne uniquement sur l'écran du kiosque. Lorsqu'une application est ouverte, les touchers, le bouton et les touches de volume ne mènent pas aux paramètres : revenez d'abord à l'écran du kiosque."
     },
     "touchBlocking": {
       "title": "Blocage tactile",

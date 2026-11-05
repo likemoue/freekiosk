@@ -19,6 +19,7 @@ import android.util.Log
  * 
  * NOTE: This gesture only works when kiosk mode (lock task) is active.
  * When not in lock task mode, users can access settings normally.
+ * With several apps it only works on the kiosk screen: whoever is in an app stays in it.
  */
 class VolumeChangeReceiver : BroadcastReceiver() {
     
@@ -64,6 +65,13 @@ class VolumeChangeReceiver : BroadcastReceiver() {
             return
         }
         
+        // A volume key is what someone in an app presses most, and a PIN screen is the last thing they need
+        if (isAppOpenOverHomeScreen(context)) {
+            volumeChangeTapCount = 0
+            lastVolume = currentVolume
+            return
+        }
+
         // Get required tap count from storage (default 5)
         val requiredTaps = try {
             getAsyncStorageValue(context, "@kiosk_return_tap_count", "5").toInt().coerceIn(2, 20)
@@ -120,6 +128,19 @@ class VolumeChangeReceiver : BroadcastReceiver() {
         lastVolume = currentVolume
     }
     
+    /** With a single app there is no kiosk screen to go back to, so its keys stay a way out */
+    private fun isAppOpenOverHomeScreen(context: Context): Boolean {
+        if (getAsyncStorageValue(context, "@kiosk_display_mode", "webview") != "external_app") return false
+        if (getAsyncStorageValue(context, "@kiosk_external_app_mode", "single") != "multi") return false
+        return try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val self = activityManager.runningAppProcesses?.find { it.pid == android.os.Process.myPid() }
+            self?.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun navigateToPin(context: Context) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {

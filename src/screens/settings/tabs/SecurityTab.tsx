@@ -53,6 +53,7 @@ interface SecurityTabProps {
   onAllowSystemInfoChange: (value: boolean) => void;
   
   // Return to Settings
+  externalAppMode?: 'single' | 'multi';
   returnMode: string; // 'tap_anywhere' | 'button'
   onReturnModeChange: (value: string) => void;
   returnTapCount: string;
@@ -137,6 +138,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
   onAllowNotificationsChange,
   allowSystemInfo,
   onAllowSystemInfoChange,
+  externalAppMode,
   returnMode,
   onReturnModeChange,
   returnTapCount,
@@ -503,6 +505,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
               ? t('security.returnToSettings.infoButtonMode', { position: t(`security.returnToSettings.${returnButtonPosition.replace(/-(\w)/, (_, c: string) => c.toUpperCase())}`), count: returnTapCount || '5' })
               : t('security.returnToSettings.infoAnywhereMode', { count: returnTapCount || '5', timeout: returnTapTimeout ? `${(parseInt(returnTapTimeout, 10) / 1000).toFixed(1)}s` : '1.5s' })}
             {kioskEnabled && t('security.returnToSettings.pinRequired')}
+            {displayMode === 'external_app' && externalAppMode === 'multi' && '\n' + t('security.returnToSettings.kioskScreenOnly')}
           </Text>
         </SettingsInfoBox>
       </SettingsSection>

@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import com.facebook.react.HeadlessJsTaskService
 import androidx.core.app.NotificationCompat
@@ -138,6 +139,7 @@ class KioskWatchdogService : Service() {
     private var lastRelaunchTime = 0L
     private var lastCloudHeartbeatMs = 0L
     private var screenOnReceiver: BroadcastReceiver? = null
+    private var cloudCpuLock: PowerManager.WakeLock? = null
 
     private val checkRunnable = object : Runnable {
         override fun run() {
@@ -182,6 +184,8 @@ class KioskWatchdogService : Service() {
         }
 
         isRunning = true
+        // Now and not at the first tick: see holdCpuForCloud
+        maybeRunCloudHeartbeat()
         handler.removeCallbacks(checkRunnable)
         handler.postDelayed(checkRunnable, CHECK_INTERVAL_MS)
 
@@ -196,6 +200,7 @@ class KioskWatchdogService : Service() {
     override fun onDestroy() {
         isRunning = false
         handler.removeCallbacks(checkRunnable)
+        holdCpuForCloud(false)
         unregisterScreenOnReceiver()
         super.onDestroy()
         DebugLog.d(TAG, "Watchdog destroyed")
@@ -320,7 +325,9 @@ class KioskWatchdogService : Service() {
      * task itself refuses to start (allowedInForeground = false).
      */
     private fun maybeRunCloudHeartbeat() {
-        if (!readFlag(this, "@cloud_enrolled")) return
+        val enrolled = readFlag(this, "@cloud_enrolled")
+        holdCpuForCloud(enrolled)
+        if (!enrolled) return
         if (isMainActivityRunning()) return
 
         val now = SystemClock.elapsedRealtime()
@@ -334,6 +341,27 @@ class KioskWatchdogService : Service() {
         } catch (e: Exception) {
             // Background-start restrictions, or no React context yet. The next tick retries.
             DebugLog.errorProduction(TAG, "Cannot start cloud heartbeat task: ${e.message}")
+        }
+    }
+
+    /**
+     * A foreground service keeps the process alive, not the CPU, and this ticker counts only the time
+     * the CPU is awake. CloudSyncService takes a wake lock of its own, but only once the kiosk screen
+     * has run. Restarted with the screen off, nothing else starts JS, so the first tick could be minutes
+     * away. A self-update is another matter: see ManagedAppInstallerModule.lightScreenForSelfUpdate.
+     */
+    private fun holdCpuForCloud(hold: Boolean) {
+        try {
+            if (!hold) {
+                cloudCpuLock?.let { if (it.isHeld) it.release() }
+                cloudCpuLock = null
+            } else if (cloudCpuLock?.isHeld != true) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                cloudCpuLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FreeKiosk:WatchdogCPU")
+                    .also { it.acquire() }
+            }
+        } catch (e: Exception) {
+            DebugLog.errorProduction(TAG, "Could not change the CPU lock: ${e.message}")
         }
     }
 

@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Também permitir pressionar o botão Volume +/- várias vezes para acessar as configurações",
       "infoButtonMode": "Toque no botão de retorno ({{position}}) {{count}} vezes para acessar as configurações",
       "infoAnywhereMode": "Toque {{count}} vezes em qualquer lugar da tela em até {{timeout}} para acessar as configurações",
-      "pinRequired": " (PIN necessário)"
+      "pinRequired": " (PIN necessário)",
+      "kioskScreenOnly": "Funciona apenas na tela do quiosque. Com um aplicativo aberto, toques, o botão e as teclas de volume não levam às configurações: volte primeiro à tela do quiosque."
     },
     "touchBlocking": {
       "title": "Bloqueio de toque",

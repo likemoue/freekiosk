@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Cho phép thêm việc nhấn nút Tăng/Giảm âm lượng nhiều lần để vào cài đặt",
       "infoButtonMode": "Chạm nút quay lại ({{position}}) {{count}} lần để vào cài đặt",
       "infoAnywhereMode": "Chạm bất kỳ đâu trên màn hình {{count}} lần trong vòng {{timeout}} để vào cài đặt",
-      "pinRequired": " (cần mã PIN)"
+      "pinRequired": " (cần mã PIN)",
+      "kioskScreenOnly": "Chỉ có tác dụng trên màn hình kiosk. Khi đang mở một ứng dụng, chạm màn hình, nút cố định và nút âm lượng đều không vào được cài đặt: hãy quay về màn hình kiosk trước."
     },
     "touchBlocking": {
       "title": "Chặn thao tác chạm",

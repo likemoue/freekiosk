@@ -12,6 +12,7 @@ interface OverlayServiceModuleType {
   ): Promise<boolean>;
   // #190 — Configure the native inactivity countdown for External App screensaver activation
   updateInactivityConfig(delayMs: number, enabled: boolean): Promise<boolean>;
+  noteUserActivity(): void;
   // #266: dim over the external app instead of bringing FreeKiosk to the front. level is
   // the screen brightness (0..1), or -1 for an opaque black overlay. Resolves false when
   // the overlay can't be shown, so the caller falls back to bringToFront().

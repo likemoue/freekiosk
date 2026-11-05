@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Erlaubt zusätzlich, die Einstellungen durch mehrfaches Drücken der Taste Lauter/Leiser zu öffnen",
       "infoButtonMode": "Tippe {{count}}-mal auf die Zurück-Schaltfläche ({{position}}), um die Einstellungen zu öffnen",
       "infoAnywhereMode": "Tippe {{count}}-mal innerhalb von {{timeout}} irgendwo auf den Bildschirm, um die Einstellungen zu öffnen",
-      "pinRequired": " (PIN erforderlich)"
+      "pinRequired": " (PIN erforderlich)",
+      "kioskScreenOnly": "Funktioniert nur auf dem Kiosk-Bildschirm. Solange eine App geöffnet ist, führen Berührungen, die Schaltfläche und die Lautstärketasten nicht zu den Einstellungen: Kehre zuerst zum Kiosk-Bildschirm zurück."
     },
     "touchBlocking": {
       "title": "Touch-Sperre",

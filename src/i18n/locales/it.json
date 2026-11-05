@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Consenti anche di premere più volte il tasto Volume su/giù per accedere alle Impostazioni",
       "infoButtonMode": "Tocca il pulsante di ritorno ({{position}}) {{count}} volte per accedere alle Impostazioni",
       "infoAnywhereMode": "Tocca {{count}} volte in qualsiasi punto dello schermo entro {{timeout}} per accedere alle Impostazioni",
-      "pinRequired": " (PIN richiesto)"
+      "pinRequired": " (PIN richiesto)",
+      "kioskScreenOnly": "Funziona solo nella schermata del chiosco. Con un'app aperta, né i tocchi, né il pulsante, né i tasti del volume portano alle impostazioni: torna prima alla schermata del chiosco."
     },
     "touchBlocking": {
       "title": "Blocco del tocco",
