@@ -1,6 +1,7 @@
 import type { ApkPackage, User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { isApkBundle } from '../files/apk-reader';
+import { PACKAGE_NAME } from './home-apps';
 
 /**
  * The commands the app understands (src/utils/CloudCommandService.ts) and what each one needs.
@@ -48,6 +49,18 @@ export const COMMANDS: Record<string, CommandSpec> = {
   reboot: { capability: 'reboot' },
   clear_cache: {},
   stop_apps: { capability: 'stop_apps', lacking: 'Cần FreeKiosk bản mới nhất và chế độ Device Owner' },
+  clear_app_data: {
+    capability: 'clear_app_data',
+    lacking: 'Cần FreeKiosk bản mới nhất và chế độ Device Owner',
+    validate: (params) => {
+      const packages = params.packages;
+      if (!Array.isArray(packages) || packages.length === 0) return 'Chưa chọn ứng dụng nào';
+      if (packages.length > 100) return 'Chọn quá nhiều ứng dụng';
+      if (packages.some((name) => typeof name !== 'string' || !PACKAGE_NAME.test(name))) return 'Tên gói ứng dụng không hợp lệ';
+      if (packages.includes('com.freekiosk')) return 'Không thể xóa dữ liệu của chính FreeKiosk';
+      return null;
+    },
+  },
   set_screen_timeout: {
     capability: 'screen_timeout',
     lacking: 'Cần FreeKiosk bản mới nhất',
@@ -122,6 +135,7 @@ export const COMMAND_LABELS: Record<string, string> = {
   reboot: 'Khởi động lại',
   clear_cache: 'Xóa bộ nhớ đệm',
   stop_apps: 'Dừng mọi ứng dụng',
+  clear_app_data: 'Xóa dữ liệu ứng dụng',
   set_screen_timeout: 'Thời gian sáng màn hình',
   toast: 'Hiện thông báo',
   execute_js: 'Chạy JavaScript',

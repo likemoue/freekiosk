@@ -17,7 +17,7 @@ web. **App không cần đến nó**: mọi tính năng kiosk, REST API và tíc
 
 - **Trang quản lý đội thiết bị**: pin, mạng, màn hình và bộ nhớ của mọi thiết bị, cập nhật trực tiếp, kèm
   nhật ký hoạt động có thể xuất ra CSV.
-- **Lệnh từ xa** cho một thiết bị, một nhóm hoặc cả đội thiết bị.
+- **Lệnh từ xa** cho một thiết bị, một nhóm hoặc cả đội thiết bị. Tab **Ứng dụng** có Ứng dụng trên màn hình, Mở ứng dụng, Dừng mọi ứng dụng và Xóa dữ liệu ứng dụng, đều chọn bằng icon.
 - **Nhóm và hồ sơ cấu hình**: áp dụng cùng một bộ cài đặt cho nhiều thiết bị.
 - **Cảnh báo và thông báo** khi thiết bị đổi trạng thái.
 - **Ảnh chụp màn hình từ xa** và **phân phối APK** (giấy phép trả phí, xem [Giá và thanh toán](#giá-và-thanh-toán)).

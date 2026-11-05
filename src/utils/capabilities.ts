@@ -45,6 +45,8 @@ export type Capability =
   | 'split_install'
   // Closing every app takes hiding them, which only a Device Owner can do
   | 'stop_apps'
+  // A Device Owner on Android 9 and up can clear the data of another app
+  | 'clear_app_data'
   | 'screen_off_lock'
   // Special-access / runtime permission gated
   | 'accessibility'
@@ -107,6 +109,7 @@ export async function getCapabilities(): Promise<string[]> {
     caps.add('silent_install');
     caps.add('split_install');
     caps.add('stop_apps');
+    if (Number(Platform.Version) >= 28) caps.add('clear_app_data');
     caps.add('screen_off_lock');
   }
 

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { useCan } from '../auth';
+import { AppChoice } from '../components/app-picker';
 import { COMMAND_LABELS } from '../components/commands';
 import { DeviceSummary } from '../components/device';
 import { dateTime, daysText, WEEKDAYS } from '../format';
@@ -27,7 +28,7 @@ const SCHEDULABLE = [
   { type: 'toast', param: 'message', paramLabel: 'Nội dung thông báo' },
   { type: 'speak', param: 'text', paramLabel: 'Văn bản cần đọc' },
   { type: 'play_sound', param: 'url', paramLabel: 'URL âm thanh' },
-  { type: 'launch_app', param: 'package_name', paramLabel: 'Tên gói ứng dụng' },
+  { type: 'launch_app', param: 'package_name', paramLabel: 'Ứng dụng' },
 ];
 
 const BLANK = { name: '', commandType: 'reload', paramValue: '', targetType: 'all', groupId: '', deviceIds: [] as string[], days: [1, 2, 3, 4, 5], time: '07:00', enabled: true };
@@ -142,7 +143,7 @@ export default function Scheduler() {
                 {SCHEDULABLE.map((c) => <option key={c.type} value={c.type}>{COMMAND_LABELS[c.type] ?? c.type}</option>)}
               </Select>
             </Field>
-            {spec?.param && <Field label={spec.paramLabel}><Input value={form.paramValue} onChange={(e) => setForm({ ...form, paramValue: e.target.value })} /></Field>}
+            {spec?.param && spec.type !== 'launch_app' && <Field label={spec.paramLabel}><Input value={form.paramValue} onChange={(e) => setForm({ ...form, paramValue: e.target.value })} /></Field>}
             <Field label="Đối tượng">
               <Select value={form.targetType} onChange={(e) => setForm({ ...form, targetType: e.target.value })}>
                 <option value="all">Tất cả thiết bị</option>
@@ -166,6 +167,16 @@ export default function Scheduler() {
                     {device.name}
                   </label>
                 ))}
+              </div>
+            )}
+            {spec?.type === 'launch_app' && (
+              <div>
+                <span className="mb-1.5 block text-[13px] font-semibold">Ứng dụng</span>
+                <AppChoice
+                  target={form.targetType === 'all' ? { all: true } : form.targetType === 'group' ? (form.groupId ? { groupId: form.groupId } : null) : form.deviceIds.length ? { deviceIds: form.deviceIds } : null}
+                  value={form.paramValue}
+                  onChange={(packageName) => setForm({ ...form, paramValue: packageName })}
+                />
               </div>
             )}
             <div>

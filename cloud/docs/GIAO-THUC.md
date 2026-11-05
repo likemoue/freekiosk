@@ -86,8 +86,10 @@ Một phiên bản có cả hai bản dựng thì trả bản không có `cloudp
 
 Kết quả: `{ status: "success" | "error", result, error_message }`. Mã 4xx báo cho ứng dụng thôi gửi lại.
 
-Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot` và `add_wifi_network`. URL, độ sáng, âm lượng
+Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume` và `clear_app_data`. URL, độ sáng, âm lượng
 không phải lệnh: chúng đi qua kênh cấu hình.
+
+`clear_app_data` nhận `{ packages: ["..."], labels: ["..."] }`, `labels` chỉ để hiện trong lịch sử. Kết quả là `{ cleared, missing, failed, permissionsLost }`: `missing` là ứng dụng máy không có, không tính là lỗi; `permissionsLost` ghi `gói/quyền` Android không cho cấp lại. Có `failed` thì trạng thái là `error`, `result` vẫn kèm theo.
 
 ## Khả năng của thiết bị
 

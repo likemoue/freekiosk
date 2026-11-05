@@ -70,6 +70,9 @@ function pngFrom(value: unknown): Buffer | null {
 }
 
 /** The device contract of the app: src/utils/CloudSyncService.ts and CloudCommandService.ts */
+/** What the app says of a command it started and can no longer follow (CloudCommandService) */
+const INTERRUPTED_MESSAGE = 'Device restarted before the command result could be reported';
+
 @Injectable()
 export class DeviceApiService {
   constructor(
@@ -391,9 +394,12 @@ export class DeviceApiService {
   async recordResult(device: Device, commandId: string, body: Json): Promise<void> {
     const command = await this.prisma.command.findFirst({ where: { id: commandId, deviceId: device.id } });
     if (!command) throw new NotFoundException({ error: 'Không tìm thấy lệnh' });
-    // A result that arrives after the expiry is still the truth about what happened
-    if (command.status === 'SUCCESS' || command.status === 'ERROR') return;
     const ok = body.status === 'success';
+    // Up to 2.1.0-beta.9 a tablet could call a command interrupted while it was still running, on coming
+    // back from Settings, and then say how it really ended. That is the one answer worth changing
+    const onlyInterrupted = ok && command.status === 'ERROR' && command.errorMessage === INTERRUPTED_MESSAGE;
+    // A result that arrives after the expiry is still the truth about what happened
+    if ((command.status === 'SUCCESS' || command.status === 'ERROR') && !onlyInterrupted) return;
     const errorMessage = str(body.error_message, 2000);
     await this.prisma.command.update({
       where: { id: command.id },

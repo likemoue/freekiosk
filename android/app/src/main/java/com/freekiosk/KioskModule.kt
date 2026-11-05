@@ -2270,6 +2270,61 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
     }
 
+    /**
+     * What these apps have stored goes, and they stay installed. Whatever else is on the screen stays
+     * there. See AppDataCleaner. Off the bridge's thread: Android answers one app at a time.
+     */
+    @ReactMethod
+    fun clearAppData(packages: ReadableArray, promise: Promise) {
+        val context = reactApplicationContext
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(context, DeviceAdminReceiver::class.java)
+        if (!dpm.isDeviceOwnerApp(context.packageName)) {
+            promise.reject("NOT_DEVICE_OWNER", "Clearing app data requires Device Owner mode")
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            promise.reject("ANDROID_TOO_OLD", "Clearing app data requires Android 9")
+            return
+        }
+        val wanted = (0 until packages.size()).mapNotNull { packages.getString(it) }.filter { it != context.packageName }.distinct()
+        Thread({
+            try {
+                val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                val screenWasOn = power.isInteractive
+                val cleared = Arguments.createArray()
+                val missing = Arguments.createArray()
+                val failed = Arguments.createArray()
+                val permissionsLost = Arguments.createArray()
+                for (packageName in wanted) {
+                    val outcome = AppDataCleaner.clear(context, dpm, admin, packageName)
+                    when (outcome.state) {
+                        AppDataCleaner.State.CLEARED -> cleared.pushString(packageName)
+                        AppDataCleaner.State.NOT_INSTALLED -> missing.pushString(packageName)
+                        AppDataCleaner.State.FAILED -> failed.pushString(packageName)
+                    }
+                    outcome.permissionsLost.forEach { permissionsLost.pushString("$packageName/$it") }
+                }
+                // As when stopping apps: FreeKiosk lights the screen when it comes to the front, which
+                // it does if the app above it was one of these
+                if (!screenWasOn) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (power.isInteractive) ScreenController.turnScreenOff(context)
+                    }, 2_000)
+                }
+                val answer = Arguments.createMap()
+                answer.putArray("cleared", cleared)
+                answer.putArray("missing", missing)
+                answer.putArray("failed", failed)
+                answer.putArray("permissionsLost", permissionsLost)
+                promise.resolve(answer)
+            } catch (e: Exception) {
+                android.util.Log.e("KioskModule", "Failed to clear app data: ${e.message}")
+                promise.reject("ERROR", "Failed to clear app data: ${e.message}")
+            }
+        }, "AppDataCleaner").start()
+    }
+
     private fun returnToHomeScreen(screenIsOn: Boolean, blockRelaunch: Boolean) {
         val context = reactApplicationContext
         // Whoever left the kiosk on purpose is not to be pulled back into it, by a schedule say
