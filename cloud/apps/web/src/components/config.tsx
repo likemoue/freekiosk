@@ -55,7 +55,7 @@ export const CONFIG_SECTIONS: Array<{ id: string; title: string; hint?: string; 
   {
     id: 'media',
     title: 'Trình phát đa phương tiện',
-    hint: 'Bị bỏ qua khi thiết bị đang được gán danh sách phát của Bảng hiệu số.',
+    hint: 'Bị bỏ qua khi thiết bị đang được gán một danh sách phát ở mục Trình phát video/ảnh.',
     fields: [
       { path: 'general.mediaPlayer.loop', label: 'Lặp lại', type: 'bool' },
       { path: 'general.mediaPlayer.shuffle', label: 'Phát ngẫu nhiên', type: 'bool' },
@@ -107,6 +107,15 @@ export const SECRET_FIELDS = [
   { key: 'restApiKey', label: 'Khóa REST API' },
   { key: 'httpBasicAuthPassword', label: 'Mật khẩu HTTP Basic' },
 ] as const;
+
+/** What the form calls a setting, or its path when the form does not show it */
+export function settingLabel(path: string): string {
+  for (const section of CONFIG_SECTIONS) {
+    const field = section.fields.find((f) => f.path === path);
+    if (field) return field.label;
+  }
+  return path;
+}
 
 export function getPath(source: Json | null | undefined, path: string): any {
   return path.split('.').reduce<any>((node, key) => (node === null || node === undefined ? undefined : node[key]), source);

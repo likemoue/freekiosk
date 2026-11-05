@@ -16,7 +16,7 @@ Các địa chỉ trong tài liệu này là của hạ tầng hiện tại: VM 
 ## Yêu cầu
 
 - VM Ubuntu có Docker và plugin Compose. Trên Ubuntu: `sudo apt install docker.io docker-compose-v2 docker-buildx`, rồi `sudo usermod -aG docker $USER`.
-- 2 vCPU, 2 GB RAM là đủ cho vài trăm thiết bị. Dung lượng đĩa tùy lượng video của bảng hiệu số: đĩa phải chứa được **3 lần** `MEDIA_QUOTA_GB` (thư viện, một bản sao lưu, bản đang ghi), cộng khoảng 8 GB cho hệ thống và image.
+- 2 vCPU, 2 GB RAM là đủ cho vài trăm thiết bị. Dung lượng đĩa tùy lượng video của trình phát: đĩa phải chứa được **3 lần** `MEDIA_QUOTA_GB` (thư viện, một bản sao lưu, bản đang ghi), cộng khoảng 8 GB cho hệ thống và image.
 - VM NPM truy cập được VM Ubuntu qua cổng `8090`.
 - **Đặt IP cố định cho VM** (giữ chỗ trên máy chủ DHCP): NPM trỏ tới IP này, IP đổi thì website mất kết nối.
 

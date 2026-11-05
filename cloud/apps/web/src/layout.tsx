@@ -103,7 +103,7 @@ function Sidebar({ deviceCount, online, onNavigate }: { deviceCount?: number; on
           Lịch hẹn giờ
         </NavItem>
         <NavItem to="/quan-ly/bang-hieu" icon={<Presentation />}>
-          Bảng hiệu số
+          Trình phát video/ảnh
         </NavItem>
         <NavItem to="/quan-ly/ho-so" icon={<SlidersHorizontal />}>
           Hồ sơ cấu hình

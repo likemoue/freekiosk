@@ -9,12 +9,12 @@
  *   - GET  /api/v1/devices/{id}/updates/   → install_apk (resolves signed download URL)
  *   - POST /api/v1/commands/{id}/result/   → report success/error
  *
- * Triggered from CloudSyncService on each heartbeat when pending_commands > 0.
+ * Triggered as soon as the website queues something (CloudWake.kt), and from
+ * CloudSyncService on each heartbeat when pending_commands > 0. Behind another app
+ * this runs through the headless task, since React Native stops JS timers there.
  *
- * Background-mode caveat: this runs on the JS thread, which React Native freezes
- * while the activity is backgrounded (e.g. External App mode behind a launched
- * app). Polling therefore only runs reliably in WebView/media mode. Full
- * coverage would require a native poller (cf. OverlayService for the screensaver).
+ * The two channels run side by side: an APK can take minutes to download, and a
+ * command sent in the meantime should not wait for it.
  */
 import { NativeModules } from 'react-native';
 import RNFS from 'react-native-fs';
@@ -95,33 +95,45 @@ const COMMAND_MAP: Record<string, CommandMapper> = {
   // NOTE: `screenshot` is handled separately (capture + upload), not via this map.
 };
 
+type Channel = 'commands' | 'updates';
+
 class CloudCommandServiceClass {
-  private isPolling = false;
+  private running: Record<Channel, boolean> = { commands: false, updates: false };
+  // A word that came while the channel was busy: it looks again when done
+  private lookAgain: Record<Channel, boolean> = { commands: false, updates: false };
   // Guards against re-dispatching the same command if two polls overlap. The
   // server already only returns 'pending' commands, so this is belt-and-braces.
   private processed = new Set<string>();
 
   /**
-   * Fetch + execute any pending commands and APK updates. Safe to call on every
-   * heartbeat; no-ops if a poll is already in flight.
+   * Fetch + execute any pending commands and APK updates. Safe to call at any time: a channel
+   * already at work looks again when it is done.
    */
   async poll(creds?: CloudCredentials): Promise<void> {
-    if (this.isPolling) return;
     const c = creds ?? (await getCloudCredentials());
     if (!c) return;
+    // Only with nothing under way: what is in flight now would read as left over from a previous run
+    if (!this.running.commands && !this.running.updates) await this.settleOutstanding(c);
+    await Promise.all([this.pollChannel('updates', c), this.pollChannel('commands', c)]);
+    // Keep the dedup set from growing unbounded.
+    if (!this.running.commands && !this.running.updates && this.processed.size > 200) this.processed.clear();
+  }
 
-    this.isPolling = true;
+  private async pollChannel(channel: Channel, c: CloudCredentials): Promise<void> {
+    if (this.running[channel]) {
+      this.lookAgain[channel] = true;
+      return;
+    }
+    this.running[channel] = true;
     try {
-      await this.settleOutstanding(c);
-      // APK updates first — these are the slowest, and ordering doesn't matter.
-      await this.pollUpdates(c);
-      await this.pollCommands(c);
+      do {
+        this.lookAgain[channel] = false;
+        await (channel === 'updates' ? this.pollUpdates(c) : this.pollCommands(c));
+      } while (this.lookAgain[channel]);
     } catch (error) {
       console.error('[CloudCommand] Poll error:', error);
     } finally {
-      this.isPolling = false;
-      // Keep the dedup set from growing unbounded.
-      if (this.processed.size > 200) this.processed.clear();
+      this.running[channel] = false;
     }
   }
 
@@ -184,12 +196,17 @@ class CloudCommandServiceClass {
    * reported as a success; anything else was interrupted and says so honestly.
    */
   private async reportInflightCommand(c: CloudCredentials): Promise<void> {
-    const raw = await StorageService.getInflightCommand();
-    if (!raw) return;
-    await StorageService.saveInflightCommand(null);
+    const raw = await StorageService.getInflightInstall();
+    if (raw) await StorageService.saveInflightInstall(null);
+    await this.reportInterrupted(c, raw as InflightCommand | null);
 
-    const inflight = raw as InflightCommand;
-    if (!inflight.commandId) return;
+    const command = await StorageService.getInflightCommand();
+    if (command) await StorageService.saveInflightCommand(null);
+    await this.reportInterrupted(c, command as InflightCommand | null);
+  }
+
+  private async reportInterrupted(c: CloudCredentials, inflight: InflightCommand | null): Promise<void> {
+    if (!inflight?.commandId) return;
     this.processed.add(inflight.commandId);
 
     await this.reportResult(
@@ -242,6 +259,10 @@ class CloudCommandServiceClass {
     if (cmd.type === 'set_screen_timeout') {
       return this.setScreenTimeout(cmd.params || {});
     }
+    // Straight to Android: the action layer goes through the kiosk screen, which may not be there
+    if (cmd.type === 'set_volume') {
+      return this.setVolume(cmd.params || {});
+    }
 
     // Own keys only: "constructor" is a key of every object, and it would run whatever was in the params
     const mapper = Object.prototype.hasOwnProperty.call(COMMAND_MAP, cmd.type) ? COMMAND_MAP[cmd.type] : undefined;
@@ -285,6 +306,22 @@ class CloudCommandServiceClass {
   }
 
   /** How long the screen stays on with no touch. Android keeps it, across restarts too. */
+  private async setVolume(params: Record<string, any>): Promise<ActionResult> {
+    const percent = Number(params.percent);
+    if (params.percent === '' || !(percent >= 0 && percent <= 100)) {
+      return { ok: false, error: 'Missing volume' };
+    }
+    if (!HttpServerModule?.setVolume) {
+      return { ok: false, error: 'This app version cannot change the volume' };
+    }
+    try {
+      await HttpServerModule.setVolume(Math.round(percent));
+      return { ok: true, result: { percent: Math.round(percent) } };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
   private async setScreenTimeout(params: Record<string, any>): Promise<ActionResult> {
     const seconds = Number(params.seconds);
     if (!Number.isInteger(seconds)) {
@@ -407,7 +444,7 @@ class CloudCommandServiceClass {
 
       // A self-update replaces this process mid-install, so the marker is what
       // lets the result be reported once the new version comes up.
-      await StorageService.saveInflightCommand({
+      await StorageService.saveInflightInstall({
         commandId: u.command_id,
         type: 'install_apk',
         killsProcess: u.package_name === OWN_PACKAGE,
@@ -419,7 +456,7 @@ class CloudCommandServiceClass {
           c.apiKey, // the download endpoint is authenticated with the device API key
           u.package_name ?? null,
         );
-        await StorageService.saveInflightCommand(null);
+        await StorageService.saveInflightInstall(null);
         await this.reportResult(c, u.command_id, {
           ok: true,
           result: {
@@ -429,7 +466,7 @@ class CloudCommandServiceClass {
           },
         });
       } catch (error: any) {
-        await StorageService.saveInflightCommand(null);
+        await StorageService.saveInflightInstall(null);
         await this.reportResult(c, u.command_id, {
           ok: false,
           error: error?.message ?? String(error),

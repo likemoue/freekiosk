@@ -21,8 +21,8 @@ web. **App không cần đến nó**: mọi tính năng kiosk, REST API và tíc
 - **Nhóm và hồ sơ cấu hình**: áp dụng cùng một bộ cài đặt cho nhiều thiết bị.
 - **Cảnh báo và thông báo** khi thiết bị đổi trạng thái.
 - **Ảnh chụp màn hình từ xa** và **phân phối APK** (giấy phép trả phí, xem [Giá và thanh toán](#giá-và-thanh-toán)).
-- **Bảng hiệu số** (beta): danh sách phát gồm video, hình ảnh, trang web và video YouTube được phát bởi một
-  màn hình, kèm lịch, xem [Bảng hiệu số](digital-signage.md). Cần app `2.1.0-beta.1`
+- **Trình phát video/ảnh** (beta): danh sách phát gồm video, hình ảnh, trang web và video YouTube được phát bởi một
+  màn hình, kèm lịch, xem [Trình phát video/ảnh](digital-signage.md). Cần app `2.1.0-beta.1`
   trở lên, có dưới dạng [bản pre-release trên GitHub](https://github.com/RushB-fr/freekiosk/releases)
   (Google Play hiện vẫn là `2.0.0`).
 
@@ -53,7 +53,7 @@ Sau khi đăng ký, app gửi một báo cáo trạng thái mỗi 30 giây (tron
   được phép làm trên thiết bị này (capabilities);
 - kiểu máy, nhà sản xuất, phiên bản Android và app, dạng thiết bị (máy tính bảng hoặc TV), dung lượng lưu trữ trống và
   bộ nhớ, thời gian hoạt động và múi giờ;
-- khi áp dụng, trạng thái của bộ nhớ đệm đa phương tiện ngoại tuyến và phiên bản của danh sách phát bảng hiệu số.
+- khi áp dụng, trạng thái của bộ nhớ đệm đa phương tiện ngoại tuyến và phiên bản của danh sách phát trình phát video/ảnh.
 
 Cùng yêu cầu này còn mang theo **cấu hình của app**, để trang quản lý có thể sao lưu và
 áp dụng thay đổi. Cấu hình gồm cả các bí mật lưu trong app, **mật khẩu MQTT, khóa REST API và
@@ -81,7 +81,7 @@ Các điều khoản áp dụng là [Điều khoản bán hàng](https://cloud.f
   tháng tiếp theo và được giảm 10% so với mức giá theo tháng.
 - **Thêm giấy phép giữa kỳ thanh toán** được tính phí ngay, theo tỷ lệ với thời gian còn lại
   đến ngày đến hạn kế tiếp. Không áp dụng mức tối thiểu.
-- **Đa phương tiện cho bảng hiệu số**: thư viện đa phương tiện có hạn mức lưu trữ 100 MiB cho tổ chức chỉ
+- **Đa phương tiện cho trình phát video/ảnh**: thư viện đa phương tiện có hạn mức lưu trữ 100 MiB cho tổ chức chỉ
   dùng phần miễn phí, và 1 GiB cho mỗi giấy phép đang có khi đã trả phí cho một giấy phép.
 
 ## Khi Cloud không khả dụng

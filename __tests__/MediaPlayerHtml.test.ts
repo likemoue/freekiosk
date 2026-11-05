@@ -69,7 +69,8 @@ describe('web pages and YouTube videos inside the player page', () => {
 
   it('skips a page and a video when the device is offline instead of showing an error frame', () => {
     expect(html).toContain('function isOffline()');
-    expect((html.match(/if \(isOffline\(\)\)/g) || []).length).toBe(2);
+    // The page, the video, and the same two when playing in step with other screens
+    expect((html.match(/if \(isOffline\(\)\)/g) || []).length).toBe(3);
   });
 
   it('plays a YouTube video through the cloud page, and listens to it only from that origin', () => {

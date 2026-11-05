@@ -2171,6 +2171,17 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         return "0.0.0.0"
     }
 
+    /** See CloudWake. The credentials stay in JS and in memory here: they come again with each heartbeat */
+    @ReactMethod
+    fun startCloudWake(cloudUrl: String, deviceId: String, apiKey: String) {
+        CloudWake.start(reactApplicationContext, cloudUrl, deviceId, apiKey)
+    }
+
+    @ReactMethod
+    fun stopCloudWake() {
+        CloudWake.stop()
+    }
+
     /**
      * How long the screen stays on with no touch. FreeKiosk keeps the screen on while it is in front
      * itself, so this is what counts once another app is open. In seconds, -1 for never.

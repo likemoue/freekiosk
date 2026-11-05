@@ -4,7 +4,9 @@ import { isIP } from 'node:net';
 import type { MediaAsset, PlaylistItem } from '../generated/prisma/client';
 import { CryptoService, sha256 } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
+import { StorageService } from '../common/storage.service';
 import { env } from '../config/env';
+import { readVideoDurationMs } from '../files/media-duration';
 
 type ItemWithAsset = PlaylistItem & { mediaAsset: MediaAsset | null };
 
@@ -14,6 +16,8 @@ export interface ManifestItem {
   url: string;
   title?: string;
   duration_seconds?: number;
+  /** A video of the library: the same number for every screen, which keeps them in step */
+  duration_ms?: number;
   video_id?: string;
 }
 
@@ -21,9 +25,11 @@ export interface Manifest {
   version: string | null;
   playlist: { id: string; name: string } | null;
   items: ManifestItem[];
+  /** When the playlist began: where a screen should be now follows from this, the same on all of them */
+  sync_epoch_ms?: number;
   schedule?: {
     default_playlist: string | null;
-    playlists: Record<string, { name: string; items: ManifestItem[] }>;
+    playlists: Record<string, { name: string; items: ManifestItem[]; sync_epoch_ms: number }>;
     rules: Array<{
       playlist: string;
       days: number[];
@@ -94,6 +100,7 @@ export class SignageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Any change to a playlist, an item, a rule or an assignment */
@@ -116,6 +123,7 @@ export class SignageService {
     const out: ManifestItem = { id: item.id, kind: item.kind, url: '' };
     if (item.title) out.title = item.title;
     if (item.durationSeconds) out.duration_seconds = item.durationSeconds;
+    if (item.kind === 'video' && item.mediaAsset?.durationMs) out.duration_ms = item.mediaAsset.durationMs;
     if (item.kind === 'youtube') {
       if (!item.videoId) return null;
       out.video_id = item.videoId;
@@ -126,6 +134,17 @@ export class SignageService {
     if (!url) return null;
     out.url = url;
     return out;
+  }
+
+  /** Reads each video once. Kept as 0 when the file does not say, so it is not read again */
+  private async fillDurations(items: ItemWithAsset[]): Promise<void> {
+    for (const item of items) {
+      const asset = item.mediaAsset;
+      if (item.kind !== 'video' || !asset || asset.durationMs !== null) continue;
+      const ms = await readVideoDurationMs(this.storage.path(asset.storageKey)).catch(() => null);
+      asset.durationMs = ms ?? 0;
+      await this.prisma.mediaAsset.update({ where: { id: asset.id }, data: { durationMs: asset.durationMs } });
+    }
   }
 
   /**
@@ -160,6 +179,11 @@ export class SignageService {
       include: { items: { orderBy: { position: 'asc' }, include: { mediaAsset: true } } },
     });
     const byId = new Map(playlists.map((p) => [p.id, p]));
+    await this.fillDurations(playlists.flatMap((p) => p.items));
+    const epochOf = (id: string): number => {
+      const playlist = byId.get(id);
+      return (playlist?.syncEpochAt ?? playlist?.createdAt ?? new Date(0)).getTime();
+    };
     const itemsOf = (id: string) =>
       (byId.get(id)?.items ?? []).map((i) => this.toManifestItem(i)).filter((i): i is ManifestItem => i !== null);
 
@@ -167,10 +191,11 @@ export class SignageService {
     const body: Omit<Manifest, 'version'> = {
       playlist: defaultPlaylist ? { id: defaultPlaylist.id, name: defaultPlaylist.name } : null,
       items: defaultPlaylist ? itemsOf(defaultPlaylist.id) : [],
+      ...(defaultPlaylist ? { sync_epoch_ms: epochOf(defaultPlaylist.id) } : {}),
       schedule: rules.length
         ? {
             default_playlist: defaultPlaylist?.id ?? null,
-            playlists: Object.fromEntries(ids.map((id) => [id, { name: byId.get(id)?.name ?? '', items: itemsOf(id) }])),
+            playlists: Object.fromEntries(ids.map((id) => [id, { name: byId.get(id)?.name ?? '', items: itemsOf(id), sync_epoch_ms: epochOf(id) }])),
             rules: rules.map((r) => ({
               playlist: r.playlistId,
               days: r.days,

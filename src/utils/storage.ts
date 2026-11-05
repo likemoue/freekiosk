@@ -12,6 +12,8 @@ import { ManagedApp } from '../types/managedApps';
 import { MediaItem, MediaFitMode } from '../types/mediaPlayer';
 import { saveSecureApiKey, getSecureApiKey, clearSecureApiKey, clearSecureMqttPassword } from './secureStorage';
 
+// Outside KEYS: what a settings import or an enrollment wipes is not this
+const INFLIGHT_INSTALL_KEY = '@cloud_inflight_install';
 export const KEYS = {
   URL: '@kiosk_url',
   PIN: '@kiosk_pin',
@@ -3703,6 +3705,25 @@ export const StorageService = {
   savePendingReports: async (reports: unknown[]): Promise<void> => {
     try { await AsyncStorage.setItem(KEYS.CLOUD_PENDING_REPORTS, JSON.stringify(reports)); }
     catch (error) { console.error('Error saving pending cloud reports:', error); }
+  },
+
+  // An install apart from the command above: both can be under way, and each can outlive the process
+  saveInflightInstall: async (value: Record<string, unknown> | null): Promise<void> => {
+    try {
+      if (value === null) await AsyncStorage.removeItem(INFLIGHT_INSTALL_KEY);
+      else await AsyncStorage.setItem(INFLIGHT_INSTALL_KEY, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving the install in flight:', error);
+    }
+  },
+
+  getInflightInstall: async (): Promise<Record<string, unknown> | null> => {
+    try {
+      const value = await AsyncStorage.getItem(INFLIGHT_INSTALL_KEY);
+      return value ? JSON.parse(value) : null;
+    } catch {
+      return null;
+    }
   },
 
   getInflightCommand: async (): Promise<Record<string, unknown> | null> => {

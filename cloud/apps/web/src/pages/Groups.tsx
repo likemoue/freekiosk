@@ -152,7 +152,7 @@ export default function Groups() {
         open={!!urlFor}
         onClose={() => setUrlFor(null)}
         title={`Đổi URL cho nhóm ${urlFor?.name}`}
-        hint="Mọi thiết bị trong nhóm áp dụng ở lần báo cáo kế tiếp."
+        hint="Mọi thiết bị trong nhóm áp dụng ngay khi nhận được."
         footer={<><Button variant="outline" onClick={() => setUrlFor(null)}>Hủy</Button><Button disabled={!/^https?:\/\/\S+$/i.test(url)} busy={setGroupUrl.isPending} onClick={() => setGroupUrl.mutate()}>Áp dụng</Button></>}
       >
         <Field label="URL"><Input autoFocus placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} /></Field>

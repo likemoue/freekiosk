@@ -10,6 +10,7 @@ import { SettingsService } from '../common/settings.service';
 import { env } from '../config/env';
 import { ConfigSyncService, SensitiveValues } from '../devices/config-sync.service';
 import { CreateGroupDto, CreateTokenDto, SaveProfileDto, SensitiveDto, UpdateGroupDto } from '../devices/devices.dto';
+import { configDifferences } from '../devices/profile-state';
 import { SignageService } from '../signage/signage.service';
 
 @ApiTags('Nhóm')
@@ -111,11 +112,50 @@ export class ProfilesController {
 
   @Get()
   async list() {
-    const profiles = await this.prisma.configProfile.findMany({
-      orderBy: { name: 'asc' },
-      include: { _count: { select: { devices: true, groups: true } } },
+    const [profiles, devices] = await Promise.all([
+      this.prisma.configProfile.findMany({
+        orderBy: { name: 'asc' },
+        include: { _count: { select: { devices: true, groups: true } } },
+      }),
+      this.prisma.device.findMany({
+        where: { unenrolledAt: null },
+        select: { profileId: true, reportedConfig: true, pendingConfig: true, group: { select: { profileId: true } } },
+      }),
+    ]);
+    return profiles.map((p) => {
+      // Counting those reached through their group too: they are what "uses this profile" means
+      const users = devices.filter((d) => (d.profileId ?? d.group?.profileId) === p.id);
+      const different = users.filter((d) => d.pendingConfig === null && d.reportedConfig !== null && configDifferences(p.config, d.reportedConfig).length > 0);
+      return { ...this.view(p), usedBy: users.length, differentCount: different.length };
     });
-    return profiles.map((p) => this.view(p));
+  }
+
+  /** A copy to start from. Nothing uses it yet, so nothing is sent to any device */
+  @Post(':id/duplicate')
+  @Roles('ADMIN', 'OPERATOR')
+  async duplicate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
+    const source = await this.prisma.configProfile.findUnique({ where: { id } });
+    if (!source) throw new NotFoundException('Không tìm thấy hồ sơ');
+    const taken = new Set((await this.prisma.configProfile.findMany({ select: { name: true } })).map((p) => p.name));
+    let name = `${source.name} (bản sao)`;
+    for (let n = 2; taken.has(name); n += 1) name = `${source.name} (bản sao ${n})`;
+    const profile = await this.prisma.configProfile.create({
+      data: { name, description: source.description, config: source.config as Prisma.InputJsonValue, sensitiveEnc: source.sensitiveEnc },
+    });
+    await this.activity.log({ action: 'profile.created', message: `${actor.email} đã nhân bản hồ sơ ${source.name} thành ${name}`, user: actor });
+    return this.view(profile);
+  }
+
+  /** Sends the profile again to every device using it, to undo what changed them since */
+  @Post(':id/apply')
+  @HttpCode(200)
+  @Roles('ADMIN', 'OPERATOR')
+  async apply(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
+    const profile = await this.prisma.configProfile.findUnique({ where: { id } });
+    if (!profile) throw new NotFoundException('Không tìm thấy hồ sơ');
+    const appliedTo = await this.configSync.pushProfile(id);
+    await this.activity.log({ action: 'profile.applied', message: `${actor.email} đã áp lại hồ sơ ${profile.name} cho ${appliedTo} thiết bị`, user: actor });
+    return { appliedTo };
   }
 
   @Post()

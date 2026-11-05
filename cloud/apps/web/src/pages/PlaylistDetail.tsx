@@ -3,7 +3,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { ArrowLeft, CalendarClock, Film, Globe, GripVertical, ImageIcon, Pencil, Plus, Trash2, TriangleAlert, Tv, CirclePlay } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Film, Globe, GripVertical, ImageIcon, Pencil, Plus, RotateCcw, Trash2, TriangleAlert, Tv, CirclePlay } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -121,7 +121,7 @@ function AddItem({ onClose, onAdd }: { onClose: () => void; onAdd: (items: Item[
       />
       <div className="mt-4 space-y-4">
         {source === 'library' && (
-          assets.length === 0 ? <Notice>Thư viện đang trống. Dùng nút "Tải tệp lên" ở trang Bảng hiệu số.</Notice> : (
+          assets.length === 0 ? <Notice>Thư viện đang trống. Dùng nút "Tải tệp lên" ở trang Trình phát video/ảnh.</Notice> : (
             <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-4">
               {assets.map((asset) => {
                 const on = picked.includes(asset.id);
@@ -180,18 +180,34 @@ function AssignDialog({ playlist, onClose }: { playlist: any; onClose: () => voi
     onError: notifyError,
   });
   const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  const enrolled = devices.data?.filter((d) => !d.unenrolledAt) ?? [];
+  // What the choice does to each device: a list of its own wins over the one of its group
+  const standing = (device: DeviceSummary) => {
+    const direct = deviceIds.includes(device.id);
+    const viaGroup = !!device.group && groupIds.includes(device.group.id);
+    const elsewhere = !direct && device.playlist && device.playlist.id !== playlist.id ? device.playlist : null;
+    return { direct, viaGroup, elsewhere, plays: direct || (viaGroup && !elsewhere) };
+  };
+  const reached = enrolled.filter((device) => standing(device).plays).length;
   return (
-    <Modal open onClose={onClose} title="Chọn màn hình phát danh sách này" hint="Danh sách gán riêng cho màn hình được ưu tiên hơn danh sách của nhóm." wide footer={<><Button variant="outline" onClick={onClose}>Hủy</Button><Button busy={save.isPending} onClick={() => save.mutate()}>Lưu</Button></>}>
+    <Modal open onClose={onClose} title="Chọn màn hình phát danh sách này" hint="Tích một nhóm là mọi thiết bị trong nhóm được tích theo, để bạn thấy đúng những máy sẽ phát." wide footer={<><span className="mr-auto text-sm font-semibold">Sẽ phát trên {reached} thiết bị</span><Button variant="outline" onClick={onClose}>Hủy</Button><Button busy={save.isPending} onClick={() => save.mutate()}>Lưu</Button></>}>
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <p className="mb-2 text-[13px] font-semibold">Thiết bị</p>
           <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-line p-3">
-            {devices.data?.filter((d) => !d.unenrolledAt).map((device) => (
-              <label key={device.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="size-4 accent-brand-strong" checked={deviceIds.includes(device.id)} onChange={() => toggle(deviceIds, setDeviceIds, device.id)} />
-                <span className="truncate">{device.name}</span>
-              </label>
-            ))}
+            {enrolled.map((device) => {
+              const { direct, viaGroup, elsewhere, plays } = standing(device);
+              // Following its group: leaving the group's choice is done on the group
+              const locked = viaGroup && !direct && !elsewhere;
+              return (
+                <label key={device.id} className={clsx('flex items-center gap-2 text-sm', locked && 'text-soft')} title={locked ? `Theo nhóm ${device.group!.name}. Bỏ tích nhóm để bỏ máy này.` : undefined}>
+                  <input type="checkbox" aria-label={device.name} className="size-4 shrink-0 accent-brand-strong" checked={plays} disabled={locked} onChange={() => toggle(deviceIds, setDeviceIds, device.id)} />
+                  <span className="truncate">{device.name}</span>
+                  {locked && <span className="ml-auto shrink-0 text-xs">theo nhóm</span>}
+                  {elsewhere && <span className="ml-auto shrink-0 text-xs text-warn" title="Danh sách gán riêng cho máy được ưu tiên hơn danh sách của nhóm">đang phát {elsewhere.name}</span>}
+                </label>
+              );
+            })}
             {!devices.data?.length && <p className="text-sm text-soft">Chưa có thiết bị.</p>}
           </div>
         </div>
@@ -324,7 +340,7 @@ export default function PlaylistDetail() {
         items: items.map((i) => ({ kind: i.kind, url: i.url, mediaAssetId: i.mediaAssetId, title: i.title, durationSeconds: i.durationSeconds ?? undefined })),
       }),
     onSuccess: async () => {
-      toast.success('Đã lưu. Màn hình cập nhật trong vòng một phút');
+      toast.success('Đã lưu. Các màn hình phát lại từ đầu sau vài giây');
       setDirty(false);
       await client.invalidateQueries({ queryKey: ['playlist', id] });
       client.invalidateQueries({ queryKey: ['playlists'] });
@@ -339,6 +355,11 @@ export default function PlaylistDetail() {
   const remove = useMutation({
     mutationFn: () => api.del(`/api/admin/signage/playlists/${id}`),
     onSuccess: () => { toast.success('Đã xóa danh sách'); client.invalidateQueries({ queryKey: ['playlists'] }); navigate('/quan-ly/bang-hieu'); },
+    onError: notifyError,
+  });
+  const restart = useMutation({
+    mutationFn: () => api.post(`/api/admin/signage/playlists/${id}/restart`),
+    onSuccess: () => toast.success('Các màn hình sẽ cùng phát lại từ đầu sau vài giây'),
     onError: notifyError,
   });
   const removeRule = useMutation({
@@ -358,9 +379,12 @@ export default function PlaylistDetail() {
         title={<span className="flex items-center gap-2">{p.name}{can.operate && <button aria-label="Đổi tên" className="rounded-lg p-1 text-soft hover:bg-raised" onClick={() => { setName(p.name); setDialog('rename'); }}><Pencil className="size-4" /></button>}</span>}
         hint={`${items.length} mục`}
         action={can.operate && (
-          <Button variant="danger-outline" onClick={async () => {
-            if (await confirm({ title: `Xóa danh sách "${p.name}"?`, message: 'Các màn hình đang phát danh sách này sẽ quay lại chế độ trước đó.', confirm: 'Xóa', danger: true })) remove.mutate();
-          }}><Trash2 className="size-4" /> Xóa</Button>
+          <div className="flex flex-wrap gap-2">
+            {p.screens.length > 0 && <Button variant="outline" busy={restart.isPending} onClick={() => restart.mutate()}><RotateCcw className="size-4" /> Phát lại từ đầu</Button>}
+            <Button variant="danger-outline" onClick={async () => {
+              if (await confirm({ title: `Xóa danh sách "${p.name}"?`, message: 'Các màn hình đang phát danh sách này sẽ quay lại chế độ trước đó.', confirm: 'Xóa', danger: true })) remove.mutate();
+            }}><Trash2 className="size-4" /> Xóa</Button>
+          </div>
         )}
       />
 
@@ -377,6 +401,7 @@ export default function PlaylistDetail() {
             )}
           />
           {dirty && <Notice tone="warn" className="mx-5 mb-3">Có thay đổi chưa lưu. Màn hình chỉ nhận sau khi bấm Lưu.</Notice>}
+          {items.some((i) => i.kind === 'youtube' && !i.durationSeconds) && <Notice tone="warn" className="mx-5 mb-3">Video YouTube chưa đặt số giây nên các màn hình không phát cùng lúc được: hãy nhập số giây cho mục đó.</Notice>}
           {items.length === 0 ? (
             <Empty icon={<Film />} title="Danh sách đang trống" hint="Thêm video, ảnh, trang web hoặc YouTube." />
           ) : (
@@ -408,7 +433,10 @@ export default function PlaylistDetail() {
                 {p.screens.map((screen: any) => (
                   <li key={screen.id} className="flex items-center justify-between gap-2 text-sm">
                     <Link to={`/quan-ly/thiet-bi/${screen.id}`} className="truncate hover:underline">{screen.name}</Link>
-                    <Badge tone={SCREEN_STATE[screen.state].tone}>{SCREEN_STATE[screen.state].label}</Badge>
+                    <span className="flex shrink-0 gap-1">
+                      {!screen.inStep && <Badge title="Máy này phát danh sách theo nhịp riêng. Cần FreeKiosk bản mới nhất để phát cùng lúc với các máy khác.">Chưa đồng bộ</Badge>}
+                      <Badge tone={SCREEN_STATE[screen.state].tone}>{SCREEN_STATE[screen.state].label}</Badge>
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -27,7 +27,7 @@ FreeKiosk là **nền tảng kiosk mã nguồn mở, miễn phí** dành cho má
 - Bảng điều khiển Home Assistant
 - Màn hình thông tin doanh nghiệp
 - Kiosk chơi game đám mây (Steam Link, Xbox Cloud Gaming)
-- Bảng hiệu số
+- Trình phát video/ảnh
 - Máy tính bảng cho khách sạn/nhà hàng
 - Bảng điều khiển công nghiệp
 
@@ -88,7 +88,7 @@ adb shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver
 | **Cấu hình ADB** | Cấp phát thiết bị headless và viết script | [Đọc →](adb-configuration.md) |
 | **Android TV** | Android TV, Google TV và Fire TV: những gì hoạt động được, cách thiết lập, giới hạn | [Đọc →](android-tv.md) |
 | **FreeKiosk Cloud** | Quản lý đội thiết bị tùy chọn (beta mở): chức năng, cách đăng ký, dữ liệu máy tính bảng gửi đi, giá | [Đọc →](cloud.md) |
-| **Bảng hiệu số** | Danh sách phát được tạo trong FreeKiosk Cloud và phát trên màn hình | [Đọc →](digital-signage.md) |
+| **Trình phát video/ảnh** | Danh sách phát được tạo trong FreeKiosk Cloud và phát trên màn hình | [Đọc →](digital-signage.md) |
 
 ### Chủ đề nâng cao
 

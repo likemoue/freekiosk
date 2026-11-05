@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { AlertTriangle, ArrowRight, Plus, Smartphone } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Plus, Smartphone, TriangleAlert } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useCan } from '../auth';
 import { BatteryMeter, deviceSubtitle, DeviceSummary, StatusDot } from '../components/device';
+import { needsLooking, useFleetVersions } from '../components/fleet-versions';
 import { timeAgo } from '../format';
-import { Badge, Button, Card, CardTitle, Empty, ErrorBox, Loading, PageHeader, Progress } from '../ui';
+import { Badge, Button, Card, CardTitle, Empty, ErrorBox, Loading, Notice, PageHeader, Progress } from '../ui';
 
 function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
@@ -23,9 +24,13 @@ export default function Overview() {
   const overview = useQuery({ queryKey: ['overview'], queryFn: () => api.get('/api/admin/overview'), refetchInterval: 15_000 });
   const devices = useQuery<DeviceSummary[]>({ queryKey: ['devices'], queryFn: () => api.get('/api/admin/devices'), refetchInterval: 10_000 });
 
+  const versions = useFleetVersions();
+
   if (overview.isLoading) return <Loading />;
   if (overview.error) return <ErrorBox error={overview.error} />;
   const { totals, appVersions, groups, alerts, recent } = overview.data;
+  const appProblems = versions.data?.filter(needsLooking) ?? [];
+  const profileProblems = (devices.data ?? []).filter((d) => !d.unenrolledAt && (d.profileStatus.state === 'different' || d.profileStatus.groupProfile)).length;
   const recentDevices = [...(devices.data ?? [])]
     .filter((d) => !d.unenrolledAt)
     .sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true }))
@@ -40,6 +45,17 @@ export default function Overview() {
         <Stat label="Ngoại tuyến" value={totals.offline} color="text-bad" />
         <Stat label="Pin trung bình" value={totals.averageBattery === null ? '—' : `${totals.averageBattery}%`} />
       </div>
+
+      {appProblems.length > 0 && (
+        <Notice tone="warn" className="mt-4">
+          <Link to="/quan-ly/ung-dung?tab=versions" className="inline-flex items-center gap-1.5 hover:underline"><TriangleAlert className="size-4 shrink-0" /> {appProblems.length} ứng dụng lệch phiên bản giữa các thiết bị: {appProblems.map((app) => app.label).join(', ')}</Link>
+        </Notice>
+      )}
+      {profileProblems > 0 && (
+        <Notice tone="warn" className="mt-4">
+          <Link to="/quan-ly/thiet-bi?ho-so=different" className="inline-flex items-center gap-1.5 hover:underline"><TriangleAlert className="size-4 shrink-0" /> {profileProblems} thiết bị lệch hồ sơ cấu hình</Link>
+        </Notice>
+      )}
 
       {totals.devices === 0 ? (
         <Card className="mt-6">

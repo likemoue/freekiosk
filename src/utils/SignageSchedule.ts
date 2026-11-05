@@ -27,7 +27,7 @@ export interface ScheduleRule {
 
 export interface Schedule<Items = unknown> {
   default_playlist: string | null;
-  playlists: Record<string, { name: string; items: Items }>;
+  playlists: Record<string, { name: string; items: Items; syncEpochMs?: number }>;
   rules: ScheduleRule[];
 }
 
@@ -95,6 +95,24 @@ export function ruleMatches(rule: ScheduleRule, now: Date): boolean {
   if (days.includes(today) && eveningWithin === true && minutes >= start) return true;
   const morningWithin = dateWithin(localDate(yesterdayDate), rule.from, rule.to);
   return days.includes(yesterday) && morningWithin === true && minutes < end;
+}
+
+/**
+ * When the rule in force at `now` began, for a rule with hours, or null. A playlist that a schedule
+ * brings on starts from its first item at that moment, on every screen following the rule.
+ */
+export function activeRuleStart(schedule: Schedule, now: Date): number | null {
+  const rules = Array.isArray(schedule?.rules) ? schedule.rules : [];
+  for (const rule of rules) {
+    if (!ruleMatches(rule, now) || !schedule.playlists?.[rule.playlist]) continue;
+    const start = minutesOf(rule.start);
+    if (start === null) return null;
+    const began = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, start);
+    // Past midnight, in the morning part: it began last evening
+    if (now.getHours() * 60 + now.getMinutes() < start) began.setDate(began.getDate() - 1);
+    return began.getTime();
+  }
+  return null;
 }
 
 /** The id of the playlist that plays at `now`, or null for a blank screen. */

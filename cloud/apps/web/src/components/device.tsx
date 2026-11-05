@@ -2,13 +2,23 @@ import clsx from 'clsx';
 import { BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, Tv } from 'lucide-react';
 import { timeAgo } from '../format';
 import { Badge, Progress } from '../ui';
+import { settingLabel } from './config';
+
+export interface ProfileStatus {
+  state: 'none' | 'match' | 'different' | 'pending' | 'not_reported';
+  profile: { id: string; name: string } | null;
+  source: 'device' | 'group' | null;
+  groupProfile: { id: string; name: string } | null;
+  differences: string[];
+}
 
 export interface DeviceSummary {
   id: string;
   name: string;
   notes: string | null;
-  group: { id: string; name: string; color: string | null } | null;
+  group: { id: string; name: string; color: string | null; profile?: { id: string; name: string } | null } | null;
   profile: { id: string; name: string } | null;
+  profileStatus: ProfileStatus;
   playlist: { id: string; name: string } | null;
   model: string | null;
   manufacturer: string | null;
@@ -38,6 +48,29 @@ export interface DeviceSummary {
   forceUnenroll: boolean;
   enrolledAt: string;
   unenrolledAt: string | null;
+}
+
+const PROFILE_BADGE: Record<Exclude<ProfileStatus['state'], 'none'>, { label: string; tone: 'ok' | 'warn' | 'info' | 'neutral' }> = {
+  match: { label: 'Khớp', tone: 'ok' },
+  different: { label: 'Lệch', tone: 'warn' },
+  pending: { label: 'Đang gửi', tone: 'info' },
+  not_reported: { label: 'Chưa báo', tone: 'neutral' },
+};
+
+/** Which profile a device uses, and whether its settings still are what the profile says */
+export function ProfileCell({ status }: { status: ProfileStatus }) {
+  if (!status.profile) return <span className="text-soft">Không có</span>;
+  const badge = PROFILE_BADGE[status.state as keyof typeof PROFILE_BADGE];
+  const why = status.state === 'different' ? `Khác hồ sơ ở: ${status.differences.map(settingLabel).join(', ')}` : undefined;
+  return (
+    <span className="flex flex-col items-start gap-0.5">
+      <span className="max-w-44 truncate" title={status.profile.name}>{status.profile.name}</span>
+      <span className="flex flex-wrap gap-1">
+        <Badge tone={badge.tone} title={why}>{badge.label}{status.state === 'different' ? ` ${status.differences.length} mục` : ''}</Badge>
+        {status.groupProfile && <Badge tone="warn" title={`Nhóm của máy này dùng hồ sơ ${status.groupProfile.name}`}>Khác nhóm</Badge>}
+      </span>
+    </span>
+  );
 }
 
 export function StatusDot({ online }: { online: boolean }) {

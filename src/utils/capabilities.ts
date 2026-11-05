@@ -34,6 +34,9 @@ export type Capability =
   | 'signage_youtube'
   // Tells a tablet that can from one that needs updating. The tablet says so itself if it lacks the right to.
   | 'screen_timeout'
+  | 'set_volume'
+  // Plays a cloud playlist in step with the other screens
+  | 'signage_sync'
   // Device Owner gated
   | 'device_owner'
   | 'reboot'
@@ -64,6 +67,8 @@ const BASELINE: Capability[] = [
   'signage_web',
   'signage_youtube',
   'screen_timeout',
+  'set_volume',
+  'signage_sync',
 ];
 
 async function safe<T>(p: Promise<T> | undefined, fallback: T): Promise<T> {

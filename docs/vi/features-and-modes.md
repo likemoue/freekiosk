@@ -32,7 +32,7 @@
 - Bảng điều khiển Home Assistant
 - Màn hình thông tin
 - Ứng dụng web
-- Bảng hiệu số
+- Trình phát video/ảnh
 - Bảng điều khiển doanh nghiệp
 
 ### Chế độ ứng dụng ngoài
@@ -47,7 +47,7 @@
 
 **Phù hợp nhất cho:**
 - Chơi game đám mây (Steam Link, Xbox Cloud Gaming)
-- Ứng dụng bảng hiệu số
+- Ứng dụng trình phát video/ảnh
 - Ứng dụng doanh nghiệp
 - Trình phát đa phương tiện
 - Ứng dụng Android tùy chỉnh

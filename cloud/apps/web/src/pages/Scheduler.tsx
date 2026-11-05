@@ -23,6 +23,7 @@ const SCHEDULABLE = [
   { type: 'screensaver_on' },
   { type: 'screensaver_off' },
   { type: 'audio_stop' },
+  { type: 'set_volume', param: 'percent', paramLabel: 'Âm lượng (0 đến 100)' },
   { type: 'toast', param: 'message', paramLabel: 'Nội dung thông báo' },
   { type: 'speak', param: 'text', paramLabel: 'Văn bản cần đọc' },
   { type: 'play_sound', param: 'url', paramLabel: 'URL âm thanh' },

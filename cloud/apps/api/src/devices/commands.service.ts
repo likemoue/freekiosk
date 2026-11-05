@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, User } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
 import { CryptoService } from '../common/crypto.service';
+import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
 import { COMMAND_LABELS, COMMANDS, CONFIG_COMMANDS, ConfigCommandSpec, THROUGH_CONFIG_DAYS } from './catalog';
@@ -32,6 +33,7 @@ export class CommandsService {
     private readonly crypto: CryptoService,
     private readonly activity: ActivityService,
     private readonly configSync: ConfigSyncService,
+    private readonly wake: DeviceWakeService,
   ) {}
 
   async send(options: SendOptions): Promise<SendResult> {
@@ -105,6 +107,7 @@ export class CommandsService {
           expiresAt,
         })),
       });
+      this.wake.notify(reachable.map((device) => device.id), 'commands');
     }
 
     await this.logQueued(type, actor, reachable, batchId, skipped.length);

@@ -5,13 +5,16 @@
  * Features: auto-play, loop, shuffle, transitions, optional controls
  */
 
-import React, { useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Icon from './Icon';
 import type { MediaItem, MediaFitMode } from '../types/mediaPlayer';
 import { useTranslation } from 'react-i18next';
 import { useCachedMediaItems } from '../utils/useCachedMediaItems';
+import { ServerClock } from '../utils/ServerClock';
+import { getCloudCredentials } from '../utils/secureStorage';
+import { IN_STEP_PLAYER_JS, SIGNAGE_TIMELINE_JS } from '../utils/SignageTimeline';
 
 interface MediaPlayerComponentProps {
   items: MediaItem[];
@@ -31,12 +34,17 @@ interface MediaPlayerComponentProps {
   cacheLimitMb?: number;
   /** No error text on screen, and an item that does not load or freezes is skipped */
   unattended?: boolean;
+  /** When the playlist began: the screen plays in step with the others that have the same one */
+  syncEpochMs?: number | null;
   /** Files of the other playlists of a schedule, kept on the device ahead of their time */
   prefetchItems?: MediaItem[];
   /** Nothing to play is a blank screen, not a help text (a schedule with nothing due) */
   emptyIsBlank?: boolean;
   onUserInteraction?: (event?: { isTap?: boolean; x?: number; y?: number }) => void;
 }
+
+/** The same on every screen, whatever each one has set */
+const IN_STEP_IMAGE_SECONDS = 10;
 
 const MediaPlayerComponent: React.FC<MediaPlayerComponentProps> = ({
   items: configuredItems,
@@ -53,6 +61,7 @@ const MediaPlayerComponent: React.FC<MediaPlayerComponentProps> = ({
   cacheOffline = false,
   cacheLimitMb,
   unattended = false,
+  syncEpochMs = null,
   prefetchItems,
   emptyIsBlank = false,
   onUserInteraction,
@@ -79,8 +88,28 @@ const MediaPlayerComponent: React.FC<MediaPlayerComponentProps> = ({
       transitionDuration,
       muteVideo,
       unattended,
+      sync: syncEpochMs ? { epochMs: syncEpochMs, offsetMs: ServerClock.fineOffset() } : null,
     });
-  }, [items, autoPlay, loop, shuffle, imageDuration, showControls, fitMode, backgroundColor, transitionEnabled, transitionDuration, muteVideo, unattended]);
+  }, [items, autoPlay, loop, shuffle, imageDuration, showControls, fitMode, backgroundColor, transitionEnabled, transitionDuration, muteVideo, unattended, syncEpochMs]);
+
+  // The clock behind playing in step: measured when the playlist starts, and every minute after that
+  useEffect(() => {
+    if (!syncEpochMs) return undefined;
+    let cancelled = false;
+    const measure = async (samples: number) => {
+      const credentials = await getCloudCredentials().catch(() => null);
+      if (!credentials || cancelled) return;
+      const offset = await ServerClock.calibrate(credentials.cloudUrl, samples);
+      if (cancelled) return;
+      webViewRef.current?.injectJavaScript(`window.player && window.player.setClockOffset(${offset}); true;`);
+    };
+    measure(5);
+    const timer = setInterval(() => measure(2), 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [syncEpochMs]);
 
   const handleMessage = useCallback((event: any) => {
     try {
@@ -153,6 +182,7 @@ export function generatePlayerHTML(settings: {
   transitionDuration: number;
   muteVideo: boolean;
   unattended: boolean;
+  sync?: { epochMs: number; offsetMs: number } | null;
 }): string {
   const {
     items,
@@ -167,6 +197,7 @@ export function generatePlayerHTML(settings: {
     transitionDuration,
     muteVideo,
     unattended,
+    sync = null,
   } = settings;
 
   // This goes inside a <script>: a title or an address holding "</script>" would end it and let its
@@ -175,7 +206,9 @@ export function generatePlayerHTML(settings: {
   const itemsJSON = JSON.stringify(items.map(i => ({
     url: i.url,
     type: i.type,
-    duration: i.duration || imageDuration,
+    // In step, an image with no duration of its own cannot go by this screen's setting: it may differ on the next one
+    duration: i.duration || (sync ? IN_STEP_IMAGE_SECONDS : imageDuration),
+    durationMs: i.durationMs || 0,
     // A YouTube video has no duration of its own to show: this is only a cap, set when the cloud gave one
     capSeconds: i.type === 'youtube' && i.duration ? i.duration : 0,
     videoId: i.videoId || '',
@@ -337,6 +370,7 @@ export function generatePlayerHTML(settings: {
   'use strict';
   
   var playlist = ${itemsJSON};
+  var SYNC = ${sync ? JSON.stringify(sync) : 'null'};
   var SETTINGS = {
     autoPlay: ${autoPlay},
     loop: ${loop},
@@ -728,9 +762,16 @@ export function generatePlayerHTML(settings: {
     loadMedia(currentIndex);
   }
   
+  ${SIGNAGE_TIMELINE_JS}
+  ${IN_STEP_PLAYER_JS}
+
   // Public API
   window.player = {
+    setClockOffset: function(ms) {
+      if (SYNC) SYNC.offsetMs = ms;
+    },
     togglePlay: function() {
+      if (stepActive) return;
       isPlaying = !isPlaying;
       var slot = getActiveSlot();
       var video = slot.querySelector('video');
@@ -754,10 +795,12 @@ export function generatePlayerHTML(settings: {
       showControlsBar();
     },
     next: function() {
+      if (stepActive) return;
       advanceToNext();
       showControlsBar();
     },
     prev: function() {
+      if (stepActive) return;
       advanceToPrev();
       showControlsBar();
     }
@@ -787,6 +830,7 @@ export function generatePlayerHTML(settings: {
   });
   
   // Initialize
+  function startOneAfterTheOther() {
   if (SETTINGS.shuffle) buildShuffleOrder();
   
   // Load first item directly into slot A
@@ -862,6 +906,10 @@ export function generatePlayerHTML(settings: {
     
     updateControls();
   }
+  }
+
+  if (SYNC && playlist.length > 0) startInStep(startOneAfterTheOther);
+  else startOneAfterTheOther();
 })();
 </script>
 </body>

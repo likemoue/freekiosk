@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Copy, Download, Pencil, Plus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '../api';
@@ -104,6 +104,26 @@ export default function Profiles() {
     onError: notifyError,
   });
 
+  const editForm = (profile: any): Form => ({ id: profile.id, name: profile.name, description: profile.description ?? '', config: profile.config ?? {}, secrets: {}, secretsSet: profile.secrets });
+  const duplicate = useMutation({
+    mutationFn: (id: string) => api.post(`/api/admin/profiles/${id}/duplicate`),
+    onSuccess: (copy) => {
+      toast.success(`Đã tạo ${copy.name}. Đổi tên và sửa nếu cần, chưa máy nào dùng hồ sơ này`);
+      refresh();
+      setForm(editForm(copy));
+    },
+    onError: notifyError,
+  });
+  const apply = useMutation({
+    mutationFn: (id: string) => api.post(`/api/admin/profiles/${id}/apply`),
+    onSuccess: (result) => {
+      toast.success(`Đã gửi lại hồ sơ cho ${result.appliedTo} thiết bị`);
+      refresh();
+      client.invalidateQueries({ queryKey: ['devices'] });
+    },
+    onError: notifyError,
+  });
+
   const blank = (): Form => ({ name: '', description: '', config: {}, secrets: {} });
 
   return (
@@ -133,7 +153,8 @@ export default function Profiles() {
                 </div>
                 {can.operate && (
                   <div className="flex shrink-0">
-                    <button aria-label={`Sửa ${profile.name}`} className="rounded-lg p-1.5 text-soft hover:bg-raised" onClick={() => setForm({ id: profile.id, name: profile.name, description: profile.description ?? '', config: profile.config ?? {}, secrets: {}, secretsSet: profile.secrets })}><Pencil className="size-4" /></button>
+                    <button aria-label={`Nhân bản ${profile.name}`} title="Nhân bản" className="rounded-lg p-1.5 text-soft hover:bg-raised" disabled={duplicate.isPending} onClick={() => duplicate.mutate(profile.id)}><Copy className="size-4" /></button>
+                    <button aria-label={`Sửa ${profile.name}`} title="Sửa" className="rounded-lg p-1.5 text-soft hover:bg-raised" onClick={() => setForm(editForm(profile))}><Pencil className="size-4" /></button>
                     <button aria-label={`Xóa ${profile.name}`} className="rounded-lg p-1.5 text-soft hover:bg-raised hover:text-bad" onClick={async () => {
                       if (await confirm({ title: `Xóa hồ sơ ${profile.name}?`, message: 'Thiết bị đang dùng hồ sơ này giữ nguyên cấu hình hiện tại.', confirm: 'Xóa', danger: true })) remove.mutate(profile.id);
                     }}><Trash2 className="size-4" /></button>
@@ -142,10 +163,16 @@ export default function Profiles() {
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <Badge tone="info">{count(profile.config)} cài đặt</Badge>
-                <Badge>{profile._count?.devices ?? 0} thiết bị</Badge>
+                <Badge>{profile.usedBy ?? 0} thiết bị</Badge>
                 <Badge>{profile._count?.groups ?? 0} nhóm</Badge>
                 {profile.secrets?.pin && <Badge tone="warn">Có mã PIN</Badge>}
+                {profile.differentCount > 0 && <Badge tone="warn">{profile.differentCount} thiết bị lệch</Badge>}
               </div>
+              {profile.differentCount > 0 && can.operate && (
+                <Button size="sm" variant="outline" className="mt-3" busy={apply.isPending} onClick={async () => {
+                  if (await confirm({ title: `Áp lại hồ sơ ${profile.name}?`, message: `Gửi lại toàn bộ hồ sơ cho ${profile.usedBy} thiết bị đang dùng. Những gì đã đổi riêng trên các máy này, ở các mục hồ sơ có đặt, sẽ trở về như hồ sơ.`, confirm: 'Áp lại' })) apply.mutate(profile.id);
+                }}><RefreshCw className="size-3.5" /> Áp lại cho các máy</Button>
+              )}
             </Card>
           ))}
         </div>

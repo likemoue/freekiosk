@@ -21,6 +21,7 @@ export interface ReportedApp {
   package: string;
   label: string;
   version_code: number;
+  version_name?: string;
 }
 
 let scan: { at: number; hash: string; apps: ReportedApp[] } | null = null;
@@ -47,7 +48,12 @@ async function refresh(): Promise<void> {
   if (!Array.isArray(installed)) return;
   const apps = installed
     .filter((app) => app.packageName !== OWN_PACKAGE)
-    .map((app) => ({ package: app.packageName, label: app.appName, version_code: app.versionCode ?? 0 }))
+    .map((app) => ({
+      package: app.packageName,
+      label: app.appName,
+      version_code: app.versionCode ?? 0,
+      ...(app.versionName ? { version_name: app.versionName } : {}),
+    }))
     .sort((a, b) => a.package.localeCompare(b.package));
   scan = { at: Date.now(), hash: hashOf(JSON.stringify(apps)), apps };
 }

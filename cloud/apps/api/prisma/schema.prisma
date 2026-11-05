@@ -286,6 +286,8 @@ model MediaAsset {
   sizeBytes  BigInt
   sha256Hex  String
   storageKey String
+  /// How long a video is, read from the file the first time a playlist needs it. 0: it does not say
+  durationMs Int?
   createdAt  DateTime @default(now())
   items      PlaylistItem[]
 
@@ -296,6 +298,8 @@ model Playlist {
   id          String   @id @default(uuid(7)) @db.Uuid
   name        String
   description String?
+  /// When the screens start it: all of them work out where they should be from this moment
+  syncEpochAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   items       PlaylistItem[]

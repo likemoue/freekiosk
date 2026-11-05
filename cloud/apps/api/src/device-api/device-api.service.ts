@@ -3,6 +3,7 @@ import type { Device, EnrollmentToken } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
 import { CryptoService, normalizeCode, randomToken, sha256 } from '../common/crypto.service';
+import { DeviceWakeService, WAKE_HOLD_MS } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { StorageService } from '../common/storage.service';
@@ -40,6 +41,7 @@ interface ReportedApp {
   package: string;
   label: string;
   version_code: number;
+  version_name?: string;
 }
 
 /** The list as an app sent it, or as it was stored: what does not read as an app is dropped */
@@ -52,6 +54,7 @@ function reportedApps(value: unknown): ReportedApp[] {
     apps.push({
       package: packageName,
       label: str(obj(item).label, 120) ?? packageName,
+      ...(str(obj(item).version_name, 64) ? { version_name: str(obj(item).version_name, 64) } : {}),
       // The column is 32-bit. Very few apps go past it, and they only lose the icon refresh
       version_code: Math.min(Math.max(int(obj(item).version_code) ?? 0, 0), 2_147_483_647),
     });
@@ -71,6 +74,7 @@ function pngFrom(value: unknown): Buffer | null {
 export class DeviceApiService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly wake: DeviceWakeService,
     private readonly crypto: CryptoService,
     private readonly settings: SettingsService,
     private readonly storage: StorageService,
@@ -319,6 +323,16 @@ export class DeviceApiService {
   }
 
   // ─── Commands ─────────────────────────────────────────────────────────────
+
+  /** The tablet waits here: see DeviceWakeService */
+  async waitForWork(device: Device, hold: string | undefined, onClose: (cancel: () => void) => void) {
+    const seconds = Number(hold);
+    const holdMs = seconds > 0 ? Math.min(seconds * 1000, WAKE_HOLD_MS) : WAKE_HOLD_MS;
+    const pending = await this.prisma.command.count({ where: { deviceId: device.id, status: 'PENDING', expiresAt: { gt: new Date() } } });
+    const { answer, cancel } = this.wake.wait(device.id, pending > 0, holdMs);
+    onClose(cancel);
+    return answer;
+  }
 
   /** Hands over what is pending, and moves it to "sent" so it is never handed over twice */
   async takeCommands(device: Device) {

@@ -24,7 +24,7 @@ export default function Screenshots() {
   });
   const request = useMutation({
     mutationFn: () => api.post('/api/admin/commands', { type: 'screenshot', target: deviceId ? { deviceIds: [deviceId] } : { all: true } }),
-    onSuccess: (result) => toast.success(`Đã yêu cầu ${result.sent} thiết bị. Ảnh sẽ về trong khoảng 30 giây`),
+    onSuccess: (result) => toast.success(`Đã yêu cầu ${result.sent} thiết bị. Ảnh sẽ về trong vài giây`),
     onError: notifyError,
   });
   const remove = useMutation({
