@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Remover Device Owner",
       "exitKioskMode": "Sair do modo quiosque"
     },
+    "screenTimeout": {
+      "title": "Tempo limite da tela",
+      "hint": "Quanto tempo a tela fica ligada sem toques, também com outro app aberto. Vale na hora.",
+      "s30": "30 segundos",
+      "m1": "1 minuto",
+      "m2": "2 minutos",
+      "m5": "5 minutos",
+      "m10": "10 minutos",
+      "m30": "30 minutos",
+      "never": "Nunca desligar",
+      "failed": "Não foi possível alterar o tempo limite da tela: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Você pode usar o botão Voltar do Android para retornar ao FreeKiosk.",
       "returnToApp": "Voltar ao aplicativo",
       "settings": "Configurações",
-      "hint": "Dica: no app externo, toque 5× no botão secreto para voltar para cá (posição configurável)"
+      "hint": "Dica: no app externo, toque 5× no botão secreto para voltar para cá (posição configurável)",
+      "noApps": "Ainda não há apps na tela inicial"
     },
     "permissionWizard": {
       "setupPermissions": "Configurar permissões",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Formato de nome de pacote inválido (ex.: com.exemplo.app)",
       "appNotInstalled": "App não instalado: {{package}}",
       "unableToVerifyApp": "Não foi possível verificar o app: {{error}}",
-      "multiAppNeedsHomeScreen": "O modo de vários apps exige pelo menos um app com \"Mostrar na tela inicial\" ativado",
       "securityErrorTitle": "Erro de segurança",
       "urlNotAllowed": "Este tipo de URL não é permitido. Use http://, https:// ou file://",
       "urlUpdatedTitle": "URL atualizada",

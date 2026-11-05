@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Retirer le Device Owner",
       "exitKioskMode": "Quitter le mode kiosque"
     },
+    "screenTimeout": {
+      "title": "Mise en veille de l'écran",
+      "hint": "Durée pendant laquelle l'écran reste allumé sans contact, y compris quand une autre application est ouverte. S'applique immédiatement.",
+      "s30": "30 secondes",
+      "m1": "1 minute",
+      "m2": "2 minutes",
+      "m5": "5 minutes",
+      "m10": "10 minutes",
+      "m30": "30 minutes",
+      "never": "Ne jamais éteindre",
+      "failed": "Impossible de modifier la mise en veille de l'écran : {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Vous pouvez utiliser le bouton retour Android pour revenir à FreeKiosk.",
       "returnToApp": "Retourner à l'application",
       "settings": "Réglages",
-      "hint": "Astuce : dans l'application externe, appuyez 5× sur le bouton secret pour revenir ici (position configurable)"
+      "hint": "Astuce : dans l'application externe, appuyez 5× sur le bouton secret pour revenir ici (position configurable)",
+      "noApps": "Aucune application sur l'écran d'accueil pour le moment"
     },
     "permissionWizard": {
       "setupPermissions": "Configurer les autorisations",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Format de nom de package invalide (ex. com.example.app)",
       "appNotInstalled": "Application non installée : {{package}}",
       "unableToVerifyApp": "Impossible de vérifier l'application : {{error}}",
-      "multiAppNeedsHomeScreen": "Le mode multi-applications nécessite au moins une application avec « Afficher sur l'écran d'accueil » activé",
       "securityErrorTitle": "Erreur de sécurité",
       "urlNotAllowed": "Ce type d'URL n'est pas autorisé. Utilisez http://, https:// ou file://",
       "urlUpdatedTitle": "URL mise à jour",

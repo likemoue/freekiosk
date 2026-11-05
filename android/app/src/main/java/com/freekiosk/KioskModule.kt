@@ -26,7 +26,9 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.common.LifecycleState
 import android.accessibilityservice.AccessibilityService
 import android.os.Build
 import android.os.PowerManager
@@ -469,7 +471,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         activity.disableKioskRestrictions()
                         activity.stopLockTask()
                         leaveForSystemLauncher(activity, dpm, adminComponent)
-                        activity.finish()
+                        finishOnceUnlocked(activity)
                         promise.resolve(true)
                     } catch (e: Exception) {
                         promise.reject("ERROR", "Failed to exit kiosk mode: ${e.message}")
@@ -484,11 +486,25 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     /**
+     * Android lifts lock task a moment after stopLockTask() returns, and MainActivity refuses to
+     * finish until then. Left unfinished, the next opening of FreeKiosk would not start the kiosk
+     * afresh: no onCreate, and so no watchdog.
+     */
+    private fun finishOnceUnlocked(activity: MainActivity, attempts: Int = 15) {
+        if (!activity.isTaskLocked() || attempts == 0) {
+            activity.finish()
+            return
+        }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ finishOnceUnlocked(activity, attempts - 1) }, 200)
+    }
+
+    /**
      * Finishing the activity goes back to Home, and on a kiosk tablet Home is FreeKiosk itself
      * (#199, and pinned at provisioning): the admin who chose to leave landed in the kiosk again.
-     * So Home is handed back, and the launcher opened by name. It lasts until FreeKiosk is next
-     * opened or the tablet restarts: MainActivity.applyDefaultLauncherPolicy() pins it again, as
-     * the kiosk itself comes back then (#124, #138).
+     * So Home is pinned to the launcher, and the launcher opened by name. Only removing FreeKiosk's
+     * pin is not enough: Home opens the kiosk at the next swipe up (see DefaultHome). It lasts until
+     * FreeKiosk is next opened or the tablet restarts: MainActivity.applyDefaultLauncherPolicy()
+     * pins it again, as the kiosk itself comes back then (#124, #138).
      */
     private fun leaveForSystemLauncher(activity: android.app.Activity, dpm: DevicePolicyManager, admin: ComponentName) {
         // The monitors are stopped on the way to Settings, but not on every way there, and either
@@ -496,10 +512,14 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         reactApplicationContext.stopService(Intent(reactApplicationContext, OverlayService::class.java))
         reactApplicationContext.stopService(Intent(reactApplicationContext, BackgroundAppMonitorService::class.java))
 
-        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
-            dpm.clearPackagePersistentPreferredActivities(admin, reactApplicationContext.packageName)
-        }
         val launcher = systemLauncher()
+        if (dpm.isDeviceOwnerApp(reactApplicationContext.packageName)) {
+            if (launcher != null) {
+                DefaultHome.leaveKiosk(reactApplicationContext, dpm, admin, launcher)
+            } else {
+                DefaultHome.clearPins(reactApplicationContext, dpm, admin)
+            }
+        }
         if (launcher == null) {
             android.util.Log.w("KioskModule", "No launcher other than FreeKiosk to leave for")
             return
@@ -568,15 +588,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 return
             }
             // Clear our own persistent preferences first (idempotent), then re-add when enabling.
-            dpm.clearPackagePersistentPreferredActivities(admin, reactApplicationContext.packageName)
+            DefaultHome.clearPins(reactApplicationContext, dpm, admin)
             if (enabled) {
-                val filter = android.content.IntentFilter(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_HOME)
-                    addCategory(Intent.CATEGORY_DEFAULT)
-                }
-                dpm.addPersistentPreferredActivity(
-                    admin, filter, ComponentName(reactApplicationContext, MainActivity::class.java)
-                )
+                DefaultHome.pin(reactApplicationContext, dpm, admin, ComponentName(reactApplicationContext, MainActivity::class.java))
             }
             android.util.Log.d("KioskModule", "Default launcher mode set: $enabled")
             promise.resolve(true)
@@ -1060,7 +1074,12 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     // #199 — Restore the normal launcher before relinquishing Device Owner, so the
                     // user isn't left stuck with FreeKiosk as the persistent Home with no DO to undo it.
                     try {
-                        dpm.clearPackagePersistentPreferredActivities(adminComponent, reactApplicationContext.packageName)
+                        val launcher = systemLauncher()
+                        if (launcher != null) {
+                            DefaultHome.handBack(reactApplicationContext, dpm, adminComponent, launcher)
+                        } else {
+                            DefaultHome.clearPins(reactApplicationContext, dpm, adminComponent)
+                        }
                     } catch (e: Exception) {
                         android.util.Log.w("KioskModule", "Could not clear launcher policy before DO removal: ${e.message}")
                     }
@@ -2150,6 +2169,142 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             android.util.Log.e("KioskModule", "Failed to get IP: ${e.message}")
         }
         return "0.0.0.0"
+    }
+
+    /**
+     * How long the screen stays on with no touch. FreeKiosk keeps the screen on while it is in front
+     * itself, so this is what counts once another app is open. In seconds, -1 for never.
+     */
+    @ReactMethod
+    fun setScreenOffTimeout(seconds: Int, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val millis = if (seconds < 0) Int.MAX_VALUE else seconds * 1000
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dpm.isDeviceOwnerApp(context.packageName)) {
+                // One of the three settings this call accepts: no permission and no prompt
+                val admin = ComponentName(context, DeviceAdminReceiver::class.java)
+                dpm.setSystemSetting(admin, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, millis.toString())
+            } else if (android.provider.Settings.System.canWrite(context)) {
+                android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, millis)
+            } else {
+                promise.reject("NO_PERMISSION", "Changing the screen timeout requires Device Owner mode or the Modify system settings permission")
+                return
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to set the screen timeout: ${e.message}")
+        }
+    }
+
+    /** In seconds, -1 for a time so long that it means never, which is how Android writes never */
+    @ReactMethod
+    fun getScreenOffTimeout(promise: Promise) {
+        try {
+            val millis = android.provider.Settings.System.getInt(reactApplicationContext.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT)
+            promise.resolve(if (millis >= 86_400_000) -1 else millis / 1000)
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Failed to read the screen timeout: ${e.message}")
+        }
+    }
+
+    /**
+     * The end of a lesson: every app a student may have left open is closed, and the tablet goes
+     * back to its home screen. Only system apps may force-stop another app, but Android kills an app
+     * the moment a Device Owner hides it, so hiding one and showing it again stops it and leaves its
+     * data and sign-ins as they were. Resolves with the packages that were stopped.
+     *
+     * Only what can be running is touched: [packages], the apps the kiosk opens, and what has been on
+     * screen lately. Hiding also tells the whole system the app is gone, which is not worth doing to
+     * dozens of apps nobody opened. [blockRelaunch] is for single-app mode, which reopens its app on
+     * any return to FreeKiosk.
+     */
+    @ReactMethod
+    fun stopRunningApps(packages: ReadableArray, blockRelaunch: Boolean, promise: Promise) {
+        try {
+            val context = reactApplicationContext
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(context, DeviceAdminReceiver::class.java)
+            if (!dpm.isDeviceOwnerApp(context.packageName)) {
+                promise.reject("NOT_DEVICE_OWNER", "Stopping apps requires Device Owner mode")
+                return
+            }
+
+            // Either of these would open the apps again as soon as they are gone. The monitor of
+            // keep-alive apps comes back with the settings, at the next start or return from Settings.
+            context.stopService(Intent(context, OverlayService::class.java))
+            context.stopService(Intent(context, BackgroundAppMonitorService::class.java))
+
+            val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val screenWasOn = power.isInteractive
+            returnToHomeScreen(screenWasOn, blockRelaunch)
+
+            val stopped = Arguments.createArray()
+            for (packageName in packagesToStop(packages)) {
+                if (AppStopper.stop(context, dpm, admin, packageName)) stopped.pushString(packageName)
+            }
+            android.util.Log.i("KioskModule", "Stopped apps: $stopped")
+
+            // A screen a student turned off stays off. FreeKiosk turns the screen on when it comes to
+            // the front (see MainActivity.onCreate), which it does once the app above it is gone.
+            if (!screenWasOn) {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (power.isInteractive) ScreenController.turnScreenOff(context)
+                }, 2_000)
+            }
+            promise.resolve(stopped)
+        } catch (e: Exception) {
+            android.util.Log.e("KioskModule", "Failed to stop apps: ${e.message}")
+            promise.reject("ERROR", "Failed to stop apps: ${e.message}")
+        }
+    }
+
+    private fun returnToHomeScreen(screenIsOn: Boolean, blockRelaunch: Boolean) {
+        val context = reactApplicationContext
+        // Whoever left the kiosk on purpose is not to be pulled back into it, by a schedule say
+        if (DefaultHome.hasLeftKiosk(context)) return
+        // Already in front, there is no return to tell apart, and the flag would stay for the next one
+        if (context.lifecycleState == LifecycleState.RESUMED) return
+        if (blockRelaunch) MainActivity.blockAutoRelaunch = true
+
+        // With the screen off, FreeKiosk is what shows when it comes back on: the app above it is gone
+        if (!screenIsOn) return
+
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val task = am.appTasks.firstOrNull { it.taskInfo?.baseActivity?.packageName == context.packageName }
+        if (task != null) {
+            task.moveToFront()
+        } else {
+            context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+        }
+    }
+
+    private fun packagesToStop(requested: ReadableArray): Set<String> {
+        val context = reactApplicationContext
+        val pm = context.packageManager
+        val wanted = linkedSetOf<String>()
+        for (i in 0 until requested.size()) requested.getString(i)?.let { wanted.add(it) }
+
+        // What has been on screen this past week, whichever way it was opened. Needs usage access,
+        // which the USB tool grants. Without it, this is simply empty.
+        try {
+            val usage = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+            val now = System.currentTimeMillis()
+            val events = usage.queryEvents(now - 7 * 24 * 3_600_000L, now)
+            val event = android.app.usage.UsageEvents.Event()
+            val seen = hashSetOf<String>()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) seen.add(event.packageName)
+            }
+            seen.filterTo(wanted) { pm.launchIntentFor(it) != null }
+        } catch (e: Exception) {
+            android.util.Log.w("KioskModule", "Could not read recent apps: ${e.message}")
+        }
+
+        // Never the kiosk itself, or what the tablet cannot do without
+        val launchers = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0).map { it.activityInfo.packageName }
+        return wanted - launchers.toSet() - setOf(context.packageName, "android", "com.android.systemui", "com.android.settings")
     }
 
     @ReactMethod

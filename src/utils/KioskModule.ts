@@ -7,6 +7,11 @@ interface KioskModuleInterface {
   isInLockTaskMode(): Promise<boolean>;
   getLockTaskModeState(): Promise<number>;
   isDeviceOwner(): Promise<boolean>;
+  // Device Owner: closes these apps and what has been on screen lately. Resolves with what it stopped
+  stopRunningApps(packages: string[], blockRelaunch: boolean): Promise<string[]>;
+  // How long the screen stays on with no touch, in seconds, -1 for never
+  setScreenOffTimeout(seconds: number): Promise<boolean>;
+  getScreenOffTimeout(): Promise<number>;
   hasUsageStatsPermission(): Promise<boolean>;
   requestUsageStatsPermission(): Promise<boolean>;
   shouldBlockAutoRelaunch(): Promise<boolean>;

@@ -28,7 +28,7 @@ export default function Overview() {
   const { totals, appVersions, groups, alerts, recent } = overview.data;
   const recentDevices = [...(devices.data ?? [])]
     .filter((d) => !d.unenrolledAt)
-    .sort((a, b) => new Date(b.lastSeenAt ?? 0).getTime() - new Date(a.lastSeenAt ?? 0).getTime())
+    .sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true }))
     .slice(0, 8);
 
   return (
@@ -53,7 +53,7 @@ export default function Overview() {
       ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
-            <CardTitle title="Thiết bị gần đây" action={<Link to="/quan-ly/thiet-bi" className="text-[13px] font-semibold text-brand-strong hover:underline dark:text-brand">Xem tất cả</Link>} />
+            <CardTitle title="Thiết bị" action={<Link to="/quan-ly/thiet-bi" className="text-[13px] font-semibold text-brand-strong hover:underline dark:text-brand">Xem tất cả</Link>} />
             <ul className="px-3 pb-3">
               {recentDevices.map((device) => (
                 <li key={device.id}>

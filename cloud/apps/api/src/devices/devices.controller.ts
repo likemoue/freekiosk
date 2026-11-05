@@ -137,7 +137,7 @@ export class CommandsController {
     const rows = await this.prisma.command.findMany({
       where: { deviceId: query.deviceId, batchId: query.batchId },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: query.take ?? 200,
       include: { device: { select: { id: true, name: true } } },
     });
     return rows.map(({ secretEnc: _secret, ...row }) => row);

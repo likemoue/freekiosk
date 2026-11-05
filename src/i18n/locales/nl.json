@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Device Owner verwijderen",
       "exitKioskMode": "Kioskmodus verlaten"
     },
+    "screenTimeout": {
+      "title": "Schermtime-out",
+      "hint": "Hoe lang het scherm aan blijft zonder aanraking, ook als een andere app open is. Geldt meteen.",
+      "s30": "30 seconden",
+      "m1": "1 minuut",
+      "m2": "2 minuten",
+      "m5": "5 minuten",
+      "m10": "10 minuten",
+      "m30": "30 minuten",
+      "never": "Nooit uitschakelen",
+      "failed": "Schermtime-out kon niet worden gewijzigd: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Je kunt de Terug-knop van Android gebruiken om terug te gaan naar FreeKiosk.",
       "returnToApp": "Terug naar app",
       "settings": "Instellingen",
-      "hint": "Tip: tik in de externe app 5× op de geheime knop om hier terug te keren (positie instelbaar)"
+      "hint": "Tip: tik in de externe app 5× op de geheime knop om hier terug te keren (positie instelbaar)",
+      "noApps": "Nog geen apps op het startscherm"
     },
     "permissionWizard": {
       "setupPermissions": "Machtigingen instellen",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Ongeldig formaat van pakketnaam (bijv. com.example.app)",
       "appNotInstalled": "App niet geïnstalleerd: {{package}}",
       "unableToVerifyApp": "App verifiëren niet mogelijk: {{error}}",
-      "multiAppNeedsHomeScreen": "Voor de Multi-app-modus is minstens één app nodig waarvoor \"Tonen op startscherm\" is ingeschakeld",
       "securityErrorTitle": "Beveiligingsfout",
       "urlNotAllowed": "Dit type URL is niet toegestaan. Gebruik http://, https:// of file://",
       "urlUpdatedTitle": "URL bijgewerkt",

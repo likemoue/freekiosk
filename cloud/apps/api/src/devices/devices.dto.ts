@@ -42,6 +42,8 @@ export class SendCommandDto {
 export class ListCommandsQuery {
   @IsOptional() @IsUUID() deviceId?: string;
   @IsOptional() @IsUUID() batchId?: string;
+  /** How many of the newest. One command to a fleet is a line per tablet, so the default fills up fast */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(5000) take?: number;
 }
 
 export class CreateGroupDto {

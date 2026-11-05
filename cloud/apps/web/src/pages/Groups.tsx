@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderClosed, Moon, Pencil, Plus, RefreshCw, Sun, Trash2, Globe, Zap } from 'lucide-react';
+import { CircleStop, FolderClosed, Moon, Pencil, Plus, RefreshCw, Sun, Trash2, Globe, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '../api';
@@ -39,9 +39,16 @@ export default function Groups() {
   });
   const quick = useMutation({
     mutationFn: ({ groupId, type }: { groupId: string; type: string }) => api.post('/api/admin/commands', { type, target: { groupId } }),
-    onSuccess: (result) => toast.success(`Đã gửi tới ${result.sent} thiết bị`),
+    onSuccess: (result) => {
+      if (result.sent > 0) toast.success(`Đã gửi tới ${result.sent} thiết bị`);
+      if (result.skipped?.length) toast.warning(`Bỏ qua ${result.skipped.length} thiết bị: ${result.skipped[0].reason}`);
+    },
     onError: notifyError,
   });
+  const stopApps = async (group: any) => {
+    const message = 'Ứng dụng đang mở trên các thiết bị trong nhóm sẽ bị đóng ngay, kể cả khi có người đang dùng.';
+    if (await confirm({ title: `Dừng mọi ứng dụng của nhóm ${group.name}?`, message, confirm: 'Dừng', danger: true })) quick.mutate({ groupId: group.id, type: 'stop_apps' });
+  };
   const setGroupUrl = useMutation({
     mutationFn: () => api.post('/api/admin/commands', { type: 'set_url', params: { url }, target: { groupId: urlFor.id } }),
     onSuccess: (result) => { toast.success(`Đã đổi URL cho ${result.sent} thiết bị`); setUrlFor(null); setUrl(''); },
@@ -92,6 +99,7 @@ export default function Groups() {
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
                   <Button size="sm" variant="outline" onClick={() => quick.mutate({ groupId: group.id, type: 'reload' })}><RefreshCw className="size-3.5" /> Tải lại</Button>
                   <Button size="sm" variant="outline" onClick={() => quick.mutate({ groupId: group.id, type: 'screen_on' })}><Sun className="size-3.5" /> Bật</Button>
+                  <Button size="sm" variant="outline" onClick={() => stopApps(group)}><CircleStop className="size-3.5" /> Dừng ứng dụng</Button>
                   <Button size="sm" variant="outline" onClick={() => quick.mutate({ groupId: group.id, type: 'screen_off' })}><Moon className="size-3.5" /> Tắt</Button>
                   <Button size="sm" variant="outline" onClick={() => { setUrl(''); setUrlFor(group); }}><Globe className="size-3.5" /> Đổi URL</Button>
                   <Button size="sm" variant="outline" onClick={() => setCommandFor(group)}><Zap className="size-3.5" /> Lệnh khác</Button>

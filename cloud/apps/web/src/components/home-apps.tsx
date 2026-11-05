@@ -234,7 +234,7 @@ export function HomeAppsEditor({ target, onSent }: { target: HomeTarget | null; 
         </span>
       </div>
       <p className="text-xs text-soft">
-        Thiết bị nhận thay đổi ở lần báo cáo kế tiếp, tối đa 30 giây. Nếu chỉ còn một ứng dụng, tablet sẽ mở thẳng ứng dụng đó.
+        Thiết bị nhận thay đổi ở lần báo cáo kế tiếp, tối đa 30 giây.
         {data.pending > 0 && ` Còn ${data.pending} thiết bị chưa nhận thay đổi lần trước.`}
       </p>
     </div>

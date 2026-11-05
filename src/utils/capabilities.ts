@@ -32,12 +32,16 @@ export type Capability =
   // A cloud playlist can hold web pages and YouTube videos: the dashboard warns when an older app cannot
   | 'signage_web'
   | 'signage_youtube'
+  // Tells a tablet that can from one that needs updating. The tablet says so itself if it lacks the right to.
+  | 'screen_timeout'
   // Device Owner gated
   | 'device_owner'
   | 'reboot'
   | 'silent_install'
   // Several APKs of one app in one install: tells a tablet that can from one that needs updating
   | 'split_install'
+  // Closing every app takes hiding them, which only a Device Owner can do
+  | 'stop_apps'
   | 'screen_off_lock'
   // Special-access / runtime permission gated
   | 'accessibility'
@@ -59,6 +63,7 @@ const BASELINE: Capability[] = [
   'url',
   'signage_web',
   'signage_youtube',
+  'screen_timeout',
 ];
 
 async function safe<T>(p: Promise<T> | undefined, fallback: T): Promise<T> {
@@ -96,6 +101,7 @@ export async function getCapabilities(): Promise<string[]> {
     caps.add('reboot');
     caps.add('silent_install');
     caps.add('split_install');
+    caps.add('stop_apps');
     caps.add('screen_off_lock');
   }
 

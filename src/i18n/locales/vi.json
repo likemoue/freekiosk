@@ -686,6 +686,18 @@
       "removeDeviceOwner": "Gỡ Device Owner",
       "exitKioskMode": "Thoát chế độ Kiosk"
     },
+    "screenTimeout": {
+      "title": "Thời gian sáng màn hình",
+      "hint": "Màn hình tự tắt sau bao lâu khi không có thao tác, kể cả khi đang mở ứng dụng khác. Có hiệu lực ngay.",
+      "s30": "30 giây",
+      "m1": "1 phút",
+      "m2": "2 phút",
+      "m5": "5 phút",
+      "m10": "10 phút",
+      "m30": "30 phút",
+      "never": "Không tự tắt",
+      "failed": "Không đổi được thời gian sáng màn hình: {{error}}"
+    },
     "versionFooter": "FreeKiosk v{{version}}"
   },
   "dashboard": {
@@ -1223,7 +1235,8 @@
       "testModeText": "Có thể dùng nút Quay lại của Android để trở về FreeKiosk.",
       "returnToApp": "Quay lại ứng dụng",
       "settings": "Cài đặt",
-      "hint": "Mẹo: Khi đang ở trong ứng dụng ngoài, chạm 5 lần vào nút bí mật để quay lại đây (có thể tùy chỉnh vị trí)"
+      "hint": "Mẹo: Khi đang ở trong ứng dụng ngoài, chạm 5 lần vào nút bí mật để quay lại đây (có thể tùy chỉnh vị trí)",
+      "noApps": "Chưa có ứng dụng nào trên màn hình"
     },
     "permissionWizard": {
       "setupPermissions": "Thiết lập quyền",
@@ -1430,7 +1443,6 @@
       "invalidPackageFormat": "Định dạng tên gói không hợp lệ (ví dụ: com.example.app)",
       "appNotInstalled": "Ứng dụng chưa được cài đặt: {{package}}",
       "unableToVerifyApp": "Không xác minh được ứng dụng: {{error}}",
-      "multiAppNeedsHomeScreen": "Chế độ Nhiều ứng dụng yêu cầu ít nhất một ứng dụng bật \"Hiển thị trên màn hình chính\"",
       "securityErrorTitle": "Lỗi bảo mật",
       "urlNotAllowed": "Loại URL này không được phép. Hãy dùng http://, https:// hoặc file://",
       "urlUpdatedTitle": "Đã cập nhật URL",

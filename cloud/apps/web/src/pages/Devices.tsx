@@ -29,7 +29,7 @@ export default function Devices() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [group, setGroup] = useState('');
-  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'seen', desc: true });
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'name', desc: false });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<'command' | 'group' | null>(null);
   const [moveTo, setMoveTo] = useState('');
@@ -51,7 +51,7 @@ export default function Devices() {
     const value = VALUE[sort.key];
     return filtered.sort((a, b) => {
       const [x, y] = [value(a), value(b)];
-      const order = typeof x === 'number' ? x - (y as number) : x.localeCompare(y as string, 'vi');
+      const order = typeof x === 'number' ? x - (y as number) : x.localeCompare(y as string, 'vi', { numeric: true });
       return sort.desc ? -order : order;
     });
   }, [devices.data, search, status, group, sort]);

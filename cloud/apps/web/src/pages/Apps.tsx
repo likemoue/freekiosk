@@ -21,8 +21,9 @@ function DeployDialog({ apk, onClose }: { apk: any; onClose: () => void }) {
   const deploy = useMutation({
     mutationFn: () => api.post(`/api/admin/apks/${apk.id}/deploy`, { target }),
     onSuccess: (result) => {
-      toast.success(`Đã gửi tới ${result.sent} thiết bị`);
-      if (result.skipped.length) toast.warning(`Bỏ qua ${result.skipped.length} thiết bị không ở chế độ Device Owner`);
+      if (result.sent > 0) toast.success(`Đã gửi tới ${result.sent} thiết bị`);
+      else if (!result.skipped.length) toast.warning('Không có thiết bị nào trong lựa chọn này');
+      if (result.skipped.length) toast.warning(`Bỏ qua ${result.skipped.length} thiết bị: ${result.skipped[0].reason}`);
       onClose();
     },
     onError: notifyError,

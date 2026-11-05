@@ -273,12 +273,12 @@ describe('the apps on the home screen', () => {
       assert.deepEqual((await pushed(tablet)).managedApps, [app('vn.do.iclass'), app('vn.do.hidden', 'Ẩn', { launchOnBoot: true })]);
     });
 
-    it('leaves at least one app on the screen', async () => {
+    it('can take the last app off the screen, as a screen with no apps is fine', async () => {
       const tablet = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
       const result = await apply({ deviceIds: [tablet.deviceId] }, { remove: ['vn.do.iclass'] });
-      assert.equal(result.sent, 0);
-      assert.match(result.skipped[0].reason, /ít nhất một/);
-      assert.equal((await tablet.heartbeat()).data.config, null);
+      assert.equal(result.sent, 1);
+      assert.deepEqual(result.skipped, []);
+      assert.deepEqual((await pushed(tablet)).managedApps, []);
     });
 
     it('sends nothing to a tablet that already has it that way', async () => {
@@ -469,12 +469,6 @@ describe('the apps on the home screen', () => {
     });
 
     it('records why a tablet was skipped', async () => {
-      const tablet = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
-      await apply({ deviceIds: [tablet.deviceId] }, { remove: ['vn.hist.iclass'] });
-      const [line] = await historyOf(tablet);
-      assert.equal(line.status, 'ERROR');
-      assert.match(line.errorMessage, /ít nhất một/);
-
       const other = await tabletWith([app('vn.hist.iclass')], ['vn.hist.iclass']);
       await apply({ deviceIds: [other.deviceId] }, { add: ['vn.hist.nowhere'] });
       const [refused] = await historyOf(other);

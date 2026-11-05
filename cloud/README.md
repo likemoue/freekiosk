@@ -38,7 +38,7 @@ docker compose down -v
 | Thiết bị | Tìm, lọc, sắp xếp, thao tác hàng loạt. Trang riêng từng máy: trạng thái trực tiếp, lệnh, cấu hình, bảng hiệu, ảnh màn hình, nhật ký |
 | Thêm thiết bị | Mã 8 ký tự, QR cho ứng dụng, lệnh ADB, QR cấp phát Device Owner có thể kèm Wi-Fi |
 | Nhóm | Gắn hồ sơ và danh sách phát theo nhóm, tải lại, bật tắt, đổi URL cả nhóm |
-| Lệnh | Một máy, một nhóm hoặc tất cả. Bật tắt màn hình, tải lại, khởi động lại, chụp màn hình, thông báo, đọc văn bản, âm thanh, mở ứng dụng, Wi-Fi, JavaScript |
+| Lệnh | Một máy, một nhóm hoặc tất cả. Bật tắt màn hình, tải lại, khởi động lại, dừng mọi ứng dụng, thời gian sáng màn hình, chụp màn hình, thông báo, đọc văn bản, âm thanh, mở ứng dụng, Wi-Fi, JavaScript |
 | Lịch hẹn giờ | Tự gửi lệnh theo ngày và giờ |
 | Bảng hiệu số | Danh sách phát gồm video, ảnh, trang web, YouTube; thư viện tệp; lịch theo ngày giờ; theo dõi màn hình đã cập nhật chưa |
 | Hồ sơ cấu hình | Lưu cấu hình, áp dụng cho máy hoặc nhóm, sửa là tự cập nhật |

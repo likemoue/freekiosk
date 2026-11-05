@@ -19,6 +19,7 @@ const SCHEDULABLE = [
   { type: 'reboot' },
   { type: 'screenshot' },
   { type: 'clear_cache' },
+  { type: 'stop_apps' },
   { type: 'screensaver_on' },
   { type: 'screensaver_off' },
   { type: 'audio_stop' },

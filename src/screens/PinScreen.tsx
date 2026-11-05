@@ -79,8 +79,9 @@ const PinScreen: React.FC<PinScreenProps> = ({ navigation, route }) => {
   };
 
   const handleBack = async (): Promise<void> => {
-    // If in external app mode, relaunch the external app with overlay service
-    if (displayMode === 'external_app' && externalAppPackage) {
+    // If in external app mode, relaunch the external app with overlay service. Not with several apps:
+    // the grid is home, and the package is the single-app setting, maybe an old one.
+    if (displayMode === 'external_app' && externalAppPackage && (await StorageService.getExternalAppMode()) !== 'multi') {
       try {
         // Load return settings
         const returnTapCount = await StorageService.getReturnTapCount();
