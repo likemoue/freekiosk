@@ -44,6 +44,7 @@
 - Tự động mở lại khi thoát/crash
 - Chế độ thử nghiệm để triển khai an toàn
 - Cử chỉ chạm 5 lần + PIN để vào cài đặt
+- Với nhiều ứng dụng, chỉ vào được cài đặt từ màn hình kiosk: khi đang mở một ứng dụng, chạm màn hình, nút cố định và nút âm lượng đều không vào được. Thoát ứng dụng bằng nút Quay lại, hoặc dùng lệnh **Dừng mọi ứng dụng** trên website
 
 **Phù hợp nhất cho:**
 - Chơi game đám mây (Steam Link, Xbox Cloud Gaming)
