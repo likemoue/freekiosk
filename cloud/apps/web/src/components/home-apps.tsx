@@ -9,7 +9,7 @@ import { Button, Empty, ErrorBox, Input, Loading, notifyError, Notice, Switch } 
 
 export type HomeTarget = { deviceIds?: string[]; groupId?: string; all?: boolean };
 
-interface HomeApp {
+export interface HomeApp {
   packageName: string;
   label: string;
   iconUrl: string | null;
@@ -20,7 +20,7 @@ interface HomeApp {
   installing: number;
 }
 
-interface HomePreview {
+export interface HomePreview {
   deviceCount: number;
   notReporting: number;
   notMultiApp: number;
@@ -37,7 +37,7 @@ interface ApplyResult {
 
 type Change = 'add' | 'remove';
 
-function AppIcon({ app }: { app: HomeApp }) {
+export function AppIcon({ app }: { app: HomeApp }) {
   const [broken, setBroken] = useState(false);
   if (app.iconUrl && !broken) {
     return <img src={app.iconUrl} alt="" loading="lazy" onError={() => setBroken(true)} className="size-12 rounded-xl object-contain" />;
