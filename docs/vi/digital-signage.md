@@ -1,7 +1,7 @@
-# Bảng hiệu số
+# Trình phát video/ảnh
 
 Màn hình phát một danh sách phát gồm video, hình ảnh, trang web và video YouTube, được tạo trên trang quản lý FreeKiosk Cloud
-(**Bảng hiệu số**) thay vì nhập danh sách trên thiết bị. Tính năng này chạy được trên máy tính bảng cũng
+(**Trình phát video/ảnh**) thay vì nhập danh sách trên thiết bị. Tính năng này chạy được trên máy tính bảng cũng
 như trên Android TV, và mở cho mọi tài khoản FreeKiosk Cloud: một thiết bị là một màn hình.
 
 ## Cách hoạt động

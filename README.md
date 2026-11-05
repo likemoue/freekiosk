@@ -40,7 +40,7 @@
 | Tự động hóa | Hơn 40 endpoint REST, MQTT tự khám phá cho Home Assistant | [Tích hợp](docs/vi/INTEGRATIONS.md) |
 | Cấp phát | Cấu hình bằng lệnh ADB và script | [Cấu hình ADB](docs/vi/adb-configuration.md) |
 | Quản lý cả đội máy | Website tự vận hành: cấu hình từ xa, lệnh, nhóm, cảnh báo, đăng ký bằng QR | [Website quản lý](cloud/README.md) |
-| Bảng hiệu số (beta) | Danh sách phát video, ảnh, trang web, YouTube, có lịch và phát ngoại tuyến; chạy cả trên Android TV, Google TV, Fire TV | [Bảng hiệu số](docs/vi/digital-signage.md), [Android TV](docs/vi/android-tv.md) |
+| Trình phát video/ảnh (beta) | Danh sách phát video, ảnh, trang web, YouTube, phát đồng bộ trên mọi màn hình, có lịch và phát ngoại tuyến; chạy cả trên Android TV, Google TV, Fire TV | [Trình phát video/ảnh](docs/vi/digital-signage.md), [Android TV](docs/vi/android-tv.md) |
 
 ## 📦 Cài đặt trong 60 giây
 
@@ -59,7 +59,7 @@ adb shell dpm set-device-owner com.freekiosk/.DeviceAdminReceiver
 
 ## 🖥️ Website quản lý
 
-Trang quản lý theo dõi và điều khiển mọi thiết bị từ một nơi: trạng thái trực tiếp, cấu hình đẩy xuống máy hoặc nhóm, lệnh từ xa, ảnh màn hình, phân phối APK, bảng hiệu số, cảnh báo qua email, webhook và ntfy, nhiều tài khoản với xác thực hai lớp.
+Trang quản lý theo dõi và điều khiển mọi thiết bị từ một nơi: trạng thái trực tiếp, cấu hình đẩy xuống máy hoặc nhóm, lệnh từ xa, ảnh màn hình, phân phối APK, trình phát video/ảnh, cảnh báo qua email, webhook và ntfy, nhiều tài khoản với xác thực hai lớp.
 
 Chạy bằng Docker Compose. Triển khai qua Nginx Proxy Manager và Cloudflare Tunnel: [cloud/docs/TRIEN-KHAI.md](cloud/docs/TRIEN-KHAI.md).
 

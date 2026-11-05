@@ -94,7 +94,23 @@ không phải lệnh: chúng đi qua kênh cấu hình.
 Danh sách ở `src/utils/capabilities.ts`, gửi lúc đăng ký và mỗi tín hiệu. Thiết bị thiếu khả năng thì bị bỏ qua khi gửi lệnh cần
 khả năng đó. Danh sách rỗng là ứng dụng cũ: coi như làm được mọi thứ.
 
-## Bảng hiệu số
+## Nhận lệnh ngay
+
+`GET /api/v1/devices/{id}/wait/` giữ kết nối tối đa 25 giây (`?hold=` để giữ ngắn hơn, dùng cho kiểm thử) và trả lời ngay khi có việc cho thiết bị:
+
+```json
+{ "wake": true, "commands": true, "config": false }
+```
+
+- `commands`: có lệnh hoặc APK đang chờ, ứng dụng gọi `commands/` và `updates/`.
+- `config`: có cấu hình, danh sách phát hoặc tên mới, ứng dụng gửi một tín hiệu định kỳ ngay, câu trả lời của tín hiệu đó mang thay đổi. Áp dụng xong, ứng dụng gửi thêm một tín hiệu để máy chủ biết.
+- `wake: false`: hết thời gian giữ, không có gì. Ứng dụng hỏi lại ngay.
+
+Đây chỉ là lời báo: mọi thứ vẫn đi qua các đường cũ, nên mất lời báo chỉ khiến thiết bị nhận chậm hơn, tối đa tới tín hiệu định kỳ kế tiếp. Máy chủ không có đường này thì trả 404 và ứng dụng thử lại sau 10 phút. Ứng dụng giữ kết nối từ `CloudWake.kt` chứ không từ JS, vì React Native dừng bộ đếm giờ của JS khi có ứng dụng khác ở trên.
+
+`GET /api/v1/time/` không cần đăng nhập, trả `{ "now": <mili giây> }`. Ứng dụng dùng nó để đo chênh lệch đồng hồ khi phát đồng bộ.
+
+## Trình phát video/ảnh
 
 `playlist_version` là mã băm nội dung, `null` khi không có gì để phát. Khi đổi, ứng dụng tải:
 
@@ -102,10 +118,11 @@ khả năng đó. Danh sách rỗng là ứng dụng cũ: coi như làm được
 {
   "version": "abc123",
   "playlist": { "id": "...", "name": "Sảnh" },
-  "items": [{ "id": "...", "kind": "video", "url": "https://...", "title": "...", "duration_seconds": 12, "video_id": "..." }],
+  "items": [{ "id": "...", "kind": "video", "url": "https://...", "title": "...", "duration_seconds": 12, "duration_ms": 7500, "video_id": "..." }],
+  "sync_epoch_ms": 1793850000000,
   "schedule": {
     "default_playlist": "...",
-    "playlists": { "<id>": { "name": "...", "items": [] } },
+    "playlists": { "<id>": { "name": "...", "items": [], "sync_epoch_ms": 1793850000000 } },
     "rules": [{ "playlist": "<id>", "days": [1, 2], "start": "18:00", "end": "22:00", "from": null, "to": null, "priority": 0 }]
   }
 }
@@ -114,6 +131,7 @@ khả năng đó. Danh sách rỗng là ứng dụng cũ: coi như làm được
 - `kind` là `video`, `image`, `web` hoặc `youtube`. Mục YouTube có `url` trỏ về `/player/youtube/?v=<video_id>` của chính máy chủ.
 - `days` theo ISO, thứ Hai là 1. Luật xếp theo độ ưu tiên: **ứng dụng lấy luật đầu tiên khớp**, nên thứ tự do máy chủ quyết định.
 - Ứng dụng báo lại phiên bản đang phát ở `system.signage_playlist_version`.
+- `sync_epoch_ms` là lúc danh sách bắt đầu, `duration_ms` là độ dài của video trong thư viện, máy chủ đọc từ tệp. Mọi màn hình tự tính mình phải ở đâu từ hai số này và đồng hồ của máy chủ, nên phát cùng một khung hình mà không cần nói chuyện với nhau. Ứng dụng khai báo `signage_sync` trong khả năng của thiết bị.
 
 Trang `/player/youtube/` chuyển sự kiện của trình phát YouTube lên trang cha bằng `postMessage`, dạng
 `{ event: "onStateChange", info }` và `{ event: "onError", info }`. Trang này không được cấm nhúng khung.

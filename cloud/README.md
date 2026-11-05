@@ -35,14 +35,14 @@ docker compose down -v
 | Mục | Làm được gì |
 |---|---|
 | Tổng quan | Số thiết bị, trực tuyến, ngoại tuyến, pin trung bình, cảnh báo, hoạt động gần đây |
-| Thiết bị | Tìm, lọc, sắp xếp, thao tác hàng loạt. Trang riêng từng máy: trạng thái trực tiếp, lệnh, cấu hình, bảng hiệu, ảnh màn hình, nhật ký |
+| Thiết bị | Tìm, lọc, sắp xếp, thao tác hàng loạt. Trang riêng từng máy: trạng thái trực tiếp, lệnh, cấu hình, trình phát, ảnh màn hình, nhật ký |
 | Thêm thiết bị | Mã 8 ký tự, QR cho ứng dụng, lệnh ADB, QR cấp phát Device Owner có thể kèm Wi-Fi |
 | Nhóm | Gắn hồ sơ và danh sách phát theo nhóm, tải lại, bật tắt, đổi URL cả nhóm |
-| Lệnh | Một máy, một nhóm hoặc tất cả. Bật tắt màn hình, tải lại, khởi động lại, dừng mọi ứng dụng, thời gian sáng màn hình, chụp màn hình, thông báo, đọc văn bản, âm thanh, mở ứng dụng, Wi-Fi, JavaScript |
+| Lệnh | Một máy, một nhóm hoặc tất cả, thiết bị nhận trong vài giây. Bật tắt màn hình, tải lại, khởi động lại, dừng mọi ứng dụng, thời gian sáng màn hình, chỉnh âm lượng, chụp màn hình, thông báo, đọc văn bản, âm thanh, mở ứng dụng, Wi-Fi, JavaScript |
 | Lịch hẹn giờ | Tự gửi lệnh theo ngày và giờ |
-| Bảng hiệu số | Danh sách phát gồm video, ảnh, trang web, YouTube; thư viện tệp; lịch theo ngày giờ; theo dõi màn hình đã cập nhật chưa |
-| Hồ sơ cấu hình | Lưu cấu hình, áp dụng cho máy hoặc nhóm, sửa là tự cập nhật |
-| Ứng dụng (APK) | Tải lên, đọc gói và phiên bản, cài im lặng, chọn APK cấp phát |
+| Trình phát video/ảnh | Danh sách phát gồm video, ảnh, trang web, YouTube, phát đồng bộ trên mọi màn hình; thư viện tệp; lịch theo ngày giờ; theo dõi màn hình đã cập nhật chưa |
+| Hồ sơ cấu hình | Lưu cấu hình, nhân bản, áp dụng cho máy hoặc nhóm, sửa là tự cập nhật, báo máy nào lệch hồ sơ |
+| Ứng dụng (APK) | Tải lên, đọc gói và phiên bản, cài im lặng, chọn APK cấp phát, so phiên bản ứng dụng giữa các máy và cập nhật máy cũ |
 | Nhật ký hoạt động | Lọc theo nhiều tiêu chí, xuất CSV đọc được bằng Excel |
 | Ảnh màn hình | Thư viện theo từng máy, giữ 30 ngày |
 | Cảnh báo | Ngoại tuyến, pin yếu, pin rất yếu, sắp hết bộ nhớ; gửi qua email, webhook có chữ ký, Slack, Discord, ntfy |
