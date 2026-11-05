@@ -6,7 +6,7 @@ import { CryptoService } from '../common/crypto.service';
 import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
 import { TargetDto, targetWhere } from '../common/targets';
-import { COMMAND_LABELS, COMMANDS, CONFIG_COMMANDS, ConfigCommandSpec, THROUGH_CONFIG_DAYS } from './catalog';
+import { COMMAND_LABELS, COMMANDS, CONFIG_COMMANDS, ConfigCommandSpec } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
 
 const DEFAULT_TTL_MINUTES = 60;
@@ -129,22 +129,7 @@ export class CommandsService {
     const devices = await this.prisma.device.findMany({ where, select: { id: true, name: true } });
 
     const batchId = randomUUID();
-    const now = new Date();
-    await this.configSync.push(devices.map((device) => device.id), spec.config(params));
-    await this.prisma.command.createMany({
-      data: devices.map((device) => ({
-        deviceId: device.id,
-        type,
-        params: params as Prisma.InputJsonValue,
-        status: 'SENT' as const,
-        batchId,
-        source: options.source ?? 'manual',
-        createdById: actor?.id,
-        createdBy: actor?.email,
-        sentAt: now,
-        expiresAt: new Date(now.getTime() + THROUGH_CONFIG_DAYS * 86_400_000),
-      })),
-    });
+    await this.configSync.push(devices.map((device) => device.id), spec.config(params), undefined, { type, params, actor, batchId, source: options.source });
 
     await this.logQueued(type, actor, devices, batchId, 0);
     return { batchId, sent: devices.length, skipped: [] };

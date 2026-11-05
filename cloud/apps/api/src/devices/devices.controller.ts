@@ -7,11 +7,24 @@ import { CurrentUser, Roles, sendStoredFile } from '../common/http';
 import { PrismaService } from '../common/prisma.service';
 import { StorageService } from '../common/storage.service';
 import { targetWhere } from '../common/targets';
-import { COMMAND_LABELS, COMMANDS } from './catalog';
+import { COMMAND_LABELS, COMMANDS, PUSH_CONFIG_COMMAND } from './catalog';
 import { CommandsService } from './commands.service';
 import { ConfigSyncService } from './config-sync.service';
 import { ApplyConfigDto, ListCommandsQuery, SendCommandDto, UpdateConfigDto, UpdateDeviceDto } from './devices.dto';
 import { DevicesService } from './devices.service';
+import { settingPaths } from './profile-state';
+
+/** What the history says of a change of settings: their names, never their values */
+function changeLine(config: unknown, sensitive: object | undefined, actor: User) {
+  return {
+    type: PUSH_CONFIG_COMMAND,
+    params: {
+      settings: settingPaths(config).slice(0, 30),
+      secrets: Object.entries(sensitive ?? {}).filter(([, value]) => value !== undefined).map(([key]) => key),
+    },
+    actor,
+  };
+}
 
 @ApiTags('Thiết bị')
 @Controller('api/admin/devices')
@@ -71,7 +84,7 @@ export class DevicesController {
   async updateConfig(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateConfigDto, @CurrentUser() actor: User) {
     const device = await this.prisma.device.findUnique({ where: { id }, select: { id: true, name: true } });
     if (!device) throw new NotFoundException('Không tìm thấy thiết bị');
-    await this.configSync.push([id], dto.config ?? {}, dto.sensitive);
+    await this.configSync.push([id], dto.config ?? {}, dto.sensitive, changeLine(dto.config, dto.sensitive, actor));
     await this.activity.log({
       action: 'config.changed',
       message: `${actor.email} đã đổi cấu hình của ${device.name}`,
@@ -104,7 +117,7 @@ export class ConfigController {
     const where = targetWhere(dto.target);
     if (!where) throw new BadRequestException('Chưa chọn thiết bị');
     const devices = await this.prisma.device.findMany({ where, select: { id: true } });
-    const count = await this.configSync.push(devices.map((d) => d.id), dto.config ?? {}, dto.sensitive);
+    const count = await this.configSync.push(devices.map((d) => d.id), dto.config ?? {}, dto.sensitive, changeLine(dto.config, dto.sensitive, actor));
     await this.activity.log({
       action: 'config.changed',
       message: `${actor.email} đã đổi cấu hình của ${count} thiết bị`,
@@ -121,6 +134,7 @@ export class CommandsController {
   constructor(
     private readonly commands: CommandsService,
     private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
   ) {}
 
   @Get('catalog')
@@ -153,12 +167,19 @@ export class CommandsController {
   @Post(':id/cancel')
   @HttpCode(200)
   @Roles('ADMIN', 'OPERATOR')
-  async cancel(@Param('id', ParseUUIDPipe) id: string) {
+  async cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
     const { count } = await this.prisma.command.updateMany({
       where: { id, status: 'PENDING' },
       data: { status: 'CANCELLED', secretEnc: null, completedAt: new Date() },
     });
     if (!count) throw new BadRequestException('Lệnh đã được gửi tới thiết bị, không thể hủy');
+    const command = await this.prisma.command.findUniqueOrThrow({ where: { id }, include: { device: { select: { id: true, name: true } } } });
+    await this.activity.log({
+      action: 'command.cancelled',
+      message: `${actor.email} đã hủy lệnh "${COMMAND_LABELS[command.type] ?? command.type}" tới ${command.device.name}`,
+      device: command.device,
+      user: actor,
+    });
     return { ok: true };
   }
 }

@@ -309,7 +309,7 @@ export default function DeviceDetail() {
         {tab === 'commands' && (
           <>
             {can.operate && !gone && <div className="p-5"><CommandPicker target={{ deviceIds: [id] }} devices={[d]} /></div>}
-            <CommandHistory deviceId={id} />
+            <CommandHistory key={id} deviceId={id} />
           </>
         )}
         {tab === 'config' && (

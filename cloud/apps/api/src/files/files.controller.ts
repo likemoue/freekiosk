@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundE
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { randomUUID } from 'node:crypto';
 import { mkdir, rm } from 'node:fs/promises';
 import { extname } from 'node:path';
 import type { User } from '../generated/prisma/client';
@@ -281,11 +282,17 @@ export class ApksController {
     const devices = await this.prisma.device.findMany({ where, select: { id: true, name: true, capabilities: true } });
     const able = devices.filter((d) => !whyCannotInstall(d.capabilities, apk));
     const skipped = devices.filter((d) => !able.includes(d)).map((d) => ({ deviceId: d.id, name: d.name, reason: whyCannotInstall(d.capabilities, apk)! }));
-    if (able.length) {
-      await this.prisma.command.createMany({ data: able.map((d) => installCommandData(d.id, apk, actor)) });
-      this.wake.notify(able.map((d) => d.id), 'commands');
-    }
-    await this.activity.log({ action: 'apk.deployed', message: `${actor.email} đã gửi ${apk.fileName} tới ${able.length} thiết bị`, user: actor });
+    const batchId = randomUUID();
+    const now = new Date();
+    await this.prisma.command.createMany({
+      data: [
+        ...able.map((d) => installCommandData(d.id, apk, actor, {}, batchId)),
+        // A tablet left out says so in the history too, as for any other command
+        ...skipped.map((line) => ({ ...installCommandData(line.deviceId, apk, actor, {}, batchId), status: 'ERROR' as const, errorMessage: line.reason, completedAt: now })),
+      ],
+    });
+    if (able.length) this.wake.notify(able.map((d) => d.id), 'commands');
+    await this.activity.log({ action: 'apk.deployed', message: `${actor.email} đã gửi ${apk.fileName} tới ${able.length} thiết bị${skipped.length ? `, bỏ qua ${skipped.length} thiết bị` : ''}`, user: actor });
     return { sent: able.length, skipped };
   }
 

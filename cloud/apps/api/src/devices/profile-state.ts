@@ -50,6 +50,15 @@ export function profileDifferences(device: { reportedConfig: unknown; signagePla
   return device.signagePlaylistVersion ? differences.filter((d) => d.path !== 'general.displayMode') : differences;
 }
 
+/** The settings a change touches, like general.url. For the history, which keeps no values: some are private */
+export function settingPaths(config: unknown, prefix = ''): string[] {
+  if (!isObject(config)) return [];
+  return Object.entries(config).flatMap(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return isObject(value) ? settingPaths(value, path) : [path];
+  });
+}
+
 /** A profile for a device playing a list: the rest of it applies, the mode waits until the list is gone */
 export function withoutDisplayMode(config: Record<string, unknown>): Record<string, unknown> {
   const general = config.general;

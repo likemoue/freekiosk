@@ -63,7 +63,7 @@ export class GroupsController {
     const name = dto.name?.trim();
     if (name) await this.assertNameFree(name, id);
     const group = await this.prisma.group.update({ where: { id }, data: { ...dto, name } });
-    if (dto.profileId && dto.profileId !== before.profileId) await this.configSync.pushProfile(dto.profileId);
+    if (dto.profileId && dto.profileId !== before.profileId) await this.configSync.pushProfile(dto.profileId, actor);
     if (dto.playlistId !== undefined) this.signage.invalidate();
     await this.activity.log({ action: 'group.updated', message: `${actor.email} đã cập nhật nhóm ${group.name}`, user: actor });
     return group;
@@ -153,7 +153,7 @@ export class ProfilesController {
   async apply(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
     const profile = await this.prisma.configProfile.findUnique({ where: { id } });
     if (!profile) throw new NotFoundException('Không tìm thấy hồ sơ');
-    const appliedTo = await this.configSync.pushProfile(id);
+    const appliedTo = await this.configSync.pushProfile(id, actor);
     await this.activity.log({ action: 'profile.applied', message: `${actor.email} đã áp lại hồ sơ ${profile.name} cho ${appliedTo} thiết bị`, user: actor });
     return { appliedTo };
   }
@@ -202,7 +202,7 @@ export class ProfilesController {
         sensitiveEnc: Object.keys(secret).length ? this.crypto.encryptJson(secret) : null,
       },
     });
-    const count = await this.configSync.pushProfile(id);
+    const count = await this.configSync.pushProfile(id, actor);
     await this.activity.log({ action: 'profile.updated', message: `${actor.email} đã lưu hồ sơ ${name}, áp dụng cho ${count} thiết bị`, user: actor });
     return { ...this.view(profile), appliedTo: count };
   }
