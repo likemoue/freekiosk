@@ -117,6 +117,8 @@ const MediaPlayerComponent: React.FC<MediaPlayerComponentProps> = ({
       if (data.type === 'interaction' && onUserInteraction) {
         onUserInteraction({ isTap: true, x: data.x, y: data.y });
       }
+      // How far from the others this screen starts an item, for anyone reading the log of a tablet
+      if (data.type === 'inStep') console.log(`[MediaPlayer] Item ${data.index} began ${data.lateMs} ms late, next time ${data.leadMs} ms early`);
     } catch {
       // ignore
     }

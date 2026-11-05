@@ -49,11 +49,12 @@ export const SIGNAGE_TIMELINE_JS = `
     return { index: index, cycle: cycle };
   }
 
-  // A small gap is closed by playing a little faster or slower, which nobody sees. A big one takes a seek.
+  // A small gap is closed by playing faster or slower, which nobody sees for the second it lasts. A big
+  // one takes a seek. In steps of 5%, since each change of speed costs the player something.
   function correctionFor(gapSeconds) {
     var size = Math.abs(gapSeconds);
     if (size > 0.6) return { seek: true, rate: 1 };
-    if (size > 0.04) return { seek: false, rate: 1 - Math.max(-0.1, Math.min(0.1, gapSeconds * 0.5)) };
+    if (size > 0.04) return { seek: false, rate: Math.round((1 - Math.max(-0.25, Math.min(0.25, gapSeconds))) * 20) / 20 };
     return { seek: false, rate: 1 };
   }
 `;
@@ -76,13 +77,17 @@ export const IN_STEP_PLAYER_JS = `
   var STEP_SEEK_GAP_MS = 2500;
   var STEP_SEEK_LEAD_S = 0.15;
   var STEP_RETRY_MS = 5000;
+  // How long before its turn each video has to be told to play: a video takes time to begin, which
+  // differs by tablet and by what played before it, so each screen finds out for itself
+  var stepLeadMs = {};
+  var STEP_LEAD_MAX_MS = 800;
 
   function stepBuild(index, key, intoSeconds) {
     var item = playlist[index];
     if (stepCleanup) { clearTimeout(stepCleanup); stepCleanup = null; }
     var slot = getInactiveSlot();
     slot.innerHTML = '';
-    var entry = { key: key, kind: item.type, el: null, ready: false, due: false, shown: false, failedAt: 0 };
+    var entry = { key: key, index: index, kind: item.type, el: null, ready: false, due: false, shown: false, failedAt: 0, fromStart: intoSeconds === 0, measured: false, early: false };
     function whenReady() {
       entry.ready = true;
       if (entry.due) stepReveal(entry);
@@ -146,6 +151,32 @@ export const IN_STEP_PLAYER_JS = `
     }, SETTINGS.transitionEnabled ? SETTINGS.transitionDuration + 100 : 50);
   }
 
+  function stepPlay(video) {
+    var playing = video.play();
+    if (playing && playing.catch) playing.catch(function() {});
+  }
+
+  function stepLearn(entry, video, at) {
+    if (!entry.fromStart || entry.measured || video.paused || !(video.currentTime > 0)) return;
+    entry.measured = true;
+    var lateMs = at.intoMs - video.currentTime * 1000;
+    var leadMs = Math.max(0, Math.min(STEP_LEAD_MAX_MS, (stepLeadMs[entry.index] || 0) + lateMs * 0.7));
+    stepLeadMs[entry.index] = leadMs;
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'inStep', index: entry.index, lateMs: Math.round(lateMs), leadMs: Math.round(leadMs) }));
+    }
+  }
+
+  function stepStartEarly(entry, at) {
+    if (at.waiting || !entry || entry.kind !== 'video' || entry.early) return;
+    var leadMs = stepLeadMs[entry.index] || 0;
+    if (!(leadMs > 0) || at.untilNextMs > leadMs + STEP_TICK_MS) return;
+    entry.early = true;
+    setTimeout(function() {
+      if (entry === stepPrepared || entry === stepCurrent) stepPlay(entry.el);
+    }, Math.max(0, at.untilNextMs - leadMs));
+  }
+
   function stepCorrect(at) {
     var entry = stepCurrent;
     if (!entry || entry.kind !== 'video' || !entry.el) return;
@@ -162,10 +193,8 @@ export const IN_STEP_PLAYER_JS = `
       if (!video.paused) video.pause();
       return;
     }
-    if (video.paused || video.ended) {
-      var playing = video.play();
-      if (playing && playing.catch) playing.catch(function() {});
-    }
+    if (video.paused || video.ended) stepPlay(video);
+    stepLearn(entry, video, at);
     var correction = correctionFor(video.currentTime - want);
     if (correction.seek) {
       var now = Date.now();
@@ -199,6 +228,7 @@ export const IN_STEP_PLAYER_JS = `
       // A YouTube page plays as soon as it loads, so it cannot wait for its turn
       if (playlist[next.index].type !== 'youtube') stepPrepared = stepBuild(next.index, next.cycle + ':' + next.index, 0);
     }
+    stepStartEarly(stepPrepared, at);
     if (at.untilNextMs <= STEP_TICK_MS) {
       if (stepBoundary) clearTimeout(stepBoundary);
       stepBoundary = setTimeout(stepTick, Math.max(0, at.untilNextMs));

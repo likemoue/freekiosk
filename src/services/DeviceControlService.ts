@@ -195,8 +195,16 @@ class DeviceControlServiceClass {
       console.warn('DeviceControlService: getBrightnessLevel error', error);
     }
 
+    // The panel itself, since a tablet may have gone dark by a command or a timeout with no screensaver
+    let panelOn = true;
+    try {
+      if (KioskModule?.isScreenOn) panelOn = await KioskModule.isScreenOn();
+    } catch (error) {
+      console.warn('DeviceControlService: isScreenOn error', error);
+    }
+
     return {
-      on: !screensaverActive,
+      on: panelOn && !screensaverActive,
       brightness: Math.round(brightness * 100),
       screensaverActive,
       scheduledSleep: this.scheduledSleep,
