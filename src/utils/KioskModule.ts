@@ -9,6 +9,8 @@ interface KioskModuleInterface {
   isDeviceOwner(): Promise<boolean>;
   // Device Owner: closes these apps and what has been on screen lately. Resolves with what it stopped
   stopRunningApps(packages: string[], blockRelaunch: boolean): Promise<string[]>;
+  // Device Owner, Android 9: what these apps have stored goes, and they stay. permissionsLost holds "package/permission"
+  clearAppData(packages: string[]): Promise<{ cleared: string[]; missing: string[]; failed: string[]; permissionsLost: string[] }>;
   // Keeps a request open to the website, so that commands arrive at once (CloudWake.kt)
   startCloudWake(cloudUrl: string, deviceId: string, apiKey: string): void;
   stopCloudWake(): void;

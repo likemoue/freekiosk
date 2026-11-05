@@ -104,6 +104,8 @@ class CloudCommandServiceClass {
   // Guards against re-dispatching the same command if two polls overlap. The
   // server already only returns 'pending' commands, so this is belt-and-braces.
   private processed = new Set<string>();
+  // What this very process is running: its marker on disk is not left over from a previous run
+  private underWay = new Set<string>();
 
   /**
    * Fetch + execute any pending commands and APK updates. Safe to call at any time: a channel
@@ -159,15 +161,20 @@ class CloudCommandServiceClass {
       // Persist before dispatch: `reboot` takes the device down and a self-update
       // replaces this very process, so without a marker on disk their result could
       // never be reported and the command stayed 'sent' on the server for good.
-      await StorageService.saveInflightCommand({
-        commandId: cmd.id,
-        type: cmd.type,
-        killsProcess: cmd.type === 'reboot',
-      } satisfies InflightCommand);
+      this.underWay.add(cmd.id);
+      try {
+        await StorageService.saveInflightCommand({
+          commandId: cmd.id,
+          type: cmd.type,
+          killsProcess: cmd.type === 'reboot',
+        } satisfies InflightCommand);
 
-      const outcome = await this.runCommand(cmd, c);
-      await StorageService.saveInflightCommand(null);
-      await this.reportResult(c, cmd.id, outcome);
+        const outcome = await this.runCommand(cmd, c);
+        await StorageService.saveInflightCommand(null);
+        await this.reportResult(c, cmd.id, outcome);
+      } finally {
+        this.underWay.delete(cmd.id);
+      }
     }
   }
 
@@ -194,15 +201,22 @@ class CloudCommandServiceClass {
    * Report a command that was still in flight when the process died. A command
    * expected to kill the process (reboot, self-update) reached its goal, so it is
    * reported as a success; anything else was interrupted and says so honestly.
+   *
+   * Only for one no longer running: this also happens when the kiosk screen comes back, from Settings
+   * say, in the same process, and an install under way then was called interrupted and went on to finish.
    */
   private async reportInflightCommand(c: CloudCredentials): Promise<void> {
-    const raw = await StorageService.getInflightInstall();
-    if (raw) await StorageService.saveInflightInstall(null);
-    await this.reportInterrupted(c, raw as InflightCommand | null);
+    const install = (await StorageService.getInflightInstall()) as InflightCommand | null;
+    if (install && !this.underWay.has(install.commandId)) {
+      await StorageService.saveInflightInstall(null);
+      await this.reportInterrupted(c, install);
+    }
 
-    const command = await StorageService.getInflightCommand();
-    if (command) await StorageService.saveInflightCommand(null);
-    await this.reportInterrupted(c, command as InflightCommand | null);
+    const command = (await StorageService.getInflightCommand()) as InflightCommand | null;
+    if (command && !this.underWay.has(command.commandId)) {
+      await StorageService.saveInflightCommand(null);
+      await this.reportInterrupted(c, command);
+    }
   }
 
   private async reportInterrupted(c: CloudCredentials, inflight: InflightCommand | null): Promise<void> {
@@ -255,6 +269,9 @@ class CloudCommandServiceClass {
     // Here too, for the same reason: nobody on the LAN should be able to close what is on the screen.
     if (cmd.type === 'stop_apps') {
       return this.stopRunningApps();
+    }
+    if (cmd.type === 'clear_app_data') {
+      return this.clearAppData(cmd.params || {});
     }
     if (cmd.type === 'set_screen_timeout') {
       return this.setScreenTimeout(cmd.params || {});
@@ -360,6 +377,28 @@ class CloudCommandServiceClass {
     }
   }
 
+  /** Sign-ins, files and settings of these apps go, and the apps stay. An app this tablet lacks is no error */
+  private async clearAppData(params: Record<string, any>): Promise<ActionResult> {
+    const packages: string[] = Array.isArray(params.packages)
+      ? params.packages.filter((name: unknown): name is string => typeof name === 'string' && name.length > 0 && name !== OWN_PACKAGE)
+      : [];
+    if (packages.length === 0) {
+      return { ok: false, error: 'No apps chosen' };
+    }
+    if (!KioskModule?.clearAppData) {
+      return { ok: false, error: 'This app version cannot clear app data' };
+    }
+    try {
+      const outcome = await KioskModule.clearAppData(packages);
+      if (outcome.failed.length > 0) {
+        return { ok: false, error: `Could not clear the data of ${outcome.failed.join(', ')}`, result: outcome };
+      }
+      return { ok: true, result: outcome };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
   /**
    * Dispatch through the native command handler. Resolves null when the command needs
    * the JS thread (or the native build predates this bridge), so the caller falls back.
@@ -444,6 +483,7 @@ class CloudCommandServiceClass {
 
       // A self-update replaces this process mid-install, so the marker is what
       // lets the result be reported once the new version comes up.
+      this.underWay.add(u.command_id);
       await StorageService.saveInflightInstall({
         commandId: u.command_id,
         type: 'install_apk',
@@ -471,6 +511,8 @@ class CloudCommandServiceClass {
           ok: false,
           error: error?.message ?? String(error),
         });
+      } finally {
+        this.underWay.delete(u.command_id);
       }
     }
   }
