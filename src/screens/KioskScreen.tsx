@@ -2326,8 +2326,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           // Start OverlayService BEFORE launching boot apps so kiosk protection is
           // active from the moment the boot app appears in foreground — preventing
           // the user from navigating outside authorized apps during the launch window.
-          // With several apps, for the app that opens by itself: it is the taps on it that lead to
-          // Settings. Nothing to start when no app opens, and the grid has its own protection.
+          // With several apps, for the app that opens by itself (no way to Settings from it, only
+          // its status bar and countdown). Nothing to start when no app opens.
           const overlayPackage = savedExternalAppMode === 'single'
             ? savedExternalAppPackage
             : savedManagedApps.find(app => app.launchOnBoot)?.packageName;
@@ -2493,15 +2493,16 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // setTimeout is frozen while FreeKiosk is backgrounded behind the external app. The
   // native timer (OverlayService) re-arms on every tap and emits `inactivityExpiredNative`.
   // Re-armed whenever the screensaver is dismissed (isScreensaverActive → false); disarmed
-  // during the motion pre-check, while the screensaver is active, or during scheduled sleep
-  // so it can never double-fire. Only touches the overlay service in external_app mode.
+  // during the motion pre-check, while the screensaver is active, during scheduled sleep, or
+  // with PIN or Settings on top (nothing counts touches there, and someone is at work), so it
+  // can never double-fire. Only touches the overlay service in external_app mode.
   useEffect(() => {
     if (displayMode !== 'external_app') return;
     const enabled =
-      screensaverEnabled && inactivityEnabled &&
+      isFocused && screensaverEnabled && inactivityEnabled &&
       !isScreensaverActive && !isPreCheckingMotion && !isScheduledSleep;
     OverlayServiceModule.updateInactivityConfig?.(inactivityDelay, enabled).catch(() => {});
-  }, [displayMode, screensaverEnabled, inactivityEnabled, inactivityDelay, isScreensaverActive, isPreCheckingMotion, isScheduledSleep]);
+  }, [displayMode, isFocused, screensaverEnabled, inactivityEnabled, inactivityDelay, isScreensaverActive, isPreCheckingMotion, isScheduledSleep]);
 
   // #190 — Native inactivity countdown expired (External App mode) → run the same
   // screensaver-activation path the JS timer would have run.
@@ -2782,7 +2783,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         tapCountRef.current = 0;
       }, returnTapTimeout - (now - lastTapTimeRef.current));
     }
-  }, [displayMode, navigation, resetTimer, clearTimer, markUserInteraction, returnTapCount, returnTapTimeout, defaultBrightness, TAP_PROXIMITY_RADIUS, exitScheduledSleep]);
+  // returnMode too: without it, a page kept counting taps toward PIN after a fixed button was chosen
+  }, [displayMode, navigation, resetTimer, clearTimer, markUserInteraction, returnMode, returnTapCount, returnTapTimeout, defaultBrightness, TAP_PROXIMITY_RADIUS, exitScheduledSleep]);
 
 
   const onScreensaverTap = useCallback(async () => {
@@ -3233,6 +3235,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           onReturnToApp={handleReturnToExternalApp}
           onGoToSettings={handleGoToSettings}
           onLaunchApp={(pkg) => launchExternalApp(pkg)}
+          onUserActivity={() => OverlayServiceModule.noteUserActivity?.()}
         />
       )}
 

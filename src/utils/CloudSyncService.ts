@@ -175,6 +175,7 @@ class CloudSyncServiceClass {
   private lastHeartbeatAtMs = 0;
   private isRunning = false;
   private wakeBeat: 'idle' | 'running' | 'again' = 'idle';
+  private settledAtStart = false;
   // Screens that rely on the heartbeat loop. The kiosk screen can be mounted twice in a row (an ADB
   // config restarts the activity), and React runs the first one's cleanup after the second one's start:
   // a plain stop() there killed the loop for good.
@@ -207,6 +208,7 @@ class CloudSyncServiceClass {
     // Close out whatever the previous process left open (a reboot we executed, a
     // result the network refused) before the first heartbeat. Fire-and-forget: it
     // must never delay the device coming back online.
+    this.settledAtStart = true;
     CloudCommandService.settleOutstanding(creds).catch(() => {/* handles its own errors */});
     await this.sendHeartbeat(creds);
     this.heartbeatTimer = setInterval(
@@ -279,6 +281,12 @@ class CloudSyncServiceClass {
 
     // Every beat, and not only at start: a run in the background never went through start()
     KioskModule.startCloudWake?.(c.cloudUrl, c.deviceId, c.apiKey);
+    // The same goes for what the previous process left open: restarted with no kiosk screen, the install
+    // that replaced it would stay "sent" until someone lit the screen
+    if (!this.settledAtStart) {
+      this.settledAtStart = true;
+      CloudCommandService.settleOutstanding(c).catch(() => {/* handles its own errors */});
+    }
 
     // Two clocks drive this: the JS interval in the foreground, and the native ticker
     // (via CloudHeartbeatTaskService) while backgrounded. Starting a headless task also

@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Sta ook toe dat je de instellingen opent door meerdere keren op de knop Volume omhoog/omlaag te drukken",
       "infoButtonMode": "Tik {{count}} keer op de terugknop ({{position}}) om de instellingen te openen",
       "infoAnywhereMode": "Tik {{count}} keer ergens op het scherm binnen {{timeout}} om de instellingen te openen",
-      "pinRequired": " (pincode vereist)"
+      "pinRequired": " (pincode vereist)",
+      "kioskScreenOnly": "Werkt alleen op het kioskscherm. Als er een app geopend is, leiden aanrakingen, de knop en de volumetoetsen niet naar de instellingen: ga eerst terug naar het kioskscherm."
     },
     "touchBlocking": {
       "title": "Aanraakblokkering",

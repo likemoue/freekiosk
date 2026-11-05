@@ -3,13 +3,14 @@ import clsx from 'clsx';
 import {
   AppWindow, Ban, Bell, Camera, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
-import { ReactNode, useMemo, useRef, useState } from 'react';
+import { ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { useCan } from '../auth';
 import { COMMAND_STATUS, dateTime, timeAgo } from '../format';
 import { Badge, Button, Field, Input, notifyError, Select, Tabs, td, th, Table, trow, Textarea, useConfirm, Empty } from '../ui';
 import { AppChoice, AppsChoice } from './app-picker';
+import { SECRET_FIELDS, settingLabel } from './config';
 import { DeviceSummary } from './device';
 import { HomeAppsEditor } from './home-apps';
 
@@ -101,6 +102,8 @@ const startingValues = (command: CommandDef): Record<string, any> =>
 export const COMMAND_LABELS: Record<string, string> = {
   ...Object.fromEntries(COMMANDS.map((c) => [c.type, c.label])),
   install_apk: 'Cài APK',
+  apply_profile: 'Áp hồ sơ cấu hình',
+  push_config: 'Đổi cấu hình',
 };
 
 export function CommandPicker({ target, devices, onSent }: { target: Target | null; devices?: DeviceSummary[]; onSent?: () => void }) {
@@ -262,6 +265,11 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
   }
   if (command.type === 'set_screen_timeout') return SCREEN_TIMEOUTS.find((option) => option.value === String(params.seconds))?.label ?? `${params.seconds} giây`;
   if (command.type === 'set_url') return params.url ?? null;
+  if (command.type === 'apply_profile') return params.profile ?? null;
+  if (command.type === 'push_config') {
+    const secrets = (params.secrets ?? []).map((key: string) => SECRET_FIELDS.find((field) => field.key === key)?.label ?? key);
+    return [...(params.settings ?? []).map(settingLabel), ...secrets].join(', ') || null;
+  }
   if (command.type === 'set_brightness' || command.type === 'set_volume') return params.percent !== undefined ? `${params.percent}%` : null;
   if (command.type === 'home_apps') {
     const parts = [
@@ -292,6 +300,62 @@ const errorInWords = (message: string) => COMMAND_ERRORS.find(([code]) => code.t
 
 const HISTORY_PAGE = 200;
 
+/**
+ * New lines come in at the top, a whole fleet's at once, and the list holds only so many: what someone
+ * was reading further down dropped off its end, and they landed among newer lines. Lines the server stops
+ * returning now stay until the reader goes back to the top, and the first line in view is put back where
+ * it was (Chrome and Firefox do that much while the line exists, Safari does not).
+ */
+function useSteadyLines<T extends { id: string }>(lines: T[], truncated: boolean) {
+  const box = useRef<HTMLDivElement>(null);
+  const place = useRef<{ id: string; top: number } | null>(null);
+  const shown = useRef<T[]>([]);
+
+  const steady = useMemo(() => {
+    if (!place.current || !truncated) return lines;
+    const fresh = new Set(lines.map((line) => line.id));
+    return [...lines, ...shown.current.filter((line) => !fresh.has(line.id))];
+  }, [lines, truncated]);
+  shown.current = steady;
+
+  const scroller = () => box.current?.closest('main') ?? null;
+
+  const remember = () => {
+    const main = scroller();
+    if (!main || !box.current) return;
+    const top = main.getBoundingClientRect().top;
+    const rows = box.current.querySelectorAll<HTMLElement>('tr[data-line]');
+    // From the first line nobody is being pushed away from anything: what is new should show
+    for (let index = 0; index < rows.length; index += 1) {
+      const rect = rows[index].getBoundingClientRect();
+      if (rect.bottom <= top) continue;
+      place.current = index === 0 ? null : { id: rows[index].dataset.line!, top: rect.top };
+      return;
+    }
+    place.current = null;
+  };
+
+  useLayoutEffect(() => {
+    const main = scroller();
+    if (main && box.current && place.current) {
+      const row = box.current.querySelector<HTMLElement>(`tr[data-line="${place.current.id}"]`);
+      if (row) main.scrollTop += row.getBoundingClientRect().top - place.current.top;
+    }
+    remember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steady]);
+
+  useEffect(() => {
+    const main = scroller();
+    if (!main) return;
+    main.addEventListener('scroll', remember, { passive: true });
+    return () => main.removeEventListener('scroll', remember);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { box, steady };
+}
+
 export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; showDevice?: boolean }) {
   const client = useQueryClient();
   const can = useCan();
@@ -310,14 +374,15 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
     onSuccess: () => client.invalidateQueries({ queryKey: ['commands'] }),
     onError: notifyError,
   });
-  const rows = data.filter((c) => {
+  const { box, steady } = useSteadyLines(data, data.length >= limit);
+  const rows = steady.filter((c) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
     return [COMMAND_LABELS[c.type] ?? c.type, c.device?.name, c.createdBy].some((text) => text?.toLowerCase().includes(query));
   });
 
   return (
-    <div>
+    <div ref={box}>
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-3">
         <h2 className="text-[15px] font-bold">Lịch sử lệnh</h2>
         <Input className="max-w-56" placeholder="Tìm lệnh…" aria-label="Tìm trong lịch sử lệnh" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -343,7 +408,7 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
               const status = COMMAND_STATUS[command.status];
               const detail = commandDetail(command);
               return (
-                <tr key={command.id} className={trow}>
+                <tr key={command.id} data-line={command.id} className={trow}>
                   <td className={clsx(td, 'whitespace-nowrap text-soft')} title={dateTime(command.createdAt)}>{timeAgo(command.createdAt)}</td>
                   {showDevice && <td className={td}>{command.device?.name}</td>}
                   <td className={td}>

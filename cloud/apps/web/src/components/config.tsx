@@ -76,7 +76,7 @@ export const CONFIG_SECTIONS: Array<{ id: string; title: string; hint?: string; 
       { path: 'security.allowNotifications', label: 'Cho phép thông báo', type: 'bool' },
       { path: 'security.blockFactoryReset', label: 'Chặn khôi phục cài đặt gốc', type: 'bool' },
       { path: 'security.allowRemoteScreenshot', label: 'Cho phép chụp màn hình từ xa', type: 'bool' },
-      { path: 'security.returnMode', label: 'Cách vào cài đặt', type: 'select', options: [{ value: 'tap_anywhere', label: 'Chạm nhiều lần bất kỳ đâu' }, { value: 'button', label: 'Nút bí mật' }] },
+      { path: 'security.returnMode', label: 'Cách vào cài đặt', hint: 'Chỉ có tác dụng trên màn hình kiosk. Khi đang mở ứng dụng thì chạm màn hình, nút cố định và nút âm lượng đều không vào được cài đặt, trừ chế độ một ứng dụng.', type: 'select', options: [{ value: 'tap_anywhere', label: 'Chạm nhiều lần bất kỳ đâu' }, { value: 'button', label: 'Nút cố định' }] },
       { path: 'security.returnTapCount', label: 'Số lần chạm', type: 'number', min: 2, max: 20 },
       { path: 'security.pinMaxAttempts', label: 'Số lần nhập sai PIN tối đa', type: 'number', min: 1, max: 100 },
       { path: 'security.urlFilter.enabled', label: 'Lọc URL', type: 'bool' },

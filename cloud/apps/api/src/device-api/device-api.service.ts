@@ -10,7 +10,7 @@ import { StorageService } from '../common/storage.service';
 import { env } from '../config/env';
 import { AlertsService } from '../alerts/alerts.service';
 import { SensitiveValues } from '../devices/config-sync.service';
-import { THROUGH_CONFIG_TYPES } from '../devices/catalog';
+import { COMMAND_LABELS, THROUGH_CONFIG_TYPES } from '../devices/catalog';
 import { PACKAGE_NAME } from '../devices/home-apps';
 import { HomeAppsService } from '../devices/home-apps.service';
 import { SignageService } from '../signage/signage.service';
@@ -414,7 +414,7 @@ export class DeviceApiService {
       await this.activity.log({
         action: 'command.failed',
         severity: 'warning',
-        message: `${device.name}: lệnh ${command.type} thất bại: ${errorMessage ?? 'không rõ lý do'}`,
+        message: `${device.name}: lệnh "${COMMAND_LABELS[command.type] ?? command.type}" thất bại: ${errorMessage ?? 'không rõ lý do'}`,
         device,
       });
     }

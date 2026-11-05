@@ -37,6 +37,8 @@ interface ExternalAppOverlayProps {
   onGoToSettings: () => void;
   /** Called when user taps an app in the multi-app grid */
   onLaunchApp?: (packageName: string) => void;
+  /** Any touch on this screen, for the inactivity countdown */
+  onUserActivity?: () => void;
 }
 
 const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
@@ -60,6 +62,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   onReturnToApp,
   onGoToSettings,
   onLaunchApp,
+  onUserActivity,
 }) => {
   const { t } = useTranslation();
   const displayName = useDisplayName();
@@ -85,6 +88,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 
   // tap_anywhere mode: N-tap with spatial proximity check (identical to WebView)
   const handleGridTouch = useCallback((event: any) => {
+    onUserActivity?.();
     if (returnMode !== 'tap_anywhere') return;
 
     const tapX = event.nativeEvent.pageX ?? 0;
@@ -120,7 +124,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
     gridTapTimerRef.current = setTimeout(() => {
       gridTapCountRef.current = 0;
     }, returnTapTimeout);
-  }, [returnMode, returnTapCount, returnTapTimeout, onGoToSettings]);
+  }, [returnMode, returnTapCount, returnTapTimeout, onGoToSettings, onUserActivity]);
 
   // button mode: N-tap on fixed corner button (identical to WebView)
   const handleGridButtonTap = useCallback(() => {
@@ -285,7 +289,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 
   // Single-app mode or app is running: show original overlay
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onTouchStart={onUserActivity}>
       {showStatusBar && (
         <StatusBar
           showBattery={showBattery}

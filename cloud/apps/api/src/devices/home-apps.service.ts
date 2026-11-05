@@ -238,15 +238,19 @@ export class HomeAppsService {
       }
       if (!Object.keys(changes).length) continue;
 
-      await this.configSync.push([device.id], { general: changes });
-      sent += 1;
       const shownBefore = new Set(current.filter((app) => app.showOnHomeScreen).map((app) => app.packageName));
       const shownAfter = new Set(next.filter((app) => app.showOnHomeScreen).map((app) => app.packageName));
-      record(device.id, {
-        add: [...shownAfter].filter((p) => !shownBefore.has(p)).map(labelOf),
-        remove: [...shownBefore].filter((p) => !shownAfter.has(p)).map(labelOf),
-        ...(switching ? { switch_to_multi: true } : {}),
+      await this.configSync.push([device.id], { general: changes }, undefined, {
+        type: HOME_APPS_COMMAND,
+        params: {
+          add: [...shownAfter].filter((p) => !shownBefore.has(p)).map(labelOf),
+          remove: [...shownBefore].filter((p) => !shownAfter.has(p)).map(labelOf),
+          ...(switching ? { switch_to_multi: true } : {}),
+        },
+        actor,
+        batchId,
       });
+      sent += 1;
     }
 
     if (installs.length || history.length) await this.prisma.command.createMany({ data: [...installs, ...history] });
@@ -288,22 +292,12 @@ export class HomeAppsService {
     const current = managedAppsOf(generalOf(device));
     const next = editHomeApps(current, [packageName], [], () => label);
     if (JSON.stringify(next) === JSON.stringify(current)) return;
-    await this.configSync.push([deviceId], { general: { managedApps: next } });
-
-    const now = new Date();
-    await this.prisma.command.create({
-      data: {
-        deviceId,
-        type: HOME_APPS_COMMAND,
-        params: { add: [label] },
-        status: 'SENT',
-        batchId: command.batchId,
-        source: 'after_install',
-        createdById: command.createdById,
-        createdBy: command.createdBy,
-        sentAt: now,
-        expiresAt: new Date(now.getTime() + THROUGH_CONFIG_DAYS * 86_400_000),
-      },
+    await this.configSync.push([deviceId], { general: { managedApps: next } }, undefined, {
+      type: HOME_APPS_COMMAND,
+      params: { add: [label] },
+      actor: { id: command.createdById, email: command.createdBy },
+      batchId: command.batchId,
+      source: 'after_install',
     });
   }
 

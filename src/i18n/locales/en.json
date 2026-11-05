@@ -513,7 +513,8 @@
       "volumeAltHintOther": "Also allow pressing Volume Up/Down button multiple times to access settings",
       "infoButtonMode": "Tap the return button ({{position}}) {{count}} times to access settings",
       "infoAnywhereMode": "Tap anywhere on screen {{count}} times within {{timeout}} to access settings",
-      "pinRequired": " (PIN required)"
+      "pinRequired": " (PIN required)",
+      "kioskScreenOnly": "Works on the kiosk screen only. While an app is open, touches, the button and the volume keys do not lead to Settings: go back to the kiosk screen first."
     },
     "touchBlocking": {
       "title": "Touch Blocking",

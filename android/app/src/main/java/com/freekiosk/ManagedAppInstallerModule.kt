@@ -8,6 +8,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.os.Build
+import android.os.PowerManager
+import android.os.SystemClock
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -39,6 +41,7 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
         private const val DOWNLOAD_ATTEMPTS = 3
         private const val DOWNLOAD_RETRY_DELAY_MS = 5_000L
         private const val MIN_APK_BYTES = 50_000L // anything smaller is almost certainly an HTML error page
+        private const val SCREEN_ON_WAIT_MS = 3_000L
     }
 
     @ReactMethod
@@ -283,8 +286,26 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
             0
         }
         val pendingIntent = PendingIntent.getBroadcast(context, sessionId, intent, flags)
+        if (expectedPackage == context.packageName) lightScreenForSelfUpdate()
         session.commit(pendingIntent.intentSender)
         session.close()
+    }
+
+    /**
+     * Installing over itself stops this process, and with it every wake lock of the app. With the screen
+     * off the whole tablet then slept within a second, in the middle of the install: Android finished it
+     * and told the new version only when something woke the CPU, most often someone pressing the power
+     * button (logcat on an SM-X210: not one line from anyone for 4 minutes, with 1.3 seconds of uptime in
+     * them). A tablet with a lit screen does not sleep, and nothing else outlives the stop. The new version
+     * lights the screen on starting anyway.
+     */
+    private fun lightScreenForSelfUpdate() {
+        val power = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (power.isInteractive) return
+        ScreenController.turnScreenOn(reactApplicationContext)
+        val deadline = SystemClock.elapsedRealtime() + SCREEN_ON_WAIT_MS
+        while (!power.isInteractive && SystemClock.elapsedRealtime() < deadline) Thread.sleep(100)
+        android.util.Log.i(TAG, "Self-update with the screen off: lit it, interactive=${power.isInteractive}")
     }
 
     @ReactMethod

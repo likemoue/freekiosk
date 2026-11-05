@@ -83,6 +83,9 @@ export const COMMANDS: Record<string, CommandSpec> = {
 
 /** Not a command the tablet runs: a change of its apps through the configuration, kept for the history */
 export const HOME_APPS_COMMAND = 'home_apps';
+/** The same for a profile sent to a tablet, and for a change on its settings page */
+export const APPLY_PROFILE_COMMAND = 'apply_profile';
+export const PUSH_CONFIG_COMMAND = 'push_config';
 
 /** A number from 0 to 100, as the page sends it (text) or as anyone else would (a number) */
 function percentOf(value: unknown): number | null {
@@ -115,11 +118,13 @@ export const CONFIG_COMMANDS: Record<string, ConfigCommandSpec> = {
  * The lines of the history a heartbeat confirms, since the tablet has nothing to run or answer.
  * They last a week rather than an hour: a tablet switched off for the weekend still gets the change.
  */
-export const THROUGH_CONFIG_TYPES = [HOME_APPS_COMMAND, ...Object.keys(CONFIG_COMMANDS)];
+export const THROUGH_CONFIG_TYPES = [HOME_APPS_COMMAND, APPLY_PROFILE_COMMAND, PUSH_CONFIG_COMMAND, ...Object.keys(CONFIG_COMMANDS)];
 export const THROUGH_CONFIG_DAYS = 7;
 
 export const COMMAND_LABELS: Record<string, string> = {
   [HOME_APPS_COMMAND]: 'Ứng dụng trên màn hình',
+  [APPLY_PROFILE_COMMAND]: 'Áp hồ sơ cấu hình',
+  [PUSH_CONFIG_COMMAND]: 'Đổi cấu hình',
   set_url: 'Đổi URL hiển thị',
   set_brightness: 'Đổi độ sáng',
   screen_on: 'Bật màn hình',

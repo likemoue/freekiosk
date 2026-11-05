@@ -7,6 +7,7 @@ import { CryptoService } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { StorageService } from '../common/storage.service';
 import { SignageService } from '../signage/signage.service';
+import { APPLY_PROFILE_COMMAND } from './catalog';
 import { ConfigSyncService, SensitiveValues } from './config-sync.service';
 import { UpdateDeviceDto } from './devices.dto';
 
@@ -171,7 +172,7 @@ export class DevicesService {
       if (profileId) {
         const profile = await this.prisma.configProfile.findUnique({ where: { id: profileId } });
         if (profile) {
-          await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
+          await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc), { type: APPLY_PROFILE_COMMAND, params: { profile: profile.name }, actor });
         }
       }
     }
@@ -190,7 +191,7 @@ export class DevicesService {
     if (!inEffect) throw new BadRequestException('Thiết bị này chưa dùng hồ sơ cấu hình nào');
     const profile = await this.prisma.configProfile.findUnique({ where: { id: inEffect.id } });
     if (!profile) throw new BadRequestException('Không tìm thấy hồ sơ');
-    await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc));
+    await this.configSync.pushProfileTo([id], profile.config as Record<string, unknown>, this.crypto.decryptJson<SensitiveValues>(profile.sensitiveEnc), { type: APPLY_PROFILE_COMMAND, params: { profile: profile.name }, actor });
     await this.activity.log({ action: 'device.profile_applied', message: `${actor.email} đã áp lại hồ sơ ${profile.name} cho ${device.name}`, user: actor, device });
     return { ok: true };
   }
