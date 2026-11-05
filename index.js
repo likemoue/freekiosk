@@ -22,8 +22,17 @@ AppRegistry.registerComponent(appName, () => App);
  */
 AppRegistry.registerHeadlessTask(
   'CloudHeartbeat',
-  () => async () => {
+  () => async (data) => {
     if (!CLOUD_ENABLED) return;
+    // The website has something for this tablet (CloudWake): wherever the app is, it is wanted now
+    if (data?.wake) {
+      try {
+        await CloudSyncService.handleWake(data);
+      } catch {
+        // As below: the next heartbeat delivers it anyway
+      }
+      return;
+    }
     // In the foreground the JS interval sends the heartbeat. The task is allowed to start
     // there only so a service restart cannot crash the app (CloudHeartbeatTaskService).
     if (AppState.currentState === 'active') return;

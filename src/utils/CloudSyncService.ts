@@ -174,6 +174,7 @@ class CloudSyncServiceClass {
   private provisioningStatus: ProvisioningStatus = { state: 'none' };
   private lastHeartbeatAtMs = 0;
   private isRunning = false;
+  private wakeBeat: 'idle' | 'running' | 'again' = 'idle';
   // Screens that rely on the heartbeat loop. The kiosk screen can be mounted twice in a row (an ADB
   // config restarts the activity), and React runs the first one's cleanup after the second one's start:
   // a plain stop() there killed the loop for good.
@@ -230,6 +231,7 @@ class CloudSyncServiceClass {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+    KioskModule.stopCloudWake?.();
     KioskModule.releaseCloudWakeLock().catch(() => {/* best-effort */});
     this.isRunning = false;
   }
@@ -237,12 +239,46 @@ class CloudSyncServiceClass {
   // ─── Heartbeat ───────────────────────────────────────────────────────────────
 
   /**
+   * The website has something for this tablet (CloudWake.kt): commands to fetch, or settings that come
+   * with a heartbeat's answer. A second heartbeat follows a change, so the website knows within seconds
+   * that it was applied, rather than at the next tick.
+   */
+  async handleWake(wake: { commands?: boolean; config?: boolean }): Promise<void> {
+    const c = await getCloudCredentials();
+    if (!c) return;
+    await Promise.all([
+      wake.commands ? CloudCommandService.poll(c) : Promise.resolve(),
+      wake.config ? this.beatForWake(c) : Promise.resolve(),
+    ]);
+  }
+
+  /** One at a time: two heartbeats at once race on the config hash. A word during one asks for another */
+  private async beatForWake(c: CloudCredentials): Promise<void> {
+    if (this.wakeBeat !== 'idle') {
+      this.wakeBeat = 'again';
+      return;
+    }
+    try {
+      do {
+        this.wakeBeat = 'running';
+        await this.sendHeartbeat(c, { force: true, confirmChange: true });
+      } while ((this.wakeBeat as string) === 'again');
+    } finally {
+      this.wakeBeat = 'idle';
+    }
+  }
+
+  /**
    * @param options.force bypass the debounce, for an explicit republish (e.g. after the
    *   permission wizard changes the capability list) rather than a scheduled tick.
+   * @param options.confirmChange beat again right away if this one changed something
    */
-  async sendHeartbeat(creds?: CloudCredentials, options?: { force?: boolean }): Promise<void> {
+  async sendHeartbeat(creds?: CloudCredentials, options?: { force?: boolean; confirmChange?: boolean }): Promise<void> {
     const c = creds ?? await getCloudCredentials();
     if (!c) return;
+
+    // Every beat, and not only at start: a run in the background never went through start()
+    KioskModule.startCloudWake?.(c.cloudUrl, c.deviceId, c.apiKey);
 
     // Two clocks drive this: the JS interval in the foreground, and the native ticker
     // (via CloudHeartbeatTaskService) while backgrounded. Starting a headless task also
@@ -385,7 +421,9 @@ class CloudSyncServiceClass {
       await DeviceDisplayName.observe(data.device_name).catch(() => {});
       InstalledAppsReport.answer(c, data.installed_apps_wanted, data.app_icons_wanted).catch(() => {/* asked again at the next heartbeat */});
 
+      let changed = false;
       if (data.sync_action === 'apply' && data.config) {
+        changed = true;
         await StorageService.importConfig(data.config);
         if (data.sensitive_config) {
           await importSensitiveConfig(data.sensitive_config);
@@ -401,6 +439,7 @@ class CloudSyncServiceClass {
       // Digital signage: a new playlist version means a new manifest to download. A failed
       // download is tried again at the next heartbeat.
       if (await SignagePlaylist.sync(c, data.playlist_version)) {
+        changed = true;
         DeviceEventEmitter.emit(CONFIG_UPDATED_EVENT);
       }
 
@@ -410,6 +449,7 @@ class CloudSyncServiceClass {
       if (data.pending_commands > 0) {
         CloudCommandService.poll(c).catch(() => {/* poll() handles its own errors */});
       }
+      if (changed && options?.confirmChange) await this.sendHeartbeat(c, { force: true });
     } catch (error) {
       console.error('[CloudSync] Heartbeat error:', error);
     }

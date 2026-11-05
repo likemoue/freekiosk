@@ -1,6 +1,7 @@
 package com.freekiosk
 
 import android.content.Intent
+import android.os.Bundle
 import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
@@ -27,7 +28,8 @@ class CloudHeartbeatTaskService : HeadlessJsTaskService() {
     override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig {
         return HeadlessJsTaskConfig(
             TASK_NAME,
-            Arguments.createMap(),
+            // From CloudWake: what the website said is waiting. Empty for a heartbeat on the ticker
+            Arguments.fromBundle(intent?.extras ?: Bundle()),
             TASK_TIMEOUT_MS,
             // Allowed in the foreground only so it cannot crash the process: the task
             // itself returns at once when the app is active (index.js), since the JS

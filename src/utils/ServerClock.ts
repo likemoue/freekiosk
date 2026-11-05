@@ -27,6 +27,13 @@ export const MAX_ROUND_TRIP_MS = 15_000;
 let offsetMs = 0;
 let loaded: Promise<void> | null = null;
 
+/** For screens playing in step, where tens of milliseconds show: see calibrate() */
+const SAMPLES_KEPT = 12;
+const SAMPLE_MAX_AGE_MS = 10 * 60_000;
+const SAMPLE_TIMEOUT_MS = 5_000;
+let fineOffsetMs: number | null = null;
+let samples: Array<{ offset: number; roundTrip: number; at: number }> = [];
+
 /**
  * The epoch of an ISO 8601 time, or NaN. The cloud writes microseconds and "+00:00"
  * ("2026-10-15T16:00:00.169773+00:00"), which not every JavaScript engine reads: it is
@@ -68,6 +75,48 @@ export const ServerClock = {
     return offsetMs;
   },
 
+  /** The gap to use for playing in step, in milliseconds: the measured one once there is one */
+  fineOffset(): number {
+    return fineOffsetMs ?? offsetMs;
+  },
+
+  /**
+   * Measures the gap to the millisecond, which the heartbeat cannot: its request carries the whole
+   * configuration, and a gap under a minute is ignored there. The fastest exchange of the last few
+   * minutes says the most, since the less time a request spends on the way, the less that time can
+   * lean to one side. Screens on one network take the same road, so what is left of the error is
+   * the same for all of them and does not show between them.
+   */
+  async calibrate(cloudUrl: string, count = 5): Promise<number> {
+    await load();
+    for (let i = 0; i < count; i += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), SAMPLE_TIMEOUT_MS);
+      try {
+        const sentAt = Date.now();
+        const response = await fetch(`${cloudUrl}/api/v1/time/`, { signal: controller.signal });
+        const receivedAt = Date.now();
+        if (!response.ok) break; // A server without this route
+        const { now } = await response.json();
+        if (typeof now === 'number') {
+          const roundTrip = receivedAt - sentAt;
+          samples.push({ offset: now - (sentAt + roundTrip / 2), roundTrip, at: receivedAt });
+        }
+      } catch {
+        // No network: what was measured before still holds
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    const oldest = Date.now() - SAMPLE_MAX_AGE_MS;
+    samples = samples.filter((sample) => sample.at >= oldest).slice(-SAMPLES_KEPT);
+    if (samples.length > 0) {
+      const best = samples.reduce((a, b) => (b.roundTrip < a.roundTrip ? b : a));
+      fineOffsetMs = Math.round(best.offset);
+    }
+    return this.fineOffset();
+  },
+
   /**
    * Take what a heartbeat answer says. `sentAt` and `receivedAt` are the device's clock when
    * the request left and when the answer arrived; the server's time is put in the middle.
@@ -94,5 +143,7 @@ export const ServerClock = {
   _reset(): void {
     offsetMs = 0;
     loaded = null;
+    fineOffsetMs = null;
+    samples = [];
   },
 };

@@ -214,6 +214,54 @@ const INFO = { model: 'SM-X210', manufacturer: 'Samsung', android_version: '16',
     expect(history[0]).toMatchObject({ type: 'toast', status: 'SUCCESS' });
   });
 
+  const wordWithin = async (seconds: number) => {
+    const creds = await getCloudCredentials();
+    const response = await fetch(`${BASE}/api/v1/devices/${creds.deviceId}/wait/?hold=${seconds}`, { headers: { Authorization: `Bearer ${creds.apiKey}` } });
+    return response.json();
+  };
+  // A word said while nobody was waiting stays until the next request: the earlier tests left some
+  const hearAllThatWasSaid = async () => {
+    for (let i = 0; i < 5 && (await wordWithin(1)).wake; i += 1);
+  };
+
+  it('hears of a command the moment it is sent, and runs it with no heartbeat to wait for', async () => {
+    await hearAllThatWasSaid();
+    const waiting = wordWithin(10);
+    await settle();
+    const sent = Date.now();
+    await admin('POST', '/api/admin/commands', { type: 'wake', target: { deviceIds: [deviceId] } });
+    const word = await waiting;
+    expect(word).toEqual({ wake: true, commands: true, config: false });
+    await CloudSyncService.handleWake(word);
+    const [line] = await admin<any[]>('GET', `/api/admin/commands?deviceId=${deviceId}&take=1`);
+    expect(line).toMatchObject({ type: 'wake', status: 'SUCCESS' });
+    expect(Date.now() - sent).toBeLessThan(5000);
+  });
+
+  it('hears of a setting the moment it is sent, and the dashboard knows right away it was applied', async () => {
+    await hearAllThatWasSaid();
+    const waiting = wordWithin(10);
+    await settle();
+    await admin('POST', '/api/admin/commands', { type: 'set_brightness', params: { percent: 42 }, target: { deviceIds: [deviceId] } });
+    const word = await waiting;
+    expect(word).toEqual({ wake: true, commands: false, config: true });
+    await CloudSyncService.handleWake(word);
+    const [line] = await admin<any[]>('GET', `/api/admin/commands?deviceId=${deviceId}&take=1`);
+    expect(line).toMatchObject({ type: 'set_brightness', status: 'SUCCESS' });
+    expect((await StorageService.exportConfig()).display.defaultBrightness).toBe(0.42);
+    expect((await admin('GET', `/api/admin/devices/${deviceId}/config`)).pending).toBeNull();
+  });
+
+  it('measures the clock of the server, to the millisecond', async () => {
+    const { ServerClock } = require('../src/utils/ServerClock');
+    ServerClock._reset();
+    const before = Date.now();
+    const offset = await ServerClock.calibrate(BASE, 3);
+    // Same machine: the same clock
+    expect(Math.abs(offset)).toBeLessThan(200);
+    expect(Date.now() - before).toBeLessThan(3000);
+  });
+
   it('reports a command it cannot run as an error, in words the dashboard can show', async () => {
     mockNativeCommand.mockClear();
     await admin('POST', '/api/admin/commands', { type: 'add_wifi_network', params: { ssid: 'Truong-C', password: 'bi-mat' }, target: { deviceIds: [deviceId] } });
@@ -267,6 +315,26 @@ const INFO = { model: 'SM-X210', manufacturer: 'Samsung', android_version: '16',
     expect(await SignagePlaylist.getActive()).toBeNull();
     expect(await StorageService.getDisplayMode()).toBe('webview');
     await admin('DELETE', `/api/admin/signage/playlists/${playlist.id}`);
+  });
+
+  it('plays a list with the start the server gives every screen, and the length of a video in it', async () => {
+    const creds = await getCloudCredentials();
+    const playlist = await admin('POST', '/api/admin/signage/playlists', { name: `Đồng bộ ${Date.now()}` });
+    await admin('PUT', `/api/admin/signage/playlists/${playlist.id}/items`, { items: [{ kind: 'image', url: 'https://example.com/a.png', durationSeconds: 5 }] });
+    const before = Date.now();
+    await admin('PUT', `/api/admin/signage/playlists/${playlist.id}/assign`, { deviceIds: [deviceId], groupIds: [] });
+    await beat();
+    const active = await SignagePlaylist.getActive();
+    expect(active.items).toHaveLength(1);
+    expect(typeof active.syncEpochMs).toBe('number');
+    expect(active.syncEpochMs).toBeGreaterThan(before - 60_000);
+    await admin('POST', `/api/admin/signage/playlists/${playlist.id}/restart`);
+    await beat();
+    expect((await SignagePlaylist.getActive()).syncEpochMs).toBeGreaterThanOrEqual(active.syncEpochMs);
+    await admin('PUT', `/api/admin/signage/playlists/${playlist.id}/assign`, { deviceIds: [], groupIds: [] });
+    await admin('DELETE', `/api/admin/signage/playlists/${playlist.id}`);
+    await beat();
+    expect(creds.deviceId).toBe(deviceId);
   });
 
   it('takes the name given in the dashboard, at the next heartbeat', async () => {

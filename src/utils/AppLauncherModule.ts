@@ -5,6 +5,7 @@ export interface AppInfo {
   appName: string;
   /** From getInstalledApps, for the report to the management website */
   versionCode?: number;
+  versionName?: string | null;
 }
 
 /** Extended app info including non-UI packages (services, VPNs, etc.) */

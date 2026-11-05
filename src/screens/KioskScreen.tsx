@@ -291,6 +291,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // Digital signage: the other playlists of a schedule (kept in the cache ahead of their time),
   // whether the cloud gave a schedule, and which playlist plays now
   const [signagePrefetch, setSignagePrefetch] = useState<MediaItem[]>([]);
+  const [signageSyncEpoch, setSignageSyncEpoch] = useState<number | null>(null);
   const [signageScheduled, setSignageScheduled] = useState<boolean>(false);
   const signageActiveIdRef = useRef<string | null>(null);
   // True while the screen plays a playlist FreeKiosk Cloud gave it. Nobody touches such a screen, so
@@ -411,8 +412,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   useEffect(() => { displayModeRef.current = displayMode; }, [displayMode]);
 
   // Digital signage: with a schedule the clock decides which playlist plays. Look again every
-  // 30 seconds and swap the list only when the playlist changed (the player restarts from the
-  // first item on a new list). A new version from the cloud takes the reload path instead.
+  // few seconds, so that screens change together, and swap the list only when the playlist changed
+  // (it starts from its first item). A new version from the cloud takes the reload path instead.
   useEffect(() => {
     if (displayMode !== 'media_player') return undefined;
     const timer = setInterval(async () => {
@@ -420,7 +421,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       if (!active || !active.scheduled || active.id === signageActiveIdRef.current) return;
       signageActiveIdRef.current = active.id;
       setMediaPlayerItems(active.items);
-    }, 30_000);
+      setSignageSyncEpoch(active.syncEpochMs);
+    }, 5_000);
     return () => clearInterval(timer);
   }, [displayMode]);
 
@@ -2188,6 +2190,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         const mpCacheLimitMb = num(K.MEDIA_PLAYER_CACHE_LIMIT_MB, DEFAULT_MEDIA_CACHE_LIMIT_MB);
         setMediaPlayerItems(mpItems);
         setSignagePrefetch(cloudPlaylist?.prefetch ?? []);
+        setSignageSyncEpoch(cloudPlaylist?.syncEpochMs ?? null);
         setSignageScheduled(!!cloudPlaylist?.scheduled);
         signageActiveIdRef.current = cloudPlaylist ? cloudPlaylist.id : null;
         setSignageManaged(!!cloudPlaylist);
@@ -3202,6 +3205,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             cacheOffline={mediaPlayerCache}
             unattended={mediaPlayerUnattended}
             prefetchItems={signagePrefetch}
+            syncEpochMs={signageSyncEpoch}
             emptyIsBlank={signageScheduled}
             cacheLimitMb={mediaPlayerCacheLimitMb}
             onUserInteraction={onUserInteraction}

@@ -22,7 +22,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StorageService } from './storage';
 import type { MediaItem } from '../types/mediaPlayer';
-import { activePlaylistId } from './SignageSchedule';
+import { activePlaylistId, activeRuleStart } from './SignageSchedule';
 import { ServerClock } from './ServerClock';
 import type { Schedule, ScheduleRule } from './SignageSchedule';
 
@@ -41,6 +41,7 @@ export interface ManifestItem {
   url?: unknown;
   title?: unknown;
   duration_seconds?: unknown;
+  duration_ms?: unknown;
   video_id?: unknown;
 }
 
@@ -58,10 +59,12 @@ export interface PlaylistManifest {
   version: string | null;
   playlist: { id?: string; name?: string } | null;
   items: ManifestItem[];
+  /** When the playlist began: every screen works out where it should be from this */
+  sync_epoch_ms?: unknown;
   /** Only when the device has schedule rules */
   schedule?: {
     default_playlist?: unknown;
-    playlists?: Record<string, { name?: unknown; items?: ManifestItem[] }>;
+    playlists?: Record<string, { name?: unknown; items?: ManifestItem[]; sync_epoch_ms?: unknown }>;
     rules?: unknown;
   } | null;
 }
@@ -77,14 +80,19 @@ export interface ActivePlaylist {
   scheduled: boolean;
   /** Every file of the schedule, to keep in the offline cache (empty without a schedule) */
   prefetch: MediaItem[];
+  /** When what plays now began, to play it in step with other screens. Null from an older cloud */
+  syncEpochMs: number | null;
 }
 
 interface StoredPlaylist {
   version: string;
   name: string;
   items: MediaItem[];
+  syncEpochMs?: number;
   schedule?: Schedule<MediaItem[]>;
 }
+
+const epochOf = (value: unknown): number | undefined => (typeof value === 'number' && value > 0 ? value : undefined);
 
 interface Credentials {
   cloudUrl: string;
@@ -122,6 +130,7 @@ export function manifestToItems(items: ManifestItem[] | undefined | null): Media
       if (kind !== 'video' && kind !== 'image' && kind !== 'web') continue;
       if (!/^https?:\/\/\S+$/i.test(url)) continue;
       item = { id, url, type: kind, isLocal: false };
+      if (kind === 'video' && typeof raw.duration_ms === 'number' && raw.duration_ms > 0) item.durationMs = Math.round(raw.duration_ms);
       // A duration only means something for an image and a web page: a video plays to its end
       if (kind === 'image' && seconds !== null) item.duration = seconds;
       // A page has no end of its own: it always has a duration
@@ -144,7 +153,8 @@ export function parseSchedule(raw: PlaylistManifest['schedule']): Schedule<Media
   const playlists: Schedule<MediaItem[]>['playlists'] = {};
   for (const [id, block] of Object.entries(raw.playlists)) {
     if (!block || typeof block !== 'object') continue;
-    playlists[id] = { name: typeof block.name === 'string' ? block.name : '', items: manifestToItems(block.items) };
+    const syncEpochMs = epochOf(block.sync_epoch_ms);
+    playlists[id] = { name: typeof block.name === 'string' ? block.name : '', items: manifestToItems(block.items), ...(syncEpochMs ? { syncEpochMs } : {}) };
   }
   const rules: ScheduleRule[] = [];
   for (const rule of Array.isArray(raw.rules) ? raw.rules : []) {
@@ -215,7 +225,7 @@ export const SignagePlaylist = {
       const name = typeof parsed.name === 'string' ? parsed.name : '';
       const schedule = parsed.schedule;
       if (!schedule || typeof schedule !== 'object' || !schedule.playlists) {
-        return { version: parsed.version, name, items: parsed.items, id: 'default', scheduled: false, prefetch: [] };
+        return { version: parsed.version, name, items: parsed.items, id: 'default', scheduled: false, prefetch: [], syncEpochMs: parsed.syncEpochMs ?? null };
       }
       const id = activePlaylistId(schedule, now);
       const active = id ? schedule.playlists[id] : null;
@@ -236,6 +246,7 @@ export const SignagePlaylist = {
         id: id ?? '',
         scheduled: true,
         prefetch,
+        syncEpochMs: active ? activeRuleStart(schedule, now) ?? active.syncEpochMs ?? null : null,
       };
     } catch {
       return null;
@@ -278,6 +289,7 @@ export const SignagePlaylist = {
         version,
         name: manifest.playlist?.name ?? '',
         items,
+        ...(epochOf(manifest.sync_epoch_ms) ? { syncEpochMs: epochOf(manifest.sync_epoch_ms) } : {}),
         ...(schedule ? { schedule } : {}),
       } as StoredPlaylist));
       await AsyncStorage.setItem(KEY_VERSION, version);

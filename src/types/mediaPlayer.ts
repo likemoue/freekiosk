@@ -12,6 +12,7 @@ export interface MediaItem {
   type: MediaItemType;
   title?: string;
   duration?: number; // Display duration in seconds (images and web pages; videos use their own; a YouTube video: an optional cap)
+  durationMs?: number; // Length of a video, from the cloud: what keeps screens in step
   videoId?: string; // YouTube video id, only for type 'youtube'
   isLocal?: boolean; // True if the file is from device storage (file:// URI)
   fileName?: string; // Original filename for local files

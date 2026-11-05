@@ -165,6 +165,7 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                         appData.putString("packageName", packageInfo.packageName)
                         appData.putString("appName", appName)
                         appData.putDouble("versionCode", versionCodeOf(pm, packageInfo.packageName))
+                        appData.putString("versionName", versionNameOf(pm, packageInfo.packageName))
                         appList.add(appData)
                     }
                 }
@@ -183,6 +184,14 @@ class AppLauncherModule(reactContext: ReactApplicationContext) : ReactContextBas
                 DebugLog.errorProduction("AppLauncherModule", "Failed to get installed apps: ${e.message}")
                 promise.reject("ERROR_GET_APPS", "Failed to get installed apps: ${e.message}")
             }
+        }
+    }
+
+    private fun versionNameOf(pm: PackageManager, packageName: String): String? {
+        return try {
+            pm.getPackageInfo(packageName, 0).versionName
+        } catch (e: Exception) {
+            null
         }
     }
 
