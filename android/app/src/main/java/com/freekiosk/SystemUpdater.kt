@@ -242,6 +242,7 @@ object SystemUpdater {
         var reportedPercent = -1
         var reportedAt = 0L
         var openedAt = 0L
+        var pressedAt = SystemClock.elapsedRealtime()
         keepScreenOn(app, true)
         try {
             Thread.sleep(delayMs)
@@ -297,7 +298,17 @@ object SystemUpdater {
                     }
                     pkg == SETTINGS && stage == "opening" -> {
                         val item = findByText(root, DOWNLOAD_AND_INSTALL) ?: firstTitle(root)
-                        if (item != null && click(item)) moveTo("checking")
+                        if (item != null && click(item)) {
+                            pressedAt = now
+                            moveTo("checking")
+                        }
+                    }
+                    pkg == SETTINGS && (stage == "checking" || stage == "downloading") && now - pressedAt > 10_000L -> {
+                        // Back on the page with nothing of Samsung's in front: its screen was covered, or the
+                        // press went nowhere. Samsung takes it again as the same check, or shows the download
+                        // under way, and its percent with it
+                        val item = findByText(root, DOWNLOAD_AND_INSTALL) ?: firstTitle(root)
+                        if (item != null && click(item)) pressedAt = now
                     }
                     pkg != FOTA && pkg != SETTINGS && stage != "installing" && now - openedAt > 20_000L -> {
                         // Not in front, at first or after someone left it: Samsung goes on downloading in the

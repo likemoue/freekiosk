@@ -281,7 +281,7 @@ class KioskWatchdogService : Service() {
             // up is not a managed app), and a stale external-app package does not either.
             val foreground = getForegroundPackageFromEvents()
             if (foreground != null && foreground != packageName &&
-                foreground in getManagedAppPackages()) return
+                (foreground in getManagedAppPackages() || foreground in SystemUpdater.lockTaskPackages(this))) return
         }
 
         val now = System.currentTimeMillis()
@@ -477,6 +477,9 @@ class KioskWatchdogService : Service() {
         val packages = mutableListOf(packageName)
         getExternalAppPackage()?.let { packages.add(it) }
         packages.addAll(getManagedAppPackages())
+        // Samsung's update screens, while the website has asked for an Android update: dragged back over,
+        // its Tải về button was gone 0.2 seconds after it came (SM-X210 #8)
+        packages.addAll(SystemUpdater.lockTaskPackages(this))
         return packages.distinct()
     }
 
