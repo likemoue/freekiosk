@@ -426,6 +426,105 @@ describe('the apps on the home screen', () => {
     });
   });
 
+  describe('an app the home screen names and the tablet lacks', () => {
+    const profileWith = (name: string, managedApps: unknown[]) =>
+      admin.json<any>('POST', '/api/admin/profiles', { name, config: { general: { displayMode: 'external_app', externalApp: { mode: 'multi' }, managedApps } } });
+    const updatesOf = async (tablet: FakeTablet) => (await (await tablet.get('updates')).json()) as any[];
+    const autoLines = async (tablet: FakeTablet) => (await historyOf(tablet)).filter((line) => line.source === 'home_missing');
+
+    it('is installed from the library on a tablet enrolled with a profile, and shown once it is there', async () => {
+      const apk = await uploaded('vn.auto.iclass', 'iclass.apk');
+      const profile = await profileWith('Hồ sơ tự cài', [app('vn.auto.iclass', 'iCLASS')]);
+      const tablet = await enrolled({ token: { profileId: profile.id } });
+      // The profile comes with the first heartbeat, then the tablet says what it has
+      const first = await tablet.heartbeat();
+      assert.deepEqual(first.data.config.general.managedApps.map((a: any) => a.packageName), ['vn.auto.iclass']);
+      await post(tablet, 'apps', { hash: 'fresh', apps: installed('vn.auto.other') });
+
+      const [update, ...more] = await updatesOf(tablet);
+      assert.equal(more.length, 0);
+      assert.ok(update.download_url.includes(apk.id));
+      // Off the screen while it installs: the grid looks at its apps again only when its list changes
+      const hidden = await pushed(tablet);
+      assert.deepEqual(hidden.managedApps.map((a: any) => [a.packageName, a.showOnHomeScreen]), [['vn.auto.iclass', false]]);
+
+      await tablet.sendResult(update.command_id, 'success', { install_status: 'success' });
+      const shown = await pushed(tablet);
+      assert.deepEqual(shown.managedApps.map((a: any) => [a.packageName, a.showOnHomeScreen]), [['vn.auto.iclass', true]]);
+      await tablet.heartbeat(); // has it
+
+      const lines = await autoLines(tablet);
+      assert.deepEqual(lines.map((line) => [line.type, line.status, line.createdBy]).sort(), [['home_apps', 'SUCCESS', null], ['install_apk', 'SUCCESS', null]]);
+      assert.deepEqual(lines.find((line) => line.type === 'home_apps').params.wait_install, ['iCLASS']);
+      const log = await server.prisma.activityLog.findFirst({ where: { action: 'apk.auto_install', deviceId: tablet.deviceId } });
+      assert.match(log!.message, /Tự cài iCLASS lên/);
+    });
+
+    it('is tried once: an install that failed waits for someone to send it again', async () => {
+      await uploaded('vn.auto.fails');
+      const tablet = await tabletWith([app('vn.auto.fails', 'Hỏng')], ['vn.do.iclass']);
+      const [update] = await updatesOf(tablet);
+      await tablet.sendResult(update.command_id, 'error', null, 'Install failed (status 1): INSTALL_FAILED_INTERNAL_ERROR');
+
+      // A new list, and a heartbeat with it: still nothing more
+      await post(tablet, 'apps', { hash: 'again', apps: installed('vn.do.iclass', 'vn.do.chrome') });
+      await tablet.heartbeat({ ...reported([app('vn.auto.fails', 'Hỏng')]), installed_apps_hash: 'again' });
+      assert.deepEqual(await updatesOf(tablet), []);
+      assert.equal((await autoLines(tablet)).filter((line) => line.type === 'install_apk').length, 1);
+      // The picker sends it again
+      assert.equal((await apply({ deviceIds: [tablet.deviceId] }, { add: ['vn.auto.fails'] })).installs, 1);
+    });
+
+    it('leaves alone an app the library does not have', async () => {
+      const tablet = await tabletWith([app('vn.auto.nowhere')], ['vn.do.iclass']);
+      assert.deepEqual(await updatesOf(tablet), []);
+      assert.deepEqual(await autoLines(tablet), []);
+      assert.equal((await tablet.heartbeat()).data.config, null);
+    });
+
+    it('reaches a tablet already lacking it once the library has it, at its next heartbeat', async () => {
+      const home = [app('vn.auto.later', 'Sau')];
+      const tablet = await tabletWith(home, ['vn.do.iclass']);
+      const hash = `h-${tablet.deviceId}`;
+      await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      assert.deepEqual(await updatesOf(tablet), []);
+
+      await uploaded('vn.auto.later');
+      await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      assert.equal((await updatesOf(tablet)).length, 1);
+      // And not twice
+      await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      assert.equal((await autoLines(tablet)).filter((line) => line.type === 'install_apk').length, 1);
+    });
+
+    it('says once why a tablet cannot get it, and hides nothing', async () => {
+      await uploaded('vn.auto.owner');
+      const tablet = await tabletWith([app('vn.auto.owner')], ['vn.do.iclass'], { capabilities: ['screen'] });
+      const [line, ...others] = await autoLines(tablet);
+      assert.equal(others.length, 0);
+      assert.equal(line.status, 'ERROR');
+      assert.match(line.errorMessage, /Device Owner/);
+
+      await post(tablet, 'apps', { hash: 'again', apps: installed('vn.do.iclass', 'vn.do.chrome') });
+      assert.equal((await autoLines(tablet)).length, 1);
+      assert.equal((await tablet.heartbeat()).data.config, null);
+    });
+
+    it('takes, of two files of one version, the one tablets were given before', async () => {
+      const given = await uploaded('vn.auto.twin', 'twin.apk');
+      // Uploaded after it, the same version: on its own it would come first
+      await uploaded('vn.auto.twin', 'twin-staging.apk');
+      const earlier = await tabletWith([app('vn.do.iclass')], ['vn.do.iclass']);
+      await server.prisma.command.create({
+        data: { deviceId: earlier.deviceId, type: 'install_apk', params: { apk_id: given.id, package_name: 'vn.auto.twin' }, status: 'SUCCESS', expiresAt: new Date(Date.now() + 86_400_000) },
+      });
+
+      const tablet = await tabletWith([app('vn.auto.twin')], ['vn.do.iclass']);
+      const [update] = await updatesOf(tablet);
+      assert.ok(update.download_url.includes(given.id));
+    });
+  });
+
   describe('the command history', () => {
     it('keeps a line for each tablet, in words, without sending the tablet a command', async () => {
       const tablet = await tabletWith([app('vn.hist.iclass', 'iCLASS'), app('vn.hist.old', 'Cũ')], ['vn.hist.iclass', 'vn.hist.old', 'vn.hist.chrome']);

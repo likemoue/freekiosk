@@ -142,6 +142,40 @@ describe('apps taken from a tablet, apps removed, and the screen live', () => {
       assert.deepEqual(line.params.remove, ['iCLASS']);
     });
 
+    it('counts as done when Android keeps some apps, says which, and takes the others off the screen', async () => {
+      const tablet = await enrolled();
+      const managedApps = [
+        { packageName: 'vn.iclass', displayName: 'iCLASS', showOnHomeScreen: true },
+        { packageName: 'com.samsung.android.gru', displayName: 'Galaxy Resource Updater', showOnHomeScreen: true },
+      ];
+      await beat(tablet, { config: { general: { displayMode: 'external_app', externalApp: { mode: 'multi' }, managedApps } } });
+      const params = { packages: ['vn.iclass', 'com.samsung.android.gru', 'vn.gone'], labels: ['iCLASS', 'Galaxy Resource Updater', 'Gone'] };
+      assert.equal((await send('uninstall_app', params, [tablet.deviceId])).status, 201);
+      const [command] = await take(tablet);
+      // What 2.1.0-beta.15 answers: an error, with its lists
+      const failed = ['com.samsung.android.gru: status 1: DELETE_FAILED_INTERNAL_ERROR'];
+      await tablet.sendResult(command.id, 'error', { removed: ['vn.iclass'], missing: ['vn.gone'], failed }, `Could not uninstall ${failed[0]}`);
+
+      const row = await server.prisma.command.findUniqueOrThrow({ where: { id: command.id } });
+      assert.equal(row.status, 'SUCCESS');
+      assert.equal(row.errorMessage, null);
+      assert.deepEqual((row.result as any).failed, failed);
+      const device = await server.prisma.device.findUniqueOrThrow({ where: { id: tablet.deviceId } });
+      assert.deepEqual((device.pendingConfig as any).general.managedApps.map((app: any) => app.packageName), ['com.samsung.android.gru']);
+      assert.equal(await server.prisma.activityLog.count({ where: { action: 'command.failed', deviceId: tablet.deviceId } }), 0);
+    });
+
+    it('is still a failure when the tablet could not go through the list at all', async () => {
+      const tablet = await enrolled();
+      await beat(tablet);
+      await send('uninstall_app', { packages: ['vn.iclass'] }, [tablet.deviceId]);
+      const [command] = await take(tablet);
+      await tablet.sendResult(command.id, 'error', null, 'Uninstalling apps requires Device Owner mode.');
+      const row = await server.prisma.command.findUniqueOrThrow({ where: { id: command.id } });
+      assert.equal(row.status, 'ERROR');
+      assert.match(row.errorMessage ?? '', /Device Owner/);
+    });
+
     it('never FreeKiosk itself', async () => {
       const tablet = await enrolled();
       const response = await send('uninstall_app', { packages: ['com.freekiosk'] }, [tablet.deviceId]);

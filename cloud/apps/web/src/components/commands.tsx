@@ -283,8 +283,9 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
   if (command.type === 'launch_app') return params.label || params.package_name || null;
   if (command.type === 'uninstall_app') {
     const names = Array.isArray(params.labels) && params.labels.length ? params.labels : params.packages;
+    const removed = Array.isArray(command.result?.removed) ? `Đã gỡ ${command.result.removed.length} ứng dụng` : '';
     const missing = Array.isArray(command.result?.missing) ? command.result.missing.length : 0;
-    return [Array.isArray(names) ? names.join(', ') : '', missing ? `Máy không có ${missing} ứng dụng` : ''].filter(Boolean).join('. ') || null;
+    return [Array.isArray(names) ? names.join(', ') : '', removed, missing ? `Máy không có ${missing} ứng dụng` : ''].filter(Boolean).join('. ') || null;
   }
   if (command.type === 'pull_apk') {
     const result = command.result ?? {};
@@ -315,11 +316,40 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
       params.add?.length ? `Thêm ${params.add.join(', ')}` : '',
       params.remove?.length ? `Gỡ ${params.remove.join(', ')}` : '',
       params.switch_to_multi ? 'Chuyển sang chế độ nhiều ứng dụng' : '',
+      params.wait_install?.length ? `Ẩn ${params.wait_install.join(', ')} đến khi máy cài xong` : '',
     ];
     return parts.filter(Boolean).join('. ') || null;
   }
   return Object.keys(params).length ? JSON.stringify(params).slice(0, 80) : null;
 }
+
+/**
+ * What a tablet could not remove, by name: most often an app that came with it, which Android keeps. The
+ * others went all the same, so the command is a warning rather than a failure (the server says so).
+ */
+function uninstallWarning(command: { type: string; status: string; params?: Record<string, any>; result?: Record<string, any> | null }): string | null {
+  if (command.type !== 'uninstall_app' || command.status !== 'SUCCESS') return null;
+  const failed: string[] = Array.isArray(command.result?.failed) ? command.result.failed.map(String) : [];
+  if (!failed.length) return null;
+  const packages: unknown[] = Array.isArray(command.params?.packages) ? command.params.packages : [];
+  const labels: unknown[] = Array.isArray(command.params?.labels) ? command.params.labels : [];
+  // Each line is "package: what Android said"
+  const names = failed.map((line) => {
+    const packageName = line.split(':')[0].trim();
+    const label = labels[packages.indexOf(packageName)];
+    return typeof label === 'string' && label ? label : packageName;
+  });
+  const builtIn = failed.every((line) => line.includes('DELETE_FAILED_INTERNAL_ERROR'));
+  return `Không gỡ được ${names.join(', ')}${builtIn ? ': thường là ứng dụng có sẵn theo máy, Android không cho gỡ' : ''}.`;
+}
+
+/**
+ * Who a line is from: someone, the schedule, or the website on its own (HomeAppsService.installMissing,
+ * and the app joining the screen after such an install, which has nobody to name either)
+ */
+const senderOf = (command: { createdBy?: string | null; source?: string | null }) =>
+  command.createdBy ??
+  (command.source?.startsWith('schedule') ? 'Lịch hẹn giờ' : command.source === 'home_missing' || command.source === 'after_install' ? 'Tự động' : '—');
 
 // What a tablet answers in its own terms, in words. The original stays on hover
 const COMMAND_ERRORS: Array<[RegExp, string]> = [
@@ -450,7 +480,8 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
           </thead>
           <tbody>
             {rows.map((command) => {
-              const status = COMMAND_STATUS[command.status];
+              const warning = uninstallWarning(command);
+              const status = warning ? { label: 'Cảnh báo', tone: 'warn' as const } : COMMAND_STATUS[command.status];
               const detail = commandDetail(command);
               return (
                 <tr key={command.id} data-line={command.id} className={trow}>
@@ -460,9 +491,10 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
                     <span className="font-medium">{COMMAND_LABELS[command.type] ?? command.type}</span>
                     {detail && <span className="ml-2 break-words text-xs text-soft">{detail}</span>}
                     {command.errorMessage && <p className="mt-0.5 text-xs text-bad" title={command.errorMessage}>{errorInWords(command.errorMessage)}</p>}
+                    {warning && <p className="mt-0.5 text-xs text-warn" title={command.result.failed.join('\n')}>{warning}</p>}
                   </td>
                   <td className={td}><Badge tone={status.tone}>{status.label}</Badge></td>
-                  <td className={clsx(td, 'text-soft')}>{command.createdBy ?? (command.source?.startsWith('schedule') ? 'Lịch hẹn giờ' : '—')}</td>
+                  <td className={clsx(td, 'text-soft')}>{senderOf(command)}</td>
                   <td className={clsx(td, 'text-right')}>
                     {command.status === 'PENDING' && can.operate && (
                       <Button size="sm" variant="ghost" onClick={() => cancel.mutate(command.id)}>Hủy</Button>

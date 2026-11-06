@@ -193,7 +193,7 @@ export function whyCannotInstall(capabilities: string[], apk: { storageKey: stri
  * A silent install of an uploaded APK, delivered through GET updates. It lives for a week rather
  * than an hour: a tablet switched off for the weekend still gets it.
  */
-export function installCommandData(deviceId: string, apk: ApkPackage, actor: User, extra: Record<string, unknown> = {}, batchId?: string): Prisma.CommandCreateManyInput {
+export function installCommandData(deviceId: string, apk: ApkPackage, actor: Pick<User, 'id' | 'email'> | { id: null; email: null }, extra: Record<string, unknown> = {}, batchId?: string): Prisma.CommandCreateManyInput {
   return {
     deviceId,
     type: 'install_apk',

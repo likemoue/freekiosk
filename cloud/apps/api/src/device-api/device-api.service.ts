@@ -1,4 +1,4 @@
-import { BadRequestException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, GoneException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Device, EnrollmentToken } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { ActivityService } from '../common/activity.service';
@@ -76,6 +76,8 @@ const INTERRUPTED_MESSAGE = 'Device restarted before the command result could be
 
 @Injectable()
 export class DeviceApiService {
+  private readonly logger = new Logger(DeviceApiService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wake: DeviceWakeService,
@@ -302,6 +304,8 @@ export class DeviceApiService {
       await this.activity.log({ action: 'config.applied', message: `${device.name} đã áp dụng cấu hình mới`, device });
     }
     void this.alerts.onHeartbeat(updated);
+    // Once its list of apps is current, a tablet gets the apps its home screen names and lacks
+    if (appsHash && appsHash === updated.installedAppsHash && !device.forceUnenroll) await this.installMissing(updated);
 
     const pendingCommands = await this.prisma.command.count({
       where: { deviceId: device.id, status: 'PENDING', expiresAt: { gt: now } },
@@ -401,6 +405,13 @@ export class DeviceApiService {
     if (!command) throw new NotFoundException({ error: 'Không tìm thấy lệnh' });
     let ok = body.status === 'success';
     let errorMessage = str(body.error_message, 2000);
+    // An app Android will not remove, most often one that came with the tablet, is a warning: the tablet
+    // went on with the others, and its lists say which went (the website words it). Up to 2.1.0-beta.15
+    // the app calls the command failed then; only one it could not go through at all comes without lists
+    if (command.type === 'uninstall_app' && !ok && Array.isArray(obj(body.result).failed)) {
+      ok = true;
+      errorMessage = undefined;
+    }
     // The tablet says what it found, also when it found nothing: the reason is put in words here
     if (command.type === 'locate' && ok) {
       const report = obj(obj(body.result).location);
@@ -518,11 +529,22 @@ export class DeviceApiService {
       }
     }
 
-    await this.prisma.device.update({
+    const updated = await this.prisma.device.update({
       where: { id: device.id },
       data: { installedApps: apps as unknown as Prisma.InputJsonValue, installedAppsHash: hash, appIconsWanted: true },
     });
+    // A tablet just enrolled with a profile says here for the first time what it has
+    await this.installMissing(updated);
     return { icons_wanted: await this.nextIcons(device.id, apps) };
+  }
+
+  /** Never in the way of the heartbeat or the list that asked for it */
+  private async installMissing(device: Device): Promise<void> {
+    try {
+      await this.homeApps.installMissing(device);
+    } catch (error) {
+      this.logger.warn(`Could not install what ${device.name} lacks: ${(error as Error).message}`);
+    }
   }
 
   /** Icons for the packages it reported. One it could not read is noted, so nobody asks for it again */
