@@ -44,6 +44,11 @@ namespace CaiTablet
         readonly System.Windows.Forms.Timer spinnerTimer = new System.Windows.Forms.Timer { Interval = 180 };
 
         readonly string updatedFrom;
+        /// <summary>A newer tool on the website, offered at the start and kept in the band for later</summary>
+        readonly Button updateButton = Theme.BandButton("Có bản mới");
+        UpdateInfo available;
+        Panel headerPanel;
+        FlowLayoutPanel headerActions;
         Settings settings;
         Installer installer;
         Thread worker;
@@ -127,18 +132,32 @@ namespace CaiTablet
             var historyButton = Theme.BandButton("Lịch sử");
             historyButton.Click += delegate { OpenHistory(); };
 
+            // White on the blue band: an offer someone put off should still catch the eye
+            updateButton.Visible = false;
+            updateButton.BackColor = Color.White;
+            updateButton.ForeColor = Brand;
+            updateButton.Font = Theme.Strong;
+            updateButton.FlatAppearance.MouseOverBackColor = Theme.OnBrand;
+            updateButton.FlatAppearance.MouseDownBackColor = Theme.OnBrandLine;
+            updateButton.Click += delegate { OfferUpdate(); };
+
             var actions = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Anchor = AnchorStyles.Top | AnchorStyles.Right, BackColor = Brand };
             actions.Controls.Add(settingsButton);
             actions.Controls.Add(historyButton);
+            actions.Controls.Add(updateButton);
             header.Controls.Add(actions);
             header.Controls.Add(title);
             header.Controls.Add(serverLabel);
-            header.Resize += delegate
-            {
-                actions.Location = new Point(header.ClientSize.Width - actions.Width - 14, (header.ClientSize.Height - actions.Height) / 2);
-                serverLabel.Width = Math.Max(100, actions.Left - serverLabel.Left - 12);
-            };
+            headerPanel = header;
+            headerActions = actions;
+            header.Resize += delegate { PlaceHeaderActions(); };
             return header;
+        }
+
+        void PlaceHeaderActions()
+        {
+            headerActions.Location = new Point(headerPanel.ClientSize.Width - headerActions.Width - 14, (headerPanel.ClientSize.Height - headerActions.Height) / 2);
+            serverLabel.Width = Math.Max(100, headerActions.Left - serverLabel.Left - 12);
         }
 
         Control BuildBody()
@@ -273,11 +292,7 @@ namespace CaiTablet
                 UpdateResult result;
                 try
                 {
-                    result = CapNhat.Run(settings.ServerUrl, Folder, delegate (string line) { ShowStatus("Đang cập nhật công cụ", line, Tone.Working); }, stop.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
+                    result = CapNhat.Check(settings.ServerUrl);
                 }
                 catch (Exception error)
                 {
@@ -291,21 +306,59 @@ namespace CaiTablet
         void AfterUpdateCheck(UpdateResult result)
         {
             Log(result.Message);
-            if (result.Outcome == UpdateOutcome.Updated)
+            if (result.Outcome == UpdateOutcome.Available)
             {
-                ShowStatus("Đã tải bản " + result.Version, "Công cụ tự mở lại bằng bản mới.", Tone.Success);
-                try
-                {
-                    Process.Start(new ProcessStartInfo(Application.ExecutablePath, CapNhat.AfterUpdateArgument + " " + PhienBan.Hien) { UseShellExecute = false, WorkingDirectory = Folder });
-                    Close();
-                }
-                catch (Exception error)
-                {
-                    ShowStatus("Không tự mở lại được", error.Message + ". Hãy đóng rồi mở lại công cụ để dùng bản mới.", Tone.Attention);
-                }
-                return;
+                available = result.Info;
+                updateButton.Text = "Có bản mới " + result.Version;
+                updateButton.Visible = true;
+                PlaceHeaderActions();
+                // Asked before anything touches a tablet; put off, the tablets are installed with this copy
+                if (OfferUpdate()) return;
             }
             Prepare();
+        }
+
+        /// <summary>True when the new version is in place and the tool is opening again as it</summary>
+        bool OfferUpdate()
+        {
+            if (available == null) return false;
+            if (Installing)
+            {
+                MessageBox.Show(this, "Công cụ đang cài dở một tablet. Đợi xong rồi bấm cập nhật.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return false;
+            }
+            using (var form = new UpdateForm(available, Folder))
+            {
+                if (form.ShowDialog(this) != DialogResult.OK)
+                {
+                    Log("Để cập nhật lên bản " + available.Version + " sau: nút Có bản mới trên thanh tiêu đề.");
+                    return false;
+                }
+            }
+            string version = available.Version;
+            // The files of the folder are the new ones now: nothing left to offer
+            available = null;
+            updateButton.Visible = false;
+            PlaceHeaderActions();
+            if (Installing)
+            {
+                // A tablet plugged in while the window was open: it finishes with this copy rather than be cut off
+                Log("Đã cập nhật công cụ lên bản " + version + ". Công cụ đang cài dở một tablet nên chưa mở lại.");
+                MessageBox.Show(this, "Đã tải bản " + version + ". Công cụ đang cài dở một tablet nên chưa tự mở lại: cài xong tablet này thì đóng rồi mở lại công cụ để dùng bản mới.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+            Log("Đã cập nhật công cụ lên bản " + version + ", công cụ tự mở lại.");
+            ShowStatus("Đã cập nhật lên bản " + version, "Công cụ tự mở lại bằng bản mới.", Tone.Success);
+            try
+            {
+                Process.Start(new ProcessStartInfo(Application.ExecutablePath, CapNhat.AfterUpdateArgument + " " + PhienBan.Hien) { UseShellExecute = false, WorkingDirectory = Folder });
+                Close();
+            }
+            catch (Exception error)
+            {
+                ShowStatus("Không tự mở lại được", error.Message + ". Hãy đóng rồi mở lại công cụ để dùng bản mới.", Tone.Attention);
+            }
+            return true;
         }
 
         void Prepare()
@@ -386,9 +439,15 @@ namespace CaiTablet
             serverLabel.Text = "Website: " + website + "   ·   Wi-Fi: " + (settings.WifiName != "" ? settings.WifiName : "chưa nhập") + "   ·   Cấu hình: " + config;
         }
 
+        /// <summary>A tablet is being set up: closing or restarting now would cut it off</summary>
+        bool Installing
+        {
+            get { return spinning != null || (installer != null && installer.Busy); }
+        }
+
         void OnClosing(object sender, FormClosingEventArgs e)
         {
-            if (spinning != null && !closing && e.CloseReason == CloseReason.UserClosing)
+            if (Installing && !closing && e.CloseReason == CloseReason.UserClosing)
             {
                 if (MessageBox.Show(this, "Công cụ đang cài dở một tablet. Vẫn đóng?", Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 {

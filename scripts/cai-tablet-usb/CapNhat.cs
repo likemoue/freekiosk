@@ -13,13 +13,26 @@ using System.Web.Script.Serialization;
 
 namespace CaiTablet
 {
-    enum UpdateOutcome { UpToDate, Updated, Skipped, Failed }
+    enum UpdateOutcome { UpToDate, Available, Updated, Skipped, Failed }
 
     sealed class UpdateResult
     {
         public UpdateOutcome Outcome;
         public string Message;
         public string Version;
+        /// <summary>What the website offers, when <see cref="Outcome"/> is Available</summary>
+        public UpdateInfo Info;
+    }
+
+    /// <summary>A newer version on the website, as it describes it</summary>
+    sealed class UpdateInfo
+    {
+        public string BaseUrl;
+        public string Version;
+        public string ApkVersion;
+        public long Size;
+        public string Sha256;
+        public string Download;
     }
 
     sealed class UpdateError : Exception
@@ -32,8 +45,9 @@ namespace CaiTablet
 
     /// <summary>
     /// The tool keeps itself up to date from the website, as the tablets do: each start asks for the version
-    /// there, and a newer one is downloaded, checked against the key this copy was built with, and put in
-    /// place of the files of this folder. Windows lets a running program be renamed but not replaced, so the
+    /// there (<see cref="Check"/>), and the person at the PC chooses to take a newer one, which is then
+    /// downloaded, checked against the key this copy was built with, and put in place of the files of this
+    /// folder (<see cref="Apply"/>). Windows lets a running program be renamed but not replaced, so the
     /// old files stay next to the new ones as *.cu until the next start.
     ///
     /// The signature is what this trusts, not the website: a website taken over could otherwise hand every
@@ -86,7 +100,8 @@ namespace CaiTablet
             }
         }
 
-        public static UpdateResult Run(string serverUrl, string folder, Action<string> progress, CancellationToken cancel)
+        /// <summary>Asks the website, nothing more: Available comes with what <see cref="Apply"/> needs</summary>
+        public static UpdateResult Check(string serverUrl)
         {
             if (!VersionPattern.IsMatch(PhienBan.Hien) || PhienBan.KhoaCongKhai == "")
             {
@@ -120,11 +135,29 @@ namespace CaiTablet
             if (version == null || !VersionPattern.IsMatch(version)) return Result(UpdateOutcome.Failed, "Không kiểm tra được bản mới của công cụ: website trả về phiên bản không đọc được.");
             if (string.CompareOrdinal(version, PhienBan.Hien) <= 0) return Result(UpdateOutcome.UpToDate, "Công cụ đang là bản mới nhất (" + PhienBan.Hien + ").");
 
-            string digest = (info["sha256"] as string ?? "").ToLowerInvariant();
-            long size = info.Contains("size") ? Convert.ToInt64(info["size"]) : 0;
             string download = info["download"] as string ?? "/usb-tool-download";
             if (!download.StartsWith("/")) download = "/usb-tool-download";
+            var found = Result(UpdateOutcome.Available, "Có bản mới của công cụ: " + version + ".");
+            found.Version = version;
+            found.Info = new UpdateInfo
+            {
+                BaseUrl = baseUrl,
+                Version = version,
+                ApkVersion = info["apkVersion"] as string,
+                Size = info.Contains("size") ? Convert.ToInt64(info["size"]) : 0,
+                Sha256 = (info["sha256"] as string ?? "").ToLowerInvariant(),
+                Download = download,
+            };
+            return found;
+        }
 
+        /// <summary>
+        /// Downloads the version found, checks it, and swaps its files in, all or nothing. <paramref name="progress"/>
+        /// hears of the bytes received and the size; -1 as the size while the signature is checked.
+        /// </summary>
+        public static UpdateResult Apply(UpdateInfo info, string folder, Action<long, long> progress, CancellationToken cancel)
+        {
+            string version = info.Version;
             try
             {
                 string probe = Path.Combine(folder, ".kiem-tra-ghi");
@@ -140,9 +173,9 @@ namespace CaiTablet
             string archive = Path.Combine(Path.GetTempPath(), "CaiTablet-USB-" + version + ".zip");
             try
             {
-                Download(baseUrl + download, archive, size, version, progress, cancel);
-                if (Sha256(archive) != digest) throw new UpdateError("tệp tải về không khớp mã SHA-256 website báo, có thể đã đứt giữa chừng");
-                progress("Đang kiểm tra chữ ký của bản " + version);
+                Download(info.BaseUrl + info.Download, archive, info.Size, progress, cancel);
+                if (Sha256(archive) != info.Sha256) throw new UpdateError("tệp tải về không khớp mã SHA-256 website báo, có thể đã đứt giữa chừng");
+                progress(0, -1);
                 List<Item> items = Unpack(archive, folder, version);
                 Swap(items);
                 // Left by the first builds that had them in the folder: they would name an old version
@@ -209,7 +242,7 @@ namespace CaiTablet
             }
         }
 
-        static void Download(string url, string file, long size, string version, Action<string> progress, CancellationToken cancel)
+        static void Download(string url, string file, long size, Action<long, long> progress, CancellationToken cancel)
         {
             HttpWebRequest request = Request(url, 60000);
             using (var response = (HttpWebResponse)request.GetResponse())
@@ -225,11 +258,12 @@ namespace CaiTablet
                     cancel.ThrowIfCancellationRequested();
                     output.Write(buffer, 0, read);
                     received += read;
-                    int percent = size > 0 ? (int)(received * 100 / size) / 10 * 10 : -1;
+                    // Each percent at most: the window repaints on each one
+                    int percent = size > 0 ? (int)(received * 100 / size) : (int)(received / 1048576);
                     if (percent != lastShown)
                     {
                         lastShown = percent;
-                        progress("Đang tải bản " + version + (percent >= 0 ? ": " + percent + "% của " + (size / 1048576) + " MB" : ": " + (received / 1048576) + " MB"));
+                        progress(received, size);
                     }
                 }
             }

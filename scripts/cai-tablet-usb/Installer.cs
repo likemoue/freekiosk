@@ -75,6 +75,7 @@ namespace CaiTablet
         readonly CancellationToken stop;
         volatile Settings settings;
         volatile bool retryRequested;
+        volatile bool busy;
 
         // Per tablet being handled
         string serial;
@@ -100,6 +101,15 @@ namespace CaiTablet
         public void RetryFailed()
         {
             retryRequested = true;
+        }
+
+        /// <summary>
+        /// A tablet is being set up, from the first step to the last, including the moments between two
+        /// steps when none shows as running
+        /// </summary>
+        public bool Busy
+        {
+            get { return busy; }
         }
 
         // ─── Watching for tablets ───────────────────────────────────────────────
@@ -135,7 +145,16 @@ namespace CaiTablet
                 AdbDevice next = devices.FirstOrDefault(d => d.State == "device" && !handled.ContainsKey(d.Serial));
                 if (next != null)
                 {
-                    bool ok = Provision(next.Serial);
+                    bool ok;
+                    busy = true;
+                    try
+                    {
+                        ok = Provision(next.Serial);
+                    }
+                    finally
+                    {
+                        busy = false;
+                    }
                     handled[next.Serial] = ok;
                     lastResult = ok;
                     lastModel = model;
