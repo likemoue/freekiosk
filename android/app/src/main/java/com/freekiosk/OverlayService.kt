@@ -14,6 +14,7 @@ import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.net.wifi.WifiManager
 import android.net.ConnectivityManager
@@ -722,6 +723,24 @@ class OverlayService : Service() {
         }
     }
 
+    /**
+     * Keeps the digits of a label of the status bar level with its icons, whatever the system font. The bar
+     * centers each label by its font's box, and some fonts are far from even there: after ZUI 17.0.254 on a
+     * Lenovo Tab M11 the battery percent stood 8 pixels above the battery and Wi-Fi icons. Digits stand on the
+     * baseline and reach the cap height; BarText in StatusBar.tsx does the same for the kiosk screen's bar.
+     */
+    private fun levelDigits(label: TextView) {
+        label.includeFontPadding = false
+        label.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            val text = view as TextView
+            if (text.layout == null || text.height <= 0) return@addOnLayoutChangeListener
+            val cap = Rect().also { text.paint.getTextBounds("T", 0, 1, it) }.height()
+            if (cap <= 0) return@addOnLayoutChangeListener
+            val shift = text.height / 2f - (text.baseline - cap / 2f)
+            if (kotlin.math.abs(text.translationY - shift) >= 0.5f) text.translationY = shift
+        }
+    }
+
     private fun createStatusBar() {
         try {
             // Convertir dp en pixels
@@ -744,6 +763,7 @@ class OverlayService : Service() {
                 tv.setTextColor(Color.WHITE)
                 tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizePx)
                 tv.setPadding(paddingPx / 3, 0, paddingPx / 2, 0)
+                levelDigits(tv)
             }
 
             // Fonction pour créer un conteneur avec icône + texte

@@ -1,8 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, NativeModules, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, NativeModules, TouchableOpacity, TextLayoutEventData } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { digitsShift } from '../utils/digitsShift';
 
 const { SystemInfoModule } = NativeModules;
+
+/** A label of the bar, its digits level with the icons whatever font the tablet has */
+const BarText: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => {
+  const [shift, setShift] = useState(0);
+  const onTextLayout = (event: { nativeEvent: TextLayoutEventData }) => {
+    const line = event.nativeEvent.lines[0] as (typeof event.nativeEvent.lines)[0] & { baseline?: number };
+    if (!line || typeof line.baseline !== 'number') return;
+    const next = digitsShift({ y: line.y, height: line.height, baseline: line.baseline, capHeight: line.capHeight });
+    if (Math.abs(next - shift) >= 0.5) setShift(next);
+  };
+  return (
+    <Text
+      allowFontScaling={false}
+      onTextLayout={onTextLayout}
+      style={[styles.text, { color }, shift ? { transform: [{ translateY: shift }] } : null]}
+    >
+      {children}
+    </Text>
+  );
+};
 
 interface SystemInfo {
   battery: {
@@ -199,7 +220,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
           color={colors.icon}
           style={styles.iconMaterial}
         />
-        <Text style={[styles.text, { color: colors.text }]}>{batteryLevel}%</Text>
+        <BarText color={colors.text}>{batteryLevel}%</BarText>
       </View>
     );
   }
@@ -219,7 +240,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
           style={styles.iconMaterial}
         />
         {cellularType ? (
-          <Text style={[styles.text, { color: colors.text }]}>{cellularType}</Text>
+          <BarText color={colors.text}>{cellularType}</BarText>
         ) : (
           <MaterialCommunityIcons
             name={cellularConnected ? 'check-circle' : 'close-circle'}
@@ -279,7 +300,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
           color={colors.icon}
           style={styles.iconMaterial}
         />
-        <Text style={[styles.text, { color: colors.text }]}>{audioVolume}%</Text>
+        <BarText color={colors.text}>{audioVolume}%</BarText>
       </View>
     );
   }
@@ -289,7 +310,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
     rightItems.push(
       <View key="time" style={styles.item}>
         <MaterialCommunityIcons name="clock-outline" size={14} color={colors.icon} style={styles.iconMaterial} />
-        <Text style={[styles.text, { color: colors.text }]}>{currentTime}</Text>
+        <BarText color={colors.text}>{currentTime}</BarText>
       </View>
     );
   }
@@ -403,6 +424,8 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 12,
     minWidth: 30,
+    // The line is the font's ascent and descent alone, which BarText measures against
+    includeFontPadding: false,
   },
   spacer: {
     flex: 1,

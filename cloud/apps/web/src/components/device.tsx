@@ -1,7 +1,7 @@
 import clsx from 'clsx';
-import { BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, Tv } from 'lucide-react';
+import { Tv } from 'lucide-react';
 import { timeAgo } from '../format';
-import { Badge, Progress } from '../ui';
+import { Badge } from '../ui';
 import { settingLabel } from './config';
 
 export interface ProfileStatus {
@@ -97,20 +97,33 @@ export function DeviceState({ device }: { device: Pick<DeviceSummary, 'online' |
   return <Badge tone="bad" title={`Tín hiệu cuối: ${timeAgo(device.lastSeenAt)}`}>Ngoại tuyến</Badge>;
 }
 
+/**
+ * The battery of a tablet as one picture: a battery whose inside fills to the level, in the color of the level,
+ * with a bolt over it while it charges. It replaced a 16-pixel icon in front of a bar, whose charging battery
+ * (two halves around a bolt) read as "∞", and which the table could squeeze smaller still.
+ */
 export function BatteryMeter({ level, charging }: { level: number | null; charging: boolean | null }) {
   if (level === null) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-soft">
-        <Tv className="size-4" /> Không có pin
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-soft">
+        <Tv className="size-4 shrink-0" /> Không có pin
       </span>
     );
   }
   const tone = level > 50 ? 'ok' : level > 20 ? 'warn' : 'bad';
-  const Icon = charging ? BatteryCharging : level > 70 ? BatteryFull : level > 25 ? BatteryMedium : BatteryLow;
+  const inside = level <= 0 ? 0 : Math.max(1.5, (18 * Math.min(100, level)) / 100);
+  const label = charging ? `Pin ${level}%, đang sạc` : `Pin ${level}%`;
   return (
-    <span className="inline-flex items-center gap-2">
-      <Icon className={clsx('size-4', tone === 'ok' && 'text-ok', tone === 'warn' && 'text-warn', tone === 'bad' && 'text-bad')} />
-      <Progress value={level} tone={tone} className="w-14" />
+    <span className="inline-flex items-center gap-2 whitespace-nowrap" title={label}>
+      <svg viewBox="0 0 26 14" className="h-4 w-[30px] shrink-0" role="img" aria-label={label}>
+        <rect x="0.75" y="0.75" width="21.5" height="12.5" rx="3" fill="none" strokeWidth="1.5" className="stroke-soft" />
+        <rect x="23.25" y="4.5" width="2" height="5" rx="1" className="fill-soft" />
+        {inside > 0 && (
+          <rect x="2.5" y="2.5" width={inside} height="9" rx="1.5" className={clsx(tone === 'ok' && 'fill-ok', tone === 'warn' && 'fill-warn', tone === 'bad' && 'fill-bad')} />
+        )}
+        {/* In the color of the text, edged in the card's, so that it stands out on the fill and on the empty part alike */}
+        {charging && <path d="M13 1.6 8.2 7.8h3.3L10 12.4l4.8-6.2h-3.3z" strokeWidth="1" strokeLinejoin="round" className="fill-ink stroke-card" />}
+      </svg>
       <span className="w-9 text-xs tabular-nums text-soft">{level}%</span>
     </span>
   );
