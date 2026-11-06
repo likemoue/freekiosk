@@ -36,8 +36,21 @@ export const AUTO_INSTALL_SOURCE = 'home_missing';
 
 /** What the app says of a command a restart of FreeKiosk cut short (CloudCommandService) */
 const INTERRUPTED = 'Device restarted before the command result could be reported';
+/** What such an install says once the website has sent it again: the history shows it as such */
+export const SENT_AGAIN = 'Cut short by a restart of FreeKiosk, sent again';
 /** An install cut short goes again, this many times in all */
 const MAX_CUT_SHORT = 3;
+/**
+ * The USB tool sends the PIN again a few seconds after enrolling a tablet, and FreeKiosk takes such a
+ * setting by restarting its process (MainActivity, ADB config): every Lenovo set up on 6 November lost
+ * its first install of iCLASS to it, 3 seconds after enrolling. The website waits this long first
+ */
+const AFTER_ENROLLMENT_MS = 90_000;
+/**
+ * An install of its own handed over this long ago with no word since: the tablet died taking it,
+ * between the server's answer and its own note of it, and will never report (LENOVO TB330XU #10)
+ */
+const LOST_AFTER_MS = 10 * 60_000;
 
 /** What was uploaded, for each package: what can be installed, and what cannot be on its own */
 interface Uploads {
@@ -371,12 +384,19 @@ export class HomeAppsService {
    * again by itself: the history shows it, and the picker can send it again. Looked at when the list of
    * apps arrives, and at each heartbeat once it is current, at no cost unless something is missing.
    */
-  async installMissing(device: TargetDevice & { installedAppsHash: string | null; configVersion: number }): Promise<void> {
+  async installMissing(device: TargetDevice & { installedAppsHash: string | null; configVersion: number; enrolledAt?: Date }): Promise<void> {
     const installed = installedOf(device);
     if (!installed) return;
     const general = generalOf(device);
     const missing = managedAppsOf(general).filter((app) => app.packageName !== OWN_PACKAGE && !installed.has(app.packageName));
     if (!missing.length) return;
+    // Not while the USB tool may still restart FreeKiosk: a later heartbeat looks again
+    if (device.enrolledAt && Date.now() - device.enrolledAt.getTime() < AFTER_ENROLLMENT_MS) return;
+    const lost = await this.prisma.command.updateMany({
+      where: { deviceId: device.id, type: 'install_apk', source: AUTO_INSTALL_SOURCE, status: 'SENT', sentAt: { lt: new Date(Date.now() - LOST_AFTER_MS) } },
+      data: { status: 'ERROR', errorMessage: INTERRUPTED, completedAt: new Date() },
+    });
+    if (lost.count) this.lookedAt.delete(device.id);
     // Once for each state of the tablet and of the library: a heartbeat every 30 seconds must not go
     // through the library each time, and an APK uploaded later must still reach the tablets lacking it
     const library = await this.prisma.apkPackage.aggregate({ _count: { _all: true }, _max: { createdAt: true } });
@@ -411,7 +431,9 @@ export class HomeAppsService {
     for (const row of earlier) {
       const params = obj(row.params);
       if (params.show_on_home === true) shownBefore.add(params.package_name);
-      if (row.status === 'ERROR' && row.errorMessage === INTERRUPTED) cutShort.set(params.package_name, (cutShort.get(params.package_name) ?? 0) + 1);
+      if (row.status === 'ERROR' && (row.errorMessage === INTERRUPTED || row.errorMessage === SENT_AGAIN)) {
+        cutShort.set(params.package_name, (cutShort.get(params.package_name) ?? 0) + 1);
+      }
       else tried.add(params.package_name);
     }
     for (const [packageName, times] of cutShort) if (times >= MAX_CUT_SHORT) tried.add(packageName);
@@ -458,6 +480,14 @@ export class HomeAppsService {
     }
     await this.prisma.command.createMany({ data: lines });
     this.wake.notify([device.id], 'commands');
+    // What was cut short and goes again now reads so in the history, not as a failure
+    for (const line of lines) {
+      if (line.status === 'ERROR') continue;
+      await this.prisma.command.updateMany({
+        where: { deviceId: device.id, type: 'install_apk', source: AUTO_INSTALL_SOURCE, status: 'ERROR', errorMessage: INTERRUPTED, params: { path: ['package_name'], equals: String(obj(line.params).package_name) } },
+        data: { errorMessage: SENT_AGAIN },
+      });
+    }
 
     const labels = (rows: Prisma.CommandCreateManyInput[]) => rows.map((row) => String(obj(row.params).label)).join(', ');
     const queued = lines.filter((line) => line.status !== 'ERROR');

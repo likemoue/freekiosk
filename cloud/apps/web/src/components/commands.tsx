@@ -386,6 +386,7 @@ const senderOf = (command: { createdBy?: string | null; source?: string | null }
 
 // What a tablet answers in its own terms, in words. The original stays on hover
 const COMMAND_ERRORS: Array<[RegExp, string]> = [
+  [/Cut short by a restart of FreeKiosk, sent again/, 'Bị ngắt khi FreeKiosk khởi động lại, website đã tự gửi lại lệnh cài ở dòng sau.'],
   [/Device restarted before the command result/, 'FreeKiosk khởi động lại trước khi kịp báo kết quả. Lệnh có thể đã chạy xong, hãy xem lại trên máy.'],
   [/Could not clear the data of/, 'Android không cho xóa dữ liệu của một số ứng dụng đã chọn.'],
   [/This app version cannot locate the device/, 'Cần FreeKiosk bản mới nhất để lấy vị trí.'],
@@ -412,6 +413,9 @@ const COMMAND_ERRORS: Array<[RegExp, string]> = [
   [/INSTALL_FAILED_OLDER_SDK/, 'Android của máy cũ hơn mức ứng dụng yêu cầu.'],
   [/INSTALL_FAILED_INSUFFICIENT_STORAGE/, 'Máy không đủ dung lượng trống.'],
 ];
+
+/** HomeAppsService.SENT_AGAIN: an install of the website's own that a restart cut short, then sent again */
+const SENT_AGAIN = 'Cut short by a restart of FreeKiosk, sent again';
 
 const errorInWords = (message: string) => COMMAND_ERRORS.find(([code]) => code.test(message))?.[1] ?? message;
 
@@ -523,7 +527,9 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
           <tbody>
             {rows.map((command) => {
               const warning = uninstallWarning(command);
-              const status = warning ? { label: 'Cảnh báo', tone: 'warn' as const } : COMMAND_STATUS[command.status];
+              // Cut short by a restart of FreeKiosk and sent again by the website (HomeAppsService.SENT_AGAIN)
+              const resent = command.type === 'install_apk' && command.errorMessage === SENT_AGAIN;
+              const status = resent ? { label: 'Đã gửi lại', tone: 'neutral' as const } : warning ? { label: 'Cảnh báo', tone: 'warn' as const } : COMMAND_STATUS[command.status];
               const detail = commandDetail(command);
               return (
                 <tr key={command.id} data-line={command.id} className={trow}>
@@ -532,7 +538,7 @@ export function CommandHistory({ deviceId, showDevice }: { deviceId?: string; sh
                   <td className={td}>
                     <span className="font-medium">{COMMAND_LABELS[command.type] ?? command.type}</span>
                     {detail && <span className="ml-2 break-words text-xs text-soft">{detail}</span>}
-                    {command.errorMessage && <p className="mt-0.5 text-xs text-bad" title={command.errorMessage}>{errorInWords(command.errorMessage)}</p>}
+                    {command.errorMessage && <p className={clsx('mt-0.5 text-xs', resent ? 'text-soft' : 'text-bad')} title={command.errorMessage}>{errorInWords(command.errorMessage)}</p>}
                     {warning && <p className="mt-0.5 text-xs text-warn" title={command.result.failed.join('\n')}>{warning}</p>}
                   </td>
                   <td className={td}><Badge tone={status.tone}>{status.label}</Badge></td>

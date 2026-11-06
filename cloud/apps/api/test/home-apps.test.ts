@@ -54,9 +54,14 @@ describe('the apps on the home screen', () => {
     return tablet;
   };
 
+  /** Enrolled some time ago: past the moment the USB tool restarts FreeKiosk, which the website waits out */
+  const settled = (tablet: FakeTablet) =>
+    server.prisma.device.update({ where: { id: tablet.deviceId }, data: { enrolledAt: new Date(Date.now() - 3_600_000) } });
+
   /** A tablet with these apps on its screen and these installed, as it would tell the website */
   const tabletWith = async (home: unknown[], apps?: string[], options: { capabilities?: string[]; token?: Record<string, unknown>; mode?: string } = {}) => {
     const tablet = await enrolled(options);
+    await settled(tablet);
     await tablet.heartbeat(reported(home, options.mode));
     // A heartbeat reports what the fake tablet can do: this one is told otherwise
     if (options.capabilities) await server.prisma.device.update({ where: { id: tablet.deviceId }, data: { capabilities: options.capabilities } });
@@ -439,6 +444,10 @@ describe('the apps on the home screen', () => {
       // The profile comes with the first heartbeat, then the tablet says what it has
       const first = await tablet.heartbeat();
       assert.deepEqual(first.data.config.general.managedApps.map((a: any) => a.packageName), ['vn.auto.iclass']);
+      // Not in the first minute and a half: the USB tool restarts FreeKiosk then, to set the PIN
+      await post(tablet, 'apps', { hash: 'fresh', apps: installed('vn.auto.other') });
+      assert.deepEqual(await updatesOf(tablet), []);
+      await settled(tablet);
       await post(tablet, 'apps', { hash: 'fresh', apps: installed('vn.auto.other') });
 
       const [update, ...more] = await updatesOf(tablet);
@@ -527,6 +536,28 @@ describe('the apps on the home screen', () => {
       await tablet.sendResult(second.command_id, 'success', { install_status: 'success' });
       const general = await pushed(tablet);
       assert.deepEqual(general.managedApps.map((a: any) => [a.packageName, a.showOnHomeScreen]), [['vn.auto.cut', true]]);
+      // The first line reads as sent again, not as a failure
+      const firstLine = (await historyOf(tablet)).find((line) => line.id === first.command_id);
+      assert.equal(firstLine.errorMessage, 'Cut short by a restart of FreeKiosk, sent again');
+    });
+
+    it('sends again an install handed over and never heard of, the tablet having died taking it', async () => {
+      await uploaded('vn.auto.lost');
+      const home = [app('vn.auto.lost', 'Mất')];
+      const tablet = await tabletWith(home, ['vn.do.iclass']);
+      const [first] = await updatesOf(tablet);
+      const hash = `h-${tablet.deviceId}`;
+      // Still under way after a minute: nothing is sent again
+      await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      assert.deepEqual(await updatesOf(tablet), []);
+      // Ten minutes and more with no word
+      await server.prisma.command.update({ where: { id: first.command_id }, data: { sentAt: new Date(Date.now() - 11 * 60_000) } });
+      await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      const [second] = await updatesOf(tablet);
+      assert.ok(second);
+      assert.notEqual(second.command_id, first.command_id);
+      const firstLine = (await historyOf(tablet)).find((line) => line.id === first.command_id);
+      assert.deepEqual([firstLine.status, firstLine.errorMessage], ['ERROR', 'Cut short by a restart of FreeKiosk, sent again']);
     });
 
     it('stops sending an install cut short three times', async () => {
