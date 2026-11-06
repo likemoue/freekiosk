@@ -12,7 +12,7 @@ import { AlertsService } from '../alerts/alerts.service';
 import { SensitiveValues } from '../devices/config-sync.service';
 import { COMMAND_LABELS, THROUGH_CONFIG_TYPES } from '../devices/catalog';
 import { PACKAGE_NAME } from '../devices/home-apps';
-import { HomeAppsService } from '../devices/home-apps.service';
+import { AUTO_INSTALL_SOURCE, HomeAppsService } from '../devices/home-apps.service';
 import { SignageService } from '../signage/signage.service';
 import { LOCATION_STATE_TEXT, locationColumns } from './location';
 
@@ -447,6 +447,8 @@ export class DeviceApiService {
       });
     }
     if (ok && command.type === 'install_apk') await this.homeApps.showAfterInstall(device.id, command);
+    // An install the website started by itself and a restart cut short is looked at again at the next heartbeat
+    if (!ok && command.type === 'install_apk' && command.source === AUTO_INSTALL_SOURCE) this.homeApps.forget(device.id);
     // What went is off the home screen, also when another app of the same command could not go
     if (command.type === 'uninstall_app') {
       await this.homeApps.hideAfterUninstall(device.id, command, strings(obj(body.result).removed) ?? []);
