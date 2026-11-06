@@ -20,9 +20,16 @@ export class UploadsService {
     private readonly storage: StorageService,
   ) {}
 
-  async start(fileName: string, sizeBytes: number, purpose: string, userId: string): Promise<Upload> {
+  async start(fileName: string, sizeBytes: number, purpose: string, userId: string | null, from?: { deviceId: string; commandId: string }): Promise<Upload> {
     if (sizeBytes <= 0 || sizeBytes > MAX_SIZE) throw new BadRequestException('Kích thước tệp không hợp lệ');
-    return this.prisma.upload.create({ data: { fileName, sizeBytes, purpose, createdById: userId } });
+    return this.prisma.upload.create({ data: { fileName, sizeBytes, purpose, createdById: userId, deviceId: from?.deviceId, commandId: from?.commandId } });
+  }
+
+  /** A tablet's own upload, refused to any other tablet */
+  async ofDevice(id: string, deviceId: string): Promise<Upload> {
+    const upload = await this.prisma.upload.findUnique({ where: { id } });
+    if (!upload || upload.deviceId !== deviceId) throw new NotFoundException('Không tìm thấy phiên tải lên');
+    return upload;
   }
 
   private tmp(id: string): string {

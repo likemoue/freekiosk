@@ -7,6 +7,7 @@ import { NotifierService } from './alerts/notifier.service';
 import { AuthModule } from './auth/auth.module';
 import { CommonModule } from './common/common.module';
 import { DeviceApiController } from './device-api/device-api.controller';
+import { ApkPullService } from './device-api/apk-pull.service';
 import { DeviceApiService } from './device-api/device-api.service';
 import { DeviceGuard } from './device-api/device.guard';
 import { CommandsService } from './devices/commands.service';
@@ -15,8 +16,11 @@ import { CommandsController, ConfigController, DevicesController, ScreenshotsCon
 import { DevicesService } from './devices/devices.service';
 import { HomeAppsController } from './devices/home-apps.controller';
 import { HomeAppsService } from './devices/home-apps.service';
+import { LiveController } from './devices/live.controller';
+import { LiveService } from './devices/live.service';
 import { LocationsController } from './devices/locations.controller';
 import { ApkInspector } from './files/apk-inspector';
+import { ApkLibraryService } from './files/apk-library.service';
 import { ApksController, MediaController, UploadsController } from './files/files.controller';
 import { UploadsService } from './files/uploads.service';
 import { UsbToolController } from './files/usb-tool.controller';
@@ -37,6 +41,7 @@ import { SignageService } from './signage/signage.service';
     CommandsController,
     HomeAppsController,
     LocationsController,
+    LiveController,
     ScreenshotsController,
     GroupsController,
     ProfilesController,
@@ -52,11 +57,14 @@ import { SignageService } from './signage/signage.service';
   providers: [
     DeviceGuard,
     DeviceApiService,
+    ApkPullService,
+    LiveService,
     DevicesService,
     CommandsService,
     ConfigSyncService,
     HomeAppsService,
     ApkInspector,
+    ApkLibraryService,
     SignageService,
     AlertsService,
     NotifierService,

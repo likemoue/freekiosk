@@ -302,6 +302,36 @@ export class HomeAppsService {
   }
 
   /**
+   * Apps removed from a tablet (uninstall_app) leave its home screen, and the list the picker shows at once:
+   * the tablet's own list follows at its next scan. A group's profile is left as it is: the command was
+   * for these tablets, and a profile may be used elsewhere.
+   */
+  async hideAfterUninstall(deviceId: string, command: { batchId: string | null; createdById: string | null; createdBy: string | null }, packages: string[]): Promise<void> {
+    if (!packages.length) return;
+    const device = await this.prisma.device.findUnique({ where: { id: deviceId }, select: DEVICE_FIELDS });
+    if (!device) return;
+
+    if (Array.isArray(device.installedApps)) {
+      const kept = device.installedApps.filter((app) => !packages.includes(obj(app).package as string));
+      if (kept.length !== device.installedApps.length) {
+        await this.prisma.device.update({ where: { id: deviceId }, data: { installedApps: kept as Prisma.InputJsonValue } });
+      }
+    }
+
+    const current = managedAppsOf(generalOf(device));
+    const leaving = current.filter((app) => packages.includes(app.packageName));
+    if (!leaving.length) return;
+    const next = editHomeApps(current, [], packages, (packageName) => packageName);
+    await this.configSync.push([deviceId], { general: { managedApps: next } }, undefined, {
+      type: HOME_APPS_COMMAND,
+      params: { remove: leaving.map((app) => app.displayName || app.packageName) },
+      actor: { id: command.createdById, email: command.createdBy },
+      batchId: command.batchId,
+      source: 'after_uninstall',
+    });
+  }
+
+  /**
    * A profile is what a tablet joining the group receives, and what saving the profile sends again.
    * Left behind, it would hand new tablets the old apps and one day undo this change. A profile
    * also used elsewhere stays as it is: a command for one group must not reach the others.

@@ -14,6 +14,8 @@ const PARAMS: Record<string, Record<string, unknown>> = {
   play_sound: { url: 'https://example.com/a.mp3' },
   set_volume: { percent: '50' },
   clear_app_data: { packages: ['vn.iclass'], labels: ['iCLASS'] },
+  uninstall_app: { packages: ['vn.iclass'], labels: ['iCLASS'] },
+  pull_apk: { package_name: 'vn.iclass', label: 'iCLASS' },
   set_screen_timeout: { seconds: '300' },
   toast: { message: 'Bảo trì lúc 17:00' },
   execute_js: { code: 'void 0' },

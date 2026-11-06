@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { Download, Package, QrCode, Rocket, Trash2 } from 'lucide-react';
+import { Download, DownloadCloud, Package, QrCode, Rocket, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { DeviceSummary } from '../components/device';
 import { FleetVersions, needsLooking, useFleetVersions } from '../components/fleet-versions';
 import { UploadButton } from '../components/upload';
 import { UsbTool } from '../components/usb-tool';
+import { PullApkDialog } from '../components/pull-apk';
 import { bytes, dateTime } from '../format';
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, notifyError, Notice, PageHeader, Pills, Select, Table, Tabs, td, th, trow, useConfirm } from '../ui';
 
@@ -53,6 +54,7 @@ export default function Apps() {
   const confirm = useConfirm();
   const client = useQueryClient();
   const [deploying, setDeploying] = useState<any>(null);
+  const [pulling, setPulling] = useState(false);
   const [params] = useSearchParams();
   const [tab, setTab] = useState<'library' | 'versions' | 'usb'>(params.get('tab') === 'versions' ? 'versions' : params.get('tab') === 'usb' ? 'usb' : 'library');
   const versions = useFleetVersions();
@@ -77,6 +79,10 @@ export default function Apps() {
         title="Ứng dụng (APK)"
         hint="Tải APK lên rồi cài im lặng cho thiết bị, hoặc chọn làm APK cấp phát cho mã QR."
         action={can.operate && (
+          <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setPulling(true)}>
+            <DownloadCloud className="size-4" /> Lấy từ thiết bị
+          </Button>
           <UploadButton
             purpose="apk"
             accept=".apk,.apks,.xapk,.apkm,.zip,application/vnd.android.package-archive"
@@ -85,6 +91,7 @@ export default function Apps() {
             onDone={refresh}
             onError={(message) => toast.error(message)}
           />
+          </div>
         )}
       />
       <Tabs
@@ -143,6 +150,19 @@ export default function Apps() {
       </Card>
       </>}
       {deploying && <DeployDialog apk={deploying} onClose={() => setDeploying(null)} />}
+      {pulling && (
+        <PullApkDialog
+          onClose={() => {
+            setPulling(false);
+            refresh();
+          }}
+          onDeploy={(apk) => {
+            setPulling(false);
+            refresh();
+            setDeploying(apk);
+          }}
+        />
+      )}
     </>
   );
 }

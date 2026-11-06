@@ -19,6 +19,8 @@ Mọi lời gọi trừ đăng ký đều gửi `Authorization: Bearer <api_key>
 | `POST /api/v1/devices/{id}/screenshot/` | Lệnh chụp màn hình, multipart | `CloudCommandService.captureAndUploadScreenshot` |
 | `GET /api/v1/devices/{id}/playlist/` | Khi `playlist_version` đổi | `SignagePlaylist.sync` |
 | `GET /player/youtube/?v=<id>` | Trình phát nhúng video YouTube | `MediaPlayerComponent.loadYoutube` |
+| `POST /api/v1/devices/{id}/apk-uploads/`, `PUT .../{upload}/part/?offset=`, `POST .../{upload}/finish/` | Lệnh `pull_apk` | `ApkExportModule.kt` |
+| `POST /api/v1/devices/{id}/live/frame/?w=&h=&control=&problem=` | Khi đánh thức có `live` | `LiveScreen.kt` |
 
 ## Đăng ký
 
@@ -76,6 +78,18 @@ Cũng do bản fork này đặt ra, cho trang **Bản đồ** (`DeviceLocation.t
 - Máy chủ ghi thời điểm theo đồng hồ của nó, bằng `age_ms`, vì đồng hồ tablet có thể lệch. Vị trí cũ hơn vị trí đang giữ không thay nó. Máy chủ chỉ giữ vị trí cuối cùng, không giữ đường đi. Tắt công tắc thì máy chủ xóa mọi vị trí đã lưu và bỏ qua `location` gửi lên.
 - Lệnh `locate` (khả năng `locate`) xin vị trí mới ngay, chờ tối đa 40 giây. Kết quả luôn là `success` với `{ location }`; máy chủ đổi thành lỗi kèm lý do bằng lời khi `state` khác `ok`.
 
+## Lấy APK từ thiết bị
+
+Lệnh `pull_apk` `{ package_name, label }`, chỉ gửi cho một thiết bị mỗi lần. Ứng dụng đọc APK của ứng dụng đã cài: một tệp `.apk`, hoặc khi có nhiều phần thì một zip `base.apk` và `split_*.apk`. Gửi lên theo phần như trang APK: `POST apk-uploads/` `{ command_id, file_name, size_bytes }` trả `{ upload_id, part_bytes }`, mỗi phần là `PUT .../part/?offset=` thân nhị phân, trả `{ received }`, rồi `POST .../finish/` trả `{ apk_id, file_name, version_name, package_name, already_in_library }`. Máy chủ chỉ nhận tệp cho lệnh `pull_apk` đang chờ của chính thiết bị đó, kiểm tra như tệp tải lên ở trang APK, và tệp giống hệt một tệp đã có thì không lưu thêm. Kết quả lệnh là câu trả lời của `finish`.
+
+## Xóa ứng dụng
+
+Lệnh `uninstall_app` `{ packages, labels }` gỡ ứng dụng không hỏi (cần Device Owner), không bao giờ gỡ FreeKiosk. Kết quả `{ removed, missing, failed }`; có `failed` thì trạng thái là `error`. Máy chủ bỏ các ứng dụng trong `removed` khỏi `general.managedApps` của máy đó (dòng lịch sử `home_apps`, nguồn `after_uninstall`), không đổi hồ sơ của nhóm.
+
+## Màn hình trực tiếp
+
+Khi có người xem màn hình trên trang Ảnh màn hình, câu trả lời của `wait` có `live: true`. Ứng dụng (khả năng `remote_view`) gửi `POST live/frame/` với thân là ảnh JPEG, hoặc thân rỗng và `problem` (`screen_off`, `starting`, hoặc lỗi chụp), kèm kích thước màn hình `w`, `h` và `control=1` khi dịch vụ trợ năng có quyền thao tác. Câu trả lời `{ active, interval_ms, max_width, quality, inputs }`: `active: false` là không còn ai xem, thì dừng. `inputs` là thao tác cần làm, tọa độ theo tỉ lệ ảnh từ 0 đến 1: `{ type: "tap" | "long_press", x, y }`, `{ type: "swipe", x, y, x2, y2, ms }`, `{ type: "key", key: "back" | "home" | "recents" | "enter" | "backspace" }`, `{ type: "text", text }`. Lưới các màn hình nhận ảnh 5 giây một lần, rộng 480; một màn hình mở lớn nhận 1 giây một lần, rộng 1280. Máy chủ chỉ giữ ảnh cuối cùng trong bộ nhớ.
+
 ## Đồng bộ cấu hình
 
 - Máy chủ giữ `configVersion` và phần chờ gửi `pendingConfig`. Sửa trên trang quản lý thì tăng phiên bản và gộp vào phần chờ.
@@ -96,7 +110,7 @@ Một phiên bản có cả hai bản dựng thì trả bản không có `cloudp
 
 Kết quả: `{ status: "success" | "error", result, error_message }`. Mã 4xx báo cho ứng dụng thôi gửi lại.
 
-Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume`, `clear_app_data` và `locate`. URL, độ sáng, âm lượng
+Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume`, `clear_app_data`, `locate`, `uninstall_app`, `pull_apk` và `launch_app` (chạy được cả khi FreeKiosk chạy nền, không có màn hình kiosk). URL, độ sáng, âm lượng
 không phải lệnh: chúng đi qua kênh cấu hình.
 
 `clear_app_data` nhận `{ packages: ["..."], labels: ["..."] }`, `labels` chỉ để hiện trong lịch sử. Kết quả là `{ cleared, missing, failed, permissionsLost }`: `missing` là ứng dụng máy không có, không tính là lỗi; `permissionsLost` ghi `gói/quyền` Android không cho cấp lại. Có `failed` thì trạng thái là `error`, `result` vẫn kèm theo.

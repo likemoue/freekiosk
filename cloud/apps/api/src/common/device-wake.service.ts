@@ -5,6 +5,8 @@ export interface WakeReason {
   commands: boolean;
   /** A setting, a playlist or the name changed: send a heartbeat, its answer carries them */
   config: boolean;
+  /** Someone watches the screen on the website: send pictures (LiveScreen.kt) */
+  live: boolean;
 }
 
 export interface WakeAnswer extends WakeReason {
@@ -14,7 +16,7 @@ export interface WakeAnswer extends WakeReason {
 /** Below the 60 seconds the proxies in front of the API give an answer to come back */
 export const WAKE_HOLD_MS = 25_000;
 
-const NOTHING: WakeAnswer = { wake: false, commands: false, config: false };
+const NOTHING: WakeAnswer = { wake: false, commands: false, config: false, live: false };
 
 /**
  * Tells a tablet at once that something is waiting for it, instead of at its next heartbeat.
@@ -34,10 +36,10 @@ export class DeviceWakeService {
     for (const id of deviceIds) {
       const answer = this.waiting.get(id);
       if (answer) {
-        answer({ wake: true, commands: reason === 'commands', config: reason === 'config' });
+        answer({ wake: true, commands: reason === 'commands', config: reason === 'config', live: reason === 'live' });
         continue;
       }
-      const queued = this.queued.get(id) ?? { commands: false, config: false };
+      const queued = this.queued.get(id) ?? { commands: false, config: false, live: false };
       queued[reason] = true;
       this.queued.set(id, queued);
     }
@@ -57,7 +59,7 @@ export class DeviceWakeService {
     this.queued.delete(deviceId);
     if (queued || commandsPending) {
       return {
-        answer: Promise.resolve({ wake: true, commands: !!queued?.commands || commandsPending, config: !!queued?.config }),
+        answer: Promise.resolve({ wake: true, commands: !!queued?.commands || commandsPending, config: !!queued?.config, live: !!queued?.live }),
         cancel: () => {},
       };
     }

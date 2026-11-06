@@ -60,6 +60,7 @@ export class CommandsService {
       where,
       select: { id: true, name: true, capabilities: true },
     });
+    if (spec.singleDevice && devices.length > 1) throw new BadRequestException('Lệnh này chỉ gửi cho một thiết bị mỗi lần');
 
     const secret: Record<string, unknown> = {};
     for (const name of spec.secretParams ?? []) {

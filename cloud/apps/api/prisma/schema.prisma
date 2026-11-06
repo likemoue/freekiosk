@@ -407,6 +407,9 @@ model Upload {
   receivedBytes BigInt    @default(0)
   purpose       String
   createdById   String?   @db.Uuid
+  // Sent by a tablet (pull_apk): which one, and for which command
+  deviceId      String?   @db.Uuid
+  commandId     String?   @db.Uuid
   createdAt     DateTime  @default(now())
   completedAt   DateTime?
 }

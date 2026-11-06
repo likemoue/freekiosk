@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  AppWindow, Ban, Bell, Camera, LocateFixed, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
+  AppWindow, Ban, Bell, Camera, LocateFixed, PackageMinus, DownloadCloud, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
 import { ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -73,7 +73,29 @@ const COMMANDS: CommandDef[] = [
     confirmLabel: 'Xóa dữ liệu',
     dangerFor: (values, deviceCount) => `Xóa toàn bộ dữ liệu của ${(values.labels ?? []).join(', ')} trên ${deviceCount} thiết bị? Tài khoản đăng nhập, tệp và cài đặt trong các ứng dụng này sẽ mất và không khôi phục được.`,
   },
-  { type: 'clear_cache', label: 'Xóa bộ nhớ đệm', icon: <Eraser />, category: 'quick' },
+  {
+    type: 'uninstall_app',
+    label: 'Xóa ứng dụng',
+    hint: 'Gỡ hẳn ứng dụng khỏi tablet, kèm dữ liệu của nó, và bỏ khỏi màn hình chính. Cài lại được từ mục Ứng dụng (APK). Ứng dụng có sẵn theo máy thì Android không cho gỡ. Cần FreeKiosk bản mới nhất và chế độ Device Owner.',
+    icon: <PackageMinus />,
+    category: 'apps',
+    capability: 'uninstall_app',
+    lacking: 'Thiết bị này cần FreeKiosk bản mới nhất và chế độ Device Owner. Bản mới cài ở mục Ứng dụng (APK).',
+    params: [{ name: 'packages', label: 'Ứng dụng', type: 'apps', required: true }],
+    confirmLabel: 'Xóa ứng dụng',
+    dangerFor: (values, deviceCount) => `Gỡ ${(values.labels ?? []).join(', ')} khỏi ${deviceCount} thiết bị? Ứng dụng và toàn bộ dữ liệu của nó trên máy sẽ mất. Muốn dùng lại phải cài lại.`,
+  },
+  {
+    type: 'pull_apk',
+    label: 'Lấy APK về website',
+    hint: 'Tablet gửi tệp APK của ứng dụng lên thư viện ở mục Ứng dụng (APK), kể cả ứng dụng nhiều tệp cài từ CH Play. Từ đó cài cho các thiết bị khác. Chọn một thiết bị.',
+    icon: <DownloadCloud />,
+    category: 'apps',
+    capability: 'pull_apk',
+    lacking: 'Thiết bị này cần FreeKiosk bản mới nhất. Bản mới cài ở mục Ứng dụng (APK).',
+    params: [{ name: 'package_name', label: 'Ứng dụng', type: 'app', required: true }],
+  },
+  { type: 'clear_cache', label: 'Xóa bộ nhớ đệm', hint: 'Xóa bộ nhớ đệm, cookie và dữ liệu trang web của FreeKiosk rồi tải lại trang.', icon: <Eraser />, category: 'apps' },
   { type: 'screensaver_on', label: 'Bật bảo vệ màn hình', icon: <SunDim />, category: 'screensaver' },
   { type: 'screensaver_off', label: 'Tắt bảo vệ màn hình', icon: <Ban />, category: 'screensaver' },
   { type: 'speak', label: 'Đọc văn bản', icon: <MessageSquareText />, category: 'audio', capability: 'tts', params: [{ name: 'text', label: 'Văn bản cần đọc', type: 'textarea', required: true }] },
@@ -259,6 +281,16 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
   if (command.type === 'install_apk') return [params.file_name, params.version].filter(Boolean).join(' ') || null;
   if (command.type === 'stop_apps') return Array.isArray(command.result?.stopped) ? `Đã dừng ${command.result.stopped.length} ứng dụng` : null;
   if (command.type === 'launch_app') return params.label || params.package_name || null;
+  if (command.type === 'uninstall_app') {
+    const names = Array.isArray(params.labels) && params.labels.length ? params.labels : params.packages;
+    const missing = Array.isArray(command.result?.missing) ? command.result.missing.length : 0;
+    return [Array.isArray(names) ? names.join(', ') : '', missing ? `Máy không có ${missing} ứng dụng` : ''].filter(Boolean).join('. ') || null;
+  }
+  if (command.type === 'pull_apk') {
+    const result = command.result ?? {};
+    if (result.file_name) return `${result.file_name}${result.already_in_library ? ' (đã có trong thư viện)' : ''}`;
+    return params.label || params.package_name || null;
+  }
   if (command.type === 'clear_app_data') {
     const names = Array.isArray(params.labels) && params.labels.length ? params.labels : params.packages;
     const missing = Array.isArray(command.result?.missing) ? command.result.missing.length : 0;
@@ -294,6 +326,11 @@ const COMMAND_ERRORS: Array<[RegExp, string]> = [
   [/Device restarted before the command result/, 'FreeKiosk khởi động lại trước khi kịp báo kết quả. Lệnh có thể đã chạy xong, hãy xem lại trên máy.'],
   [/Could not clear the data of/, 'Android không cho xóa dữ liệu của một số ứng dụng đã chọn.'],
   [/This app version cannot locate the device/, 'Cần FreeKiosk bản mới nhất để lấy vị trí.'],
+  [/Handler unavailable/, 'Màn hình kiosk chưa chạy trên máy: FreeKiosk đang chạy nền, thường sau khi khởi động lại lúc tắt màn hình. Bật màn hình rồi gửi lại.'],
+  [/App not installed/, 'Máy chưa cài ứng dụng này.'],
+  [/Could not uninstall/, 'Android không cho gỡ một số ứng dụng đã chọn, thường là ứng dụng có sẵn theo máy.'],
+  [/Uninstalling apps requires Device Owner/, 'Xóa ứng dụng cần chế độ Device Owner.'],
+  [/This app version cannot (uninstall apps|send apps to the website)/, 'Cần FreeKiosk bản mới nhất.'],
   [/Clearing app data requires Device Owner/, 'Xóa dữ liệu ứng dụng cần chế độ Device Owner.'],
   [/Clearing app data requires Android 9/, 'Xóa dữ liệu ứng dụng cần Android 9 trở lên.'],
   [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được một mình. Hãy tải lên cả bộ tệp của ứng dụng.'],
