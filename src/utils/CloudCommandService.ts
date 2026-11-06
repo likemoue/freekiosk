@@ -24,6 +24,7 @@ import { getCloudCredentials, CloudCredentials } from './secureStorage';
 import { StorageService } from './storage';
 import ManagedAppInstaller from './ManagedAppInstaller';
 import { pullApk } from './ApkExport';
+import { InstalledAppsReport } from './InstalledAppsReport';
 import KioskModule from './KioskModule';
 import { locateNow } from './DeviceLocation';
 import AppLauncherModule from './AppLauncherModule';
@@ -361,6 +362,7 @@ class CloudCommandServiceClass {
     }
     try {
       const outcome = await ManagedAppInstaller.uninstall(packages);
+      InstalledAppsReport.forgetScan();
       if (outcome.failed.length > 0) {
         return { ok: false, error: `Could not uninstall ${outcome.failed.join('; ')}`, result: { ...outcome } };
       }
@@ -605,6 +607,7 @@ class CloudCommandServiceClass {
           u.package_name ?? null,
         );
         await StorageService.saveInflightInstall(null);
+        InstalledAppsReport.forgetScan();
         await this.reportResult(c, u.command_id, {
           ok: true,
           result: {

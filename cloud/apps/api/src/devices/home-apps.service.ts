@@ -313,8 +313,10 @@ export class HomeAppsService {
 
     if (Array.isArray(device.installedApps)) {
       const kept = device.installedApps.filter((app) => !packages.includes(obj(app).package as string));
+      // The hash goes with it: kept, it would match the tablet's again once the app is back, and the
+      // website would never ask for the list that has it
       if (kept.length !== device.installedApps.length) {
-        await this.prisma.device.update({ where: { id: deviceId }, data: { installedApps: kept as Prisma.InputJsonValue } });
+        await this.prisma.device.update({ where: { id: deviceId }, data: { installedApps: kept as Prisma.InputJsonValue, installedAppsHash: null } });
       }
     }
 

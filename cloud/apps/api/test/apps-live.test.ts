@@ -123,12 +123,19 @@ describe('apps taken from a tablet, apps removed, and the screen live', () => {
       ];
       await beat(tablet, { config: { general: { displayMode: 'external_app', externalApp: { mode: 'multi' }, managedApps } } });
 
+      await server.prisma.device.update({
+        where: { id: tablet.deviceId },
+        data: { installedApps: [{ package: 'vn.iclass', label: 'iCLASS', version_code: 1 }, { package: 'vn.ipro', label: 'iPro', version_code: 2 }], installedAppsHash: 'h1' },
+      });
       const sent = await send('uninstall_app', { packages: ['vn.iclass'], labels: ['iCLASS'] }, [tablet.deviceId]);
       assert.equal(sent.status, 201);
       const [command] = await take(tablet);
       await tablet.sendResult(command.id, 'success', { removed: ['vn.iclass'], missing: [], failed: [] });
 
       const row = await server.prisma.device.findUniqueOrThrow({ where: { id: tablet.deviceId } });
+      assert.deepEqual((row.installedApps as any[]).map((app) => app.package), ['vn.ipro']);
+      // Forgotten, so that the tablet's next hash is new and its own list comes again, app put back or not
+      assert.equal(row.installedAppsHash, null);
       const pending = (row.pendingConfig as any)?.general?.managedApps;
       assert.deepEqual(pending.map((app: any) => app.packageName), ['vn.ipro']);
       const line = (await admin.json<any[]>('GET', `/api/admin/commands?deviceId=${tablet.deviceId}`)).find((l) => l.type === 'home_apps');

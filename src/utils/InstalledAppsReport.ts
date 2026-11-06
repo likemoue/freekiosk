@@ -85,6 +85,11 @@ async function readIcon(packageName: string): Promise<{ package: string; png_bas
 }
 
 export const InstalledAppsReport = {
+  /** An app was installed or removed: the next heartbeat looks again rather than in five minutes */
+  forgetScan(): void {
+    scan = null;
+  },
+
   /** For the heartbeat. Undefined when the list cannot be read: the website then asks for nothing */
   async hash(): Promise<string | undefined> {
     if (!scan || Date.now() - scan.at >= SCAN_EVERY_MS) {
