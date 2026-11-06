@@ -11,6 +11,7 @@ import { ServerClock } from './ServerClock';
 import { DeviceDisplayName } from './DeviceDisplayName';
 import { InstalledAppsReport } from './InstalledAppsReport';
 import { deviceTimeZone } from './DeviceTimeZone';
+import { latestLocation } from './DeviceLocation';
 import KioskModule from './KioskModule';
 import { tr } from '../i18n/tr';
 import {
@@ -124,6 +125,9 @@ const AUTH_FAILURE_KEY = '@cloud_auth_failure';
  */
 const MIN_HEARTBEAT_GAP_MS = 20_000;
 
+/** Whether the website wants to know where the tablet is, kept across restarts for the first heartbeat */
+const LOCATION_WANTED_KEY = '@cloud_location_wanted';
+
 interface HeartbeatResponse {
   status: string;
   pending_commands: number;
@@ -140,6 +144,8 @@ interface HeartbeatResponse {
   // What the management website still lacks of InstalledAppsReport: absent from any other cloud
   installed_apps_wanted?: boolean;
   app_icons_wanted?: string[];
+  // The map of the management website: absent from any other cloud, which never sees a location
+  location_wanted?: boolean;
 }
 
 /** The server answers a refusal in JSON; a proxy answers with an HTML page or says it stepped in */
@@ -176,6 +182,7 @@ class CloudSyncServiceClass {
   private isRunning = false;
   private wakeBeat: 'idle' | 'running' | 'again' = 'idle';
   private settledAtStart = false;
+  private locationWanted: boolean | null = null;
   // Screens that rely on the heartbeat loop. The kiosk screen can be mounted twice in a row (an ADB
   // config restarts the activity), and React runs the first one's cleanup after the second one's start:
   // a plain stop() there killed the loop for good.
@@ -375,6 +382,8 @@ class CloudSyncServiceClass {
       }
 
       const installedAppsHash = await InstalledAppsReport.hash();
+      // Never waits for a fix: a new one, when due, comes with the next heartbeat
+      const location = (await this.wantsLocation()) ? await latestLocation() : null;
 
       const sentAt = Date.now();
       const response = await fetch(
@@ -392,6 +401,7 @@ class CloudSyncServiceClass {
             config_updated_at: configUpdatedAt,
             sensitive_config: sensitiveConfig,
             ...(installedAppsHash ? { installed_apps_hash: installedAppsHash } : {}),
+            ...(location ? { location } : {}),
           }),
         },
       );
@@ -427,6 +437,7 @@ class CloudSyncServiceClass {
       }
 
       await DeviceDisplayName.observe(data.device_name).catch(() => {});
+      await this.observeLocationWanted(data.location_wanted);
       InstalledAppsReport.answer(c, data.installed_apps_wanted, data.app_icons_wanted).catch(() => {/* asked again at the next heartbeat */});
 
       let changed = false;
@@ -684,7 +695,8 @@ class CloudSyncServiceClass {
     this.stop();
 
     // Clear all AsyncStorage settings, and the refusal window that led here
-    await AsyncStorage.multiRemove([...Object.values(KEYS), AUTH_FAILURE_KEY]);
+    await AsyncStorage.multiRemove([...Object.values(KEYS), AUTH_FAILURE_KEY, LOCATION_WANTED_KEY]);
+    this.locationWanted = null;
     DeviceDisplayName.forget();
     await SignagePlaylist.clear();
 
@@ -698,6 +710,23 @@ class CloudSyncServiceClass {
     ]);
 
     DeviceEventEmitter.emit(FORCE_UNENROLL_EVENT);
+  }
+
+  // ─── Location ────────────────────────────────────────────────────────────────
+
+  /** Only once the website has asked: only then does a Device Owner turn location on */
+  private async wantsLocation(): Promise<boolean> {
+    if (this.locationWanted === null) {
+      this.locationWanted = (await AsyncStorage.getItem(LOCATION_WANTED_KEY).catch(() => null)) === 'true';
+    }
+    return this.locationWanted;
+  }
+
+  private async observeLocationWanted(wanted: boolean | undefined): Promise<void> {
+    const next = wanted === true;
+    if (next === (await this.wantsLocation())) return;
+    this.locationWanted = next;
+    await AsyncStorage.setItem(LOCATION_WANTED_KEY, next ? 'true' : 'false').catch(() => {});
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

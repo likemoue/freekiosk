@@ -235,6 +235,8 @@ class BootReceiver : BroadcastReceiver() {
      */
     private fun handlePackageReplaced(context: Context) {
         DebugLog.d("BootReceiver", "Package replaced - restoring kiosk services")
+        // Updated with the screen lit for it: off again once this version is up
+        InstallScreen.afterSelfUpdate(context)
         startKioskWatchdogIfNeeded(context)
 
         if (!shouldRunUnattended(context)) {
