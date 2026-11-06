@@ -34,6 +34,11 @@ const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1
 /** The source of what the website starts by itself (installMissing): the history says Tự động */
 export const AUTO_INSTALL_SOURCE = 'home_missing';
 
+/** What the app says of a command a restart of FreeKiosk cut short (CloudCommandService) */
+const INTERRUPTED = 'Device restarted before the command result could be reported';
+/** An install cut short goes again, this many times in all */
+const MAX_CUT_SHORT = 3;
+
 /** What was uploaded, for each package: what can be installed, and what cannot be on its own */
 interface Uploads {
   installable: Map<string, ApkPackage>;
@@ -386,13 +391,30 @@ export class HomeAppsService {
     }
   }
 
+  /** Looks again at the next heartbeat, whatever it has looked at: an install of its was cut short */
+  forget(deviceId: string): void {
+    this.lookedAt.delete(deviceId);
+  }
+
   private async installFor(device: TargetDevice, general: Json, missing: ManagedApp[]): Promise<void> {
-    // Under way, whoever sent it, or tried before by this code: what failed waits for someone to look
+    // Under way, whoever sent it, or tried before by this code: what failed waits for someone to look.
+    // Except an install a restart of FreeKiosk cut short, which the USB tool does while it sets a new
+    // tablet up (seen on a TB330XU enrolled with the iCLASS profile): that one goes again
     const earlier = await this.prisma.command.findMany({
       where: { deviceId: device.id, type: 'install_apk', OR: [{ source: AUTO_INSTALL_SOURCE }, { status: { in: ['PENDING', 'SENT'] } }] },
-      select: { params: true },
+      select: { params: true, status: true, errorMessage: true },
     });
-    const tried = new Set(earlier.map((row) => obj(row.params).package_name));
+    const tried = new Set<unknown>();
+    const cutShort = new Map<unknown, number>();
+    // An app taken off the screen for an install that never finished stays hidden: it comes back with the next
+    const shownBefore = new Set<unknown>();
+    for (const row of earlier) {
+      const params = obj(row.params);
+      if (params.show_on_home === true) shownBefore.add(params.package_name);
+      if (row.status === 'ERROR' && row.errorMessage === INTERRUPTED) cutShort.set(params.package_name, (cutShort.get(params.package_name) ?? 0) + 1);
+      else tried.add(params.package_name);
+    }
+    for (const [packageName, times] of cutShort) if (times >= MAX_CUT_SHORT) tried.add(packageName);
     const wanted = missing.filter((app) => !tried.has(app.packageName));
     if (!wanted.length) return;
 
@@ -407,8 +429,9 @@ export class HomeAppsService {
       // Nothing to install it from: the grid keeps the tile hidden, as before
       if (!apk) continue;
       const label = app.displayName || apkLabel(apk);
+      const show = app.showOnHomeScreen || shownBefore.has(app.packageName);
       const line: Prisma.CommandCreateManyInput = {
-        ...installCommandData(device.id, apk, nobody, app.showOnHomeScreen ? { show_on_home: true, label } : { label }, batchId),
+        ...installCommandData(device.id, apk, nobody, show ? { show_on_home: true, label } : { label }, batchId),
         source: AUTO_INSTALL_SOURCE,
       };
       const reason = whyCannotInstall(device.capabilities, apk);

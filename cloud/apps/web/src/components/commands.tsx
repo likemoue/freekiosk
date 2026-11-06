@@ -108,11 +108,11 @@ const COMMANDS: CommandDef[] = [
   {
     type: 'system_update',
     label: 'Cập nhật Android',
-    hint: 'Tablet tự mở Cập nhật phần mềm của Samsung, tải bản mới về và cài đặt, rồi khởi động lại. Màn hình tablet và lịch sử lệnh hiện % đang tải. Máy đã ở bản mới nhất thì không làm gì, nên có thể hẹn giờ chạy mỗi đêm ở Lịch hẹn giờ. Cần Wi-Fi, pin từ 30% hoặc đang sạc, FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk.',
+    hint: 'Tablet tự mở Cập nhật phần mềm của Samsung hoặc System update của Lenovo, tải bản mới về và cài đặt, rồi khởi động lại. Màn hình tablet và lịch sử lệnh hiện % đang tải. Lenovo chỉ cài khi máy rảnh nên tắt màn hình trong lúc cài. Máy đã ở bản mới nhất thì không làm gì, nên có thể hẹn giờ chạy mỗi đêm ở Lịch hẹn giờ. Cần Wi-Fi, pin từ 30% hoặc đang sạc, FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk.',
     icon: <ArrowUpCircle />,
     category: 'advanced',
     capability: 'system_update',
-    lacking: 'Thiết bị này cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk. Hiện chỉ máy Samsung.',
+    lacking: 'Thiết bị này cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk. Hiện có máy Samsung và Lenovo.',
     confirmLabel: 'Cập nhật',
     dangerFor: (_values, deviceCount) => `Cập nhật Android trên ${deviceCount} thiết bị? Mỗi máy tải bản mới về (thường 1 đến 3 GB), không dùng được trong lúc cài, rồi tự khởi động lại. Không hạ lại bản cũ được sau khi cập nhật.`,
   },
@@ -352,7 +352,8 @@ function systemUpdateDetail(command: { status?: string; result?: Record<string, 
   const progress = result.progress;
   if (!progress || (command.status !== 'SENT' && command.status !== 'EXPIRED')) return null;
   const stage = SYSTEM_UPDATE_STAGES[progress.stage] ?? 'Đang cập nhật';
-  return typeof progress.percent === 'number' ? `${stage}: ${progress.percent}%` : `${stage}…`;
+  const note = typeof progress.message === 'string' && progress.message ? ` (${progress.message})` : '';
+  return (typeof progress.percent === 'number' ? `${stage}: ${progress.percent}%` : `${stage}…`) + note;
 }
 
 /**
@@ -398,7 +399,7 @@ const COMMAND_ERRORS: Array<[RegExp, string]> = [
   [/Battery too low for a system update/, 'Pin dưới 30% và không sạc. Cắm sạc rồi gửi lại.'],
   [/System update needs the accessibility service/, 'Cần bật dịch vụ trợ năng của FreeKiosk trên máy.'],
   [/System update needs Device Owner/, 'Cập nhật Android cần chế độ Device Owner.'],
-  [/No Samsung software update/, 'Máy này không có mục Cập nhật phần mềm của Samsung.'],
+  [/No Samsung (or Lenovo )?software update/, 'Máy này không có mục cập nhật phần mềm của Samsung hay Lenovo.'],
   [/Software update did not answer/, 'Màn hình Cập nhật phần mềm không phản hồi. Xem màn hình máy ở Ảnh màn hình > Trực tiếp rồi gửi lại.'],
   [/Download stopped/, 'Bản cập nhật dừng tải giữa chừng (thường do mất Wi-Fi). Gửi lại để tải tiếp.'],
   [/Restarted on the same build/, 'Máy đã khởi động lại nhưng vẫn ở bản Android cũ: chưa cài được bản cập nhật.'],

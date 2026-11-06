@@ -34,9 +34,12 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Cập nhật Android from the website (command system_update): the maker's own update, through its own
- * screens, since nothing else may start it. Samsung only for now: its update agent (com.wssyncmldm) and
- * the Settings page that opens it both want a permission of Samsung's, and the one way in left to an
- * app is the link Settings answers, settings://com.samsung.android.settings.softwareupdate.
+ * screens, since nothing else may start it. On a Samsung its update agent (com.wssyncmldm) and the
+ * Settings page that opens it both want a permission of Samsung's, and the one way in left to an app is
+ * the link Settings answers, settings://com.samsung.android.settings.softwareupdate. On a Lenovo the
+ * update app (com.lenovo.ota) opens with a permission of protection level normal, which FreeKiosk asks
+ * for in its manifest; it checks, downloads and installs by itself, the install (A/B, while Android runs)
+ * only while the tablet is idle, so the screen goes off for it and is lit every few minutes for a look.
  *
  * In kiosk mode FreeKiosk keeps Samsung's update apps suspended and updates postponed (blockUpdates,
  * from MainActivity.enableKioskRestrictions). For the length of the update that is lifted, the update
@@ -59,6 +62,20 @@ object SystemUpdater {
     private const val SAMSUNG_LINK = "settings://com.samsung.android.settings.softwareupdate"
     private const val PRIMARY_BUTTON = "$FOTA:id/bt_highEmphasis"
     private val DOWNLOAD_AND_INSTALL = listOf("Tải về và cài đặt", "Download and install")
+
+    // Lenovo's update app, and its words in English and Vietnamese (from its own strings)
+    private const val LENOVO_OTA = "com.lenovo.ota"
+    private const val LENOVO_OPEN = "com.lenovo.row.ota.activity.start"
+    private val LENOVO_RESTART = listOf("Restart now", "Restart immediately", "Restart", "Khởi động lại ngay", "Khởi động lại")
+    private val LENOVO_INSTALL = listOf("Install now", "Install", "Cài ngay", "Cài đặt")
+    private val LENOVO_DOWNLOAD = listOf("Download and install", "Resume download", "Continue", "Tải về", "Tiếp tục tải về", "Tiếp tục")
+    private val LENOVO_LATEST = listOf("You have the latest", "phiên bản mới nhất", "phiên bản hệ thống mới nhất")
+    private val LENOVO_INSTALL_PAUSED = listOf("Update paused", "Installation paused", "Đã tạm dừng cập nhật", "Tạm dừng cài đặt")
+    /** The install is done and only a restart is left: the words of its page, and of its dialog */
+    private val LENOVO_COMPLETE = listOf("restart to complete", "khởi động lại để hoàn tất")
+    private val LENOVO_INSTALLING = listOf("Installing", "System update in progress", "Đang cài đặt", "Đang cập nhật hệ thống", "about to complete", "sắp hoàn tất")
+    private const val LENOVO_LOOK_EVERY_MS = 3 * 60_000L
+    private const val LENOVO_INSTALL_TIMEOUT_MS = 90 * 60_000L
 
     /** What kiosk mode keeps suspended: Samsung's update apps, which otherwise prompt and restart at will */
     private val SAMSUNG_UPDATE_APPS = arrayOf(
@@ -108,7 +125,14 @@ object SystemUpdater {
     }
 
     /** What lock task must let in while it runs, also when the kiosk starts again in the meantime */
-    fun lockTaskPackages(context: Context): List<String> = if (isActive(context)) listOf(SETTINGS, FOTA) else emptyList()
+    fun lockTaskPackages(context: Context): List<String> = if (isActive(context)) packagesOf(context) else emptyList()
+
+    /** The screens of the maker's update: Samsung's go through Settings, Lenovo's app is its own */
+    private fun packagesOf(context: Context): List<String> = when {
+        hasPackage(context.applicationContext, FOTA) -> listOf(SETTINGS, FOTA)
+        hasPackage(context.applicationContext, LENOVO_OTA) -> listOf(LENOVO_OTA)
+        else -> emptyList()
+    }
 
     /** Kiosk mode: no update prompts, no restart in the middle of a lesson */
     fun blockUpdates(dpm: DevicePolicyManager, admin: ComponentName) {
@@ -124,7 +148,7 @@ object SystemUpdater {
 
     /** From the accessibility service, for each window that comes in front */
     fun onWindow(packageName: String, className: String?) {
-        if (packageName == FOTA || packageName == SETTINGS) lastWindow = className ?: ""
+        if (packageName == FOTA || packageName == SETTINGS || packageName == LENOVO_OTA) lastWindow = className ?: ""
     }
 
     /** Null when this tablet can, or why not, in the words the website puts in Vietnamese */
@@ -132,7 +156,7 @@ object SystemUpdater {
         val app = context.applicationContext
         val dpm = app.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         if (!dpm.isDeviceOwnerApp(app.packageName)) return "System update needs Device Owner mode"
-        if (!hasPackage(app, FOTA)) return "No Samsung software update on this tablet"
+        if (!hasPackage(app, FOTA) && !hasPackage(app, LENOVO_OTA)) return "No Samsung or Lenovo software update on this tablet"
         if (FreeKioskAccessibilityService.instance == null) return "System update needs the accessibility service of FreeKiosk"
         return null
     }
@@ -223,7 +247,7 @@ object SystemUpdater {
         }
     }
 
-    // ─── Watching Samsung's screens ─────────────────────────────────────────
+    // ─── Watching the maker's screens ───────────────────────────────────────
 
     @Synchronized
     private fun startWorker(app: Context, server: Server, delayMs: Long) {
@@ -243,6 +267,11 @@ object SystemUpdater {
         var reportedAt = 0L
         var openedAt = 0L
         var pressedAt = SystemClock.elapsedRealtime()
+        // Lenovo: the screen off while it installs, lit for a look now and then
+        val lenovo = !hasPackage(app, FOTA) && hasPackage(app, LENOVO_OTA)
+        var idle = false
+        var lookAt = 0L
+        var restartAskedAt = 0L
         keepScreenOn(app, true)
         try {
             Thread.sleep(delayMs)
@@ -254,6 +283,19 @@ object SystemUpdater {
                 if (System.currentTimeMillis() - p.getLong("started_at", 0L) > MAX_RUN_MS) {
                     finish(app, server, false, null, "Software update did not answer")
                     return
+                }
+                if (idle) {
+                    if (now < lookAt) {
+                        Thread.sleep(STEP_MS * 4)
+                        continue
+                    }
+                    // A look: lit for a few seconds, its screen in front again, then left alone if not done
+                    wake(app)
+                    openSoftwareUpdate(app)
+                    openedAt = SystemClock.elapsedRealtime()
+                    Thread.sleep(5_000L)
+                    idle = false
+                    continue
                 }
                 fun moveTo(next: String) {
                     p.edit().putString("stage", next).commit()
@@ -267,6 +309,64 @@ object SystemUpdater {
                 val pkg = root?.packageName?.toString()
                 val window = lastWindow
                 when {
+                    pkg == LENOVO_OTA -> {
+                        val text = textOf(root)
+                        val percent = percentOn(root)
+                        val restart = findExact(root, LENOVO_RESTART)
+                        val install = findExact(root, LENOVO_INSTALL)
+                        val download = findExact(root, LENOVO_DOWNLOAD)
+                        val complete = LENOVO_COMPLETE.any { text.contains(it, ignoreCase = true) }
+                        when {
+                            complete || restart != null -> {
+                                if (restartAskedAt == 0L) {
+                                    // Lenovo's own Restart now, once: pressed again it only brings its dialog back
+                                    if (restart != null) click(restart)
+                                    restartAskedAt = now
+                                    if (stage != "installing") moveTo("installing")
+                                    progress(server, commandId, "installing", 100, "Đang khởi động lại để hoàn tất")
+                                } else if (complete && now - restartAskedAt > 15_000L) {
+                                    // In kiosk mode Lenovo's restart never came on a TB330XU, pressed for a minute.
+                                    // The install is done, so a restart by the Device Owner completes it the same way
+                                    rebootNow(app)
+                                    restartAskedAt = now
+                                }
+                            }
+                            install != null -> if (click(install)) moveTo("installing")
+                            download != null && stage != "installing" -> if (click(download)) moveTo("downloading")
+                            percent == null && LENOVO_LATEST.any { text.contains(it, ignoreCase = true) } -> {
+                                val result = JSONObject().put("up_to_date", true).put("build", shortBuild(Build.DISPLAY ?: "")).put("security_patch", securityPatch())
+                                finish(app, server, true, result, null)
+                                return
+                            }
+                            LENOVO_INSTALL_PAUSED.any { text.contains(it, ignoreCase = true) } -> {
+                                // "Resumes when the device is idle", Lenovo says: so the screen goes off for it
+                                if (stage != "installing") moveTo("installing")
+                                progress(server, commandId, "installing", percent, "Màn hình tắt trong lúc cài: Lenovo chỉ cài khi máy rảnh")
+                                keepScreenOn(app, false)
+                                lockScreen(app)
+                                idle = true
+                                lookAt = SystemClock.elapsedRealtime() + LENOVO_LOOK_EVERY_MS
+                            }
+                            else -> {
+                                val next = when {
+                                    LENOVO_INSTALLING.any { text.contains(it, ignoreCase = true) } -> "installing"
+                                    percent != null -> "downloading"
+                                    stage == "opening" -> "checking"
+                                    else -> stage
+                                }
+                                if (next != stage) moveTo(next)
+                                if (percent != null && percent != lastPercent) {
+                                    lastPercent = percent
+                                    lastPercentAt = now
+                                }
+                                if (percent != null && ((percent != reportedPercent && now - reportedAt > 3_000L) || now - reportedAt > REPORT_EVERY_MS)) {
+                                    progress(server, commandId, stage, percent)
+                                    reportedPercent = percent
+                                    reportedAt = now
+                                }
+                            }
+                        }
+                    }
                     pkg == FOTA && window.endsWith("IDMUIActivityForDialog") -> {
                         // A question or a problem of Samsung's, in the tablet's language: said as it is
                         finish(app, server, false, null, "Samsung: ${textOf(root)}".take(400))
@@ -310,9 +410,9 @@ object SystemUpdater {
                         val item = findByText(root, DOWNLOAD_AND_INSTALL) ?: firstTitle(root)
                         if (item != null && click(item)) pressedAt = now
                     }
-                    pkg != FOTA && pkg != SETTINGS && stage != "installing" && now - openedAt > 20_000L -> {
-                        // Not in front, at first or after someone left it: Samsung goes on downloading in the
-                        // background, and its link brings the screen back where it is
+                    pkg != FOTA && pkg != SETTINGS && pkg != LENOVO_OTA && (stage != "installing" || lenovo) && now - openedAt > 20_000L -> {
+                        // Not in front, at first or after someone left it: the maker goes on downloading in the
+                        // background, and opening its screen again shows it where it is
                         openSoftwareUpdate(app)
                         openedAt = now
                     }
@@ -323,7 +423,7 @@ object SystemUpdater {
                     "opening" -> waited > OPEN_TIMEOUT_MS
                     "checking" -> waited > CHECK_TIMEOUT_MS
                     "downloading" -> waited > STALL_MS && SystemClock.elapsedRealtime() - lastPercentAt > STALL_MS
-                    "installing" -> waited > INSTALL_TIMEOUT_MS
+                    "installing" -> waited > (if (lenovo) LENOVO_INSTALL_TIMEOUT_MS else INSTALL_TIMEOUT_MS)
                     else -> false
                 }
                 if (stuck) {
@@ -396,7 +496,7 @@ object SystemUpdater {
         dpm.setSystemUpdatePolicy(admin, SystemUpdatePolicy.createAutomaticInstallPolicy())
         val current = LockTaskCompat.readPackages(dpm, admin)
         if (current != null) {
-            val added = listOf(SETTINGS, FOTA).filterNot { it in current }
+            val added = packagesOf(app).filterNot { it in current }
             prefs(app).edit().putString("added_packages", added.joinToString(",")).commit()
             if (added.isNotEmpty()) dpm.setLockTaskPackages(admin, (current.toList() + added).toTypedArray())
         }
@@ -404,9 +504,10 @@ object SystemUpdater {
 
     // ─── The website ────────────────────────────────────────────────────────
 
-    private fun progress(server: Server, commandId: String, stage: String, percent: Int?) {
+    private fun progress(server: Server, commandId: String, stage: String, percent: Int?, message: String? = null) {
         val body = JSONObject().put("stage", stage)
         if (percent != null) body.put("percent", percent)
+        if (message != null) body.put("message", message)
         post(server, "/api/v1/commands/$commandId/progress/", body)
     }
 
@@ -435,7 +536,12 @@ object SystemUpdater {
 
     private fun openSoftwareUpdate(app: Context) {
         try {
-            app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SAMSUNG_LINK)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            val intent = if (hasPackage(app, FOTA)) {
+                Intent(Intent.ACTION_VIEW, Uri.parse(SAMSUNG_LINK))
+            } else {
+                Intent(LENOVO_OPEN).setPackage(LENOVO_OTA)
+            }
+            app.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: Exception) {
             DebugLog.d(TAG, "Software update not opened: ${e.message}")
         }
@@ -456,6 +562,55 @@ object SystemUpdater {
         return titles.firstOrNull { node ->
             node.isVisibleToUser && texts.any { node.text?.toString()?.trim().equals(it, ignoreCase = true) }
         }
+    }
+
+    /** A button by its whole label, in the order given: Restart now before Restart */
+    private fun findExact(root: AccessibilityNodeInfo, texts: List<String>): AccessibilityNodeInfo? {
+        for (text in texts) {
+            val hit = root.findAccessibilityNodeInfosByText(text)?.firstOrNull { node ->
+                node.isVisibleToUser && node.text?.toString()?.trim().equals(text, ignoreCase = true) && pressable(node)
+            }
+            if (hit != null) return hit
+        }
+        return null
+    }
+
+    private fun pressable(node: AccessibilityNodeInfo): Boolean {
+        var current: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (current != null && depth++ < 4) {
+            if (current.isClickable && current.isEnabled) return true
+            current = current.parent
+        }
+        return false
+    }
+
+    private fun rebootNow(app: Context) {
+        try {
+            (app.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager)
+                .reboot(ComponentName(app, DeviceAdminReceiver::class.java))
+        } catch (e: Exception) {
+            DebugLog.errorProduction(TAG, "Restart refused: ${e.message}")
+        }
+    }
+
+    private fun lockScreen(app: Context) {
+        try {
+            (app.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager).lockNow()
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Screen not turned off: ${e.message}")
+        }
+    }
+
+    /** The screen on again: the kiosk's own way first, which works where a wake lock may not wake it */
+    private fun wake(app: Context) {
+        val react = KioskModule.reactContextOrNull()
+        try {
+            if (react != null) ScreenController.turnScreenOn(react)
+        } catch (e: Exception) {
+            DebugLog.d(TAG, "Screen not lit: ${e.message}")
+        }
+        keepScreenOn(app, true)
     }
 
     /** The first entry of a Settings list, where Samsung puts Tải về và cài đặt whatever the language */
@@ -561,8 +716,12 @@ object SystemUpdater {
 
     private fun securityPatch(): String = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Build.VERSION.SECURITY_PATCH ?: "" else ""
 
-    /** BP2A.250605.031.A3.X210XXSBEZBA reads as X210XXSBEZBA: the part that changes with each update */
-    private fun shortBuild(build: String): String = build.substringAfterLast('.')
+    /**
+     * The part that changes with each update: BP2A.250605.031.A3.X210XXSBEZBA reads as X210XXSBEZBA, and
+     * TB330XU_ROW_OPEN_USER_V5_V_ZUI_17.0.254_ST_251109 as ZUI 17.0.254
+     */
+    private fun shortBuild(build: String): String =
+        Regex("""ZUI_([0-9.]+)""").find(build)?.let { "ZUI ${it.groupValues[1]}" } ?: build.substringAfterLast('.')
 }
 
 /** For CloudCommandService: starts an update, and says whether this tablet can (capabilities) */

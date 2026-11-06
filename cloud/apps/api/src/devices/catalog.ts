@@ -106,7 +106,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
   // operators than a restart, and a schedule may run it at night: a tablet up to date does nothing
   system_update: {
     capability: 'system_update',
-    lacking: 'Cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk, trên máy Samsung',
+    lacking: 'Cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk, trên máy Samsung hoặc Lenovo',
     ttlMinutes: 6 * 60,
   },
   add_wifi_network: {

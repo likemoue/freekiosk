@@ -27,7 +27,9 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
 /** The maker's build of Android and its security patch, as FreeKiosk 2.1.0-beta.16 and later report them */
 const androidBuildText = (telemetry: unknown): string => {
   const system = (telemetry as any)?.system ?? {};
-  const build = typeof system.android_build === 'string' ? system.android_build.split('.').pop() : null;
+  // X210XXSBEZBA on a Samsung, ZUI 17.0.254 on a Lenovo: the part that changes with each update
+  const zui = typeof system.android_build === 'string' ? /ZUI_([0-9.]+)/.exec(system.android_build) : null;
+  const build = zui ? `ZUI ${zui[1]}` : typeof system.android_build === 'string' ? system.android_build.split('.').pop() : null;
   const patch = typeof system.security_patch === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(system.security_patch)
     ? system.security_patch.split('-').reverse().join('/')
     : null;

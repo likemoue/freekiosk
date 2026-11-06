@@ -510,6 +510,39 @@ describe('the apps on the home screen', () => {
       assert.equal((await tablet.heartbeat()).data.config, null);
     });
 
+    it('sends again an install a restart of FreeKiosk cut short, and shows the app once it is in', async () => {
+      await uploaded('vn.auto.cut', 'cut.apk');
+      const home = [app('vn.auto.cut', 'Cắt ngang')];
+      const tablet = await tabletWith(home, ['vn.do.iclass']);
+      const hash = `h-${tablet.deviceId}`;
+      const [first] = await updatesOf(tablet);
+      // As CloudCommandService reports what a restart left unfinished
+      await tablet.sendResult(first.command_id, 'error', null, 'Device restarted before the command result could be reported');
+      const hidden = [{ ...home[0], showOnHomeScreen: false }];
+      await tablet.heartbeat({ ...reported(hidden), installed_apps_hash: hash });
+
+      const [second, ...more] = await updatesOf(tablet);
+      assert.equal(more.length, 0);
+      assert.notEqual(second.command_id, first.command_id);
+      await tablet.sendResult(second.command_id, 'success', { install_status: 'success' });
+      const general = await pushed(tablet);
+      assert.deepEqual(general.managedApps.map((a: any) => [a.packageName, a.showOnHomeScreen]), [['vn.auto.cut', true]]);
+    });
+
+    it('stops sending an install cut short three times', async () => {
+      await uploaded('vn.auto.cut3');
+      const home = [app('vn.auto.cut3')];
+      const tablet = await tabletWith(home, ['vn.do.iclass']);
+      const hash = `h-${tablet.deviceId}`;
+      for (let round = 0; round < 3; round += 1) {
+        const [update] = await updatesOf(tablet);
+        assert.ok(update, `round ${round}`);
+        await tablet.sendResult(update.command_id, 'error', null, 'Device restarted before the command result could be reported');
+        await tablet.heartbeat({ ...reported(home), installed_apps_hash: hash });
+      }
+      assert.deepEqual(await updatesOf(tablet), []);
+    });
+
     it('takes, of two files of one version, the one tablets were given before', async () => {
       const given = await uploaded('vn.auto.twin', 'twin.apk');
       // Uploaded after it, the same version: on its own it would come first
