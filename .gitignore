@@ -97,3 +97,6 @@ launch.md
 ROADMAP.md
 Features.md
 ISSUE_TRIAGE.md
+
+# Signs the archive the USB install tool updates itself from (scripts/cai-tablet-usb/build.ps1): never committed
+scripts/cai-tablet-usb/khoa-ky-cap-nhat.xml

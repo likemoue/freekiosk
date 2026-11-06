@@ -43,6 +43,7 @@ namespace CaiTablet
         readonly CancellationTokenSource stop = new CancellationTokenSource();
         readonly System.Windows.Forms.Timer spinnerTimer = new System.Windows.Forms.Timer { Interval = 180 };
 
+        readonly string updatedFrom;
         Settings settings;
         Installer installer;
         Thread worker;
@@ -52,10 +53,12 @@ namespace CaiTablet
         int doneCount;
         bool closing;
 
-        public MainForm()
+        /// <param name="updatedFrom">The version this copy replaced, when it was just updated</param>
+        public MainForm(string updatedFrom)
         {
+            this.updatedFrom = updatedFrom;
             SuspendLayout();
-            Text = "Cài tablet FreeKiosk qua USB";
+            Text = "Cài tablet FreeKiosk qua USB" + (PhienBan.Hien != "dev" ? " · bản " + PhienBan.Hien : "");
             Font = Theme.Body;
             ClientSize = new Size(900, 660);
             // A bigger window would only spread the rows apart, so its size is fixed
@@ -251,9 +254,63 @@ namespace CaiTablet
 
         // ─── Life of the window ─────────────────────────────────────────────────
 
+        static string Folder
+        {
+            get { return AppDomain.CurrentDomain.BaseDirectory; }
+        }
+
+        /// <summary>The website first: a newer tool replaces this one before anything touches a tablet</summary>
         void OnShown(object sender, EventArgs e)
         {
-            string folder = AppDomain.CurrentDomain.BaseDirectory;
+            settings = Settings.Load();
+            UpdateServerLabel();
+            CapNhat.CleanUp(Folder);
+            if (updatedFrom != null) Log("Đã cập nhật công cụ" + (updatedFrom != "" ? " từ bản " + updatedFrom : "") + " lên bản " + PhienBan.Hien + ".");
+
+            ShowStatus("Đang kiểm tra bản mới của công cụ", "Hỏi website, vài giây là xong.", Tone.Working);
+            var check = new Thread(delegate ()
+            {
+                UpdateResult result;
+                try
+                {
+                    result = CapNhat.Run(settings.ServerUrl, Folder, delegate (string line) { ShowStatus("Đang cập nhật công cụ", line, Tone.Working); }, stop.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception error)
+                {
+                    result = new UpdateResult { Outcome = UpdateOutcome.Failed, Message = "Không kiểm tra được bản mới của công cụ: " + error.Message };
+                }
+                Ui(delegate { AfterUpdateCheck(result); });
+            }) { IsBackground = true, Name = "cap-nhat" };
+            check.Start();
+        }
+
+        void AfterUpdateCheck(UpdateResult result)
+        {
+            Log(result.Message);
+            if (result.Outcome == UpdateOutcome.Updated)
+            {
+                ShowStatus("Đã tải bản " + result.Version, "Công cụ tự mở lại bằng bản mới.", Tone.Success);
+                try
+                {
+                    Process.Start(new ProcessStartInfo(Application.ExecutablePath, CapNhat.AfterUpdateArgument + " " + PhienBan.Hien) { UseShellExecute = false, WorkingDirectory = Folder });
+                    Close();
+                }
+                catch (Exception error)
+                {
+                    ShowStatus("Không tự mở lại được", error.Message + ". Hãy đóng rồi mở lại công cụ để dùng bản mới.", Tone.Attention);
+                }
+                return;
+            }
+            Prepare();
+        }
+
+        void Prepare()
+        {
+            string folder = Folder;
             string adbPath = Environment.GetEnvironmentVariable("CAITABLET_ADB");
             if (string.IsNullOrEmpty(adbPath)) adbPath = Path.Combine(folder, "adb", "adb.exe");
             string apkPath = Path.Combine(folder, "FreeKiosk.apk");
@@ -264,8 +321,6 @@ namespace CaiTablet
             }
             adb = new Adb(adbPath);
 
-            settings = Settings.Load();
-            UpdateServerLabel();
             if (!settings.IsComplete && !OpenSettings())
             {
                 ShowStatus("Chưa thiết lập", "Bấm Thiết lập để nhập mã đăng ký và PIN. Công cụ cần hai thứ này để đăng ký tablet.", Tone.Attention);
