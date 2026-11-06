@@ -72,10 +72,14 @@ bộ nhiều tệp.
 
 TỰ CẬP NHẬT
 -----------
-Mỗi lần mở, công cụ hỏi website (địa chỉ trong Thiết lập) xem có bản mới hơn không. Có thì công cụ
-tự tải về, kiểm tra chữ ký, thay các tệp trong thư mục này rồi tự mở lại; tablet cài sau đó nhận bản
-FreeKiosk đi kèm bản mới. Không có mạng, hoặc Windows 10 (website yêu cầu TLS 1.3), thì công cụ chạy
-tiếp bằng bản đang có. Bản đang dùng ghi trên thanh tiêu đề cửa sổ.
+Mỗi lần mở, công cụ hỏi website (địa chỉ trong Thiết lập) xem có bản mới hơn không. Có thì hiện hộp
+Có bản mới của công cụ, ghi bản mới, bản FreeKiosk đi kèm và dung lượng tải về:
+- Cập nhật ngay: công cụ tự tải về, kiểm tra chữ ký, thay các tệp trong thư mục này rồi tự mở lại.
+  Tablet cài sau đó nhận bản FreeKiosk đi kèm bản mới.
+- Để sau: dùng tiếp bản đang có. Nút Có bản mới trên thanh tiêu đề để cập nhật lúc khác, khi công cụ
+  không đang cài dở tablet nào.
+Không có mạng, hoặc Windows 10 (website yêu cầu TLS 1.3), thì công cụ chạy tiếp bằng bản đang có. Bản
+đang dùng ghi trên thanh tiêu đề cửa sổ.
 
 Thư mục công cụ phải ghi được: đừng để trong Program Files. Bản mới chỉ được nhận khi có chữ ký bằng
 khóa của người build công cụ, nên dù website bị chiếm cũng không phát được chương trình lạ.
