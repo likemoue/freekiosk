@@ -16,6 +16,7 @@ import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import KioskModule from './KioskModule';
 import AccessibilityModule from './AccessibilityModule';
 import OverlayPermissionModule from './OverlayPermissionModule';
+import { canLocate } from './DeviceLocation';
 
 // Capability vocabulary. Keep in sync with the cloud (device-feature-audit.md).
 export type Capability =
@@ -54,6 +55,8 @@ export type Capability =
   | 'usage_access'
   | 'camera'
   | 'location'
+  // Places itself on the map of the management website when asked (DeviceLocationModule)
+  | 'locate'
   | 'bluetooth';
 
 const BASELINE: Capability[] = [
@@ -136,6 +139,10 @@ export async function getCapabilities(): Promise<string[]> {
   }
   if (await hasRuntimePermission(P.ACCESS_FINE_LOCATION)) {
     caps.add('location');
+  }
+  // Grants itself what it lacks when asked: told apart from an older app, which reports 'location' too
+  if (canLocate()) {
+    caps.add('locate');
   }
   if (P.BLUETOOTH_CONNECT && (await hasRuntimePermission(P.BLUETOOTH_CONNECT))) {
     caps.add('bluetooth');

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { env } from '../config/env';
+import type { UsbToolRelease } from '../files/usb-tool';
 import { PrismaService } from './prisma.service';
 
 export interface OrganizationSettings {
@@ -28,6 +29,14 @@ export interface SmtpSettings {
   from: string;
 }
 
+export interface LocationSettings {
+  /** Tablets report where they are, for the map. On unless switched off */
+  enabled: boolean;
+}
+
+/** Read at every heartbeat of every tablet: kept here for a short while rather than asked each time */
+const LOCATION_CACHE_MS = 10_000;
+
 const ALERT_DEFAULTS: AlertSettings = {
   offlineMinutes: 5,
   batteryLow: 20,
@@ -39,6 +48,8 @@ const ALERT_DEFAULTS: AlertSettings = {
 
 @Injectable()
 export class SettingsService {
+  private locationCache: { value: LocationSettings; at: number } | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
 
   private async read<T>(key: string): Promise<T | null> {
@@ -77,6 +88,30 @@ export class SettingsService {
     const next = { ...(await this.alerts()), ...settings };
     await this.write('alerts', next);
     return next;
+  }
+
+  async location(): Promise<LocationSettings> {
+    const cached = this.locationCache;
+    if (cached && Date.now() - cached.at < LOCATION_CACHE_MS) return cached.value;
+    const value = { enabled: true, ...(await this.read<Partial<LocationSettings>>('location')) };
+    this.locationCache = { value, at: Date.now() };
+    return value;
+  }
+
+  async saveLocation(settings: LocationSettings): Promise<LocationSettings> {
+    const value = { enabled: settings.enabled };
+    await this.write('location', value);
+    this.locationCache = { value, at: Date.now() };
+    return value;
+  }
+
+  /** The newest USB install tool uploaded, which every copy of the tool updates itself to */
+  usbTool(): Promise<UsbToolRelease | null> {
+    return this.read<UsbToolRelease>('usbTool');
+  }
+
+  saveUsbTool(release: UsbToolRelease): Promise<void> {
+    return this.write('usbTool', release);
   }
 
   smtp(): Promise<SmtpSettings | null> {

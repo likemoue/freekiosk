@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  AppWindow, Ban, Bell, Camera, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
+  AppWindow, Ban, Bell, Camera, LocateFixed, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
 import { ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -57,6 +57,7 @@ const COMMANDS: CommandDef[] = [
   { type: 'screen_off', label: 'Tắt màn hình', icon: <Moon />, category: 'quick', capability: 'screen' },
   { type: 'wake', label: 'Đánh thức', icon: <MousePointerClick />, category: 'quick', capability: 'screen' },
   { type: 'screenshot', label: 'Chụp màn hình', hint: 'Cần bật "Cho phép chụp màn hình từ xa" trên thiết bị. Ảnh xuất hiện ở mục Ảnh màn hình.', icon: <Camera />, category: 'quick', capability: 'screenshot' },
+  { type: 'locate', label: 'Cập nhật vị trí', hint: 'Tablet lấy vị trí mới cho trang Bản đồ ngay, thay vì chờ lần tự làm mới 15 phút một lần.', icon: <LocateFixed />, category: 'quick', capability: 'locate', lacking: 'Cần FreeKiosk bản mới nhất' },
   { type: 'toast', label: 'Hiện thông báo', icon: <Bell />, category: 'quick', capability: 'toast', params: [{ name: 'message', label: 'Nội dung', required: true, placeholder: 'Ví dụ: Bảo trì lúc 17:00' }] },
   { type: 'reboot', label: 'Khởi động lại', hint: 'Cần thiết bị ở chế độ Device Owner.', icon: <RotateCcw />, category: 'quick', capability: 'reboot', danger: 'Thiết bị sẽ khởi động lại ngay khi nhận lệnh.' },
   { type: 'stop_apps', label: 'Dừng mọi ứng dụng', hint: 'Đóng hẳn các ứng dụng đang chạy và đưa tablet về màn hình chính. Dữ liệu và đăng nhập trong ứng dụng vẫn giữ nguyên. Cần FreeKiosk bản mới nhất và chế độ Device Owner.', icon: <CircleStop />, category: 'apps', capability: 'stop_apps', lacking: 'Thiết bị này cần FreeKiosk bản mới nhất và chế độ Device Owner. Bản mới cài ở mục Ứng dụng (APK).', danger: 'Ứng dụng đang mở trên các thiết bị đã chọn sẽ bị đóng ngay, kể cả khi có người đang dùng.' },
@@ -265,6 +266,12 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
   }
   if (command.type === 'set_screen_timeout') return SCREEN_TIMEOUTS.find((option) => option.value === String(params.seconds))?.label ?? `${params.seconds} giây`;
   if (command.type === 'set_url') return params.url ?? null;
+  if (command.type === 'locate') {
+    const location = command.result?.location;
+    if (location?.state !== 'ok' || typeof location.latitude !== 'number') return null;
+    const accuracy = typeof location.accuracy_m === 'number' ? `, sai số ±${Math.round(location.accuracy_m)} m` : '';
+    return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}${accuracy}`;
+  }
   if (command.type === 'apply_profile') return params.profile ?? null;
   if (command.type === 'push_config') {
     const secrets = (params.secrets ?? []).map((key: string) => SECRET_FIELDS.find((field) => field.key === key)?.label ?? key);
@@ -286,6 +293,7 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
 const COMMAND_ERRORS: Array<[RegExp, string]> = [
   [/Device restarted before the command result/, 'FreeKiosk khởi động lại trước khi kịp báo kết quả. Lệnh có thể đã chạy xong, hãy xem lại trên máy.'],
   [/Could not clear the data of/, 'Android không cho xóa dữ liệu của một số ứng dụng đã chọn.'],
+  [/This app version cannot locate the device/, 'Cần FreeKiosk bản mới nhất để lấy vị trí.'],
   [/Clearing app data requires Device Owner/, 'Xóa dữ liệu ứng dụng cần chế độ Device Owner.'],
   [/Clearing app data requires Android 9/, 'Xóa dữ liệu ứng dụng cần Android 9 trở lên.'],
   [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được một mình. Hãy tải lên cả bộ tệp của ứng dụng.'],

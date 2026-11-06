@@ -13,6 +13,7 @@ export default defineConfig({
       '/media': API,
       '/player': API,
       '/dpc-apk-download': API,
+      '/usb-tool-download': API,
     },
   },
   build: { chunkSizeWarningLimit: 900 },

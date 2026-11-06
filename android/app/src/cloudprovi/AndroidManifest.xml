@@ -35,6 +35,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Strip ACCESS_BACKGROUND_LOCATION too: Play Protect weighs sensitive permissions, and this APK
+         is sideloaded by the setup wizard. The map then places such a tablet only while FreeKiosk is
+         in front. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove" />
+
     <application>
         <!-- Strip AccessibilityService (BIND_ACCESSIBILITY_SERVICE) -->
         <service

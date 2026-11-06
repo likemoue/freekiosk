@@ -70,13 +70,34 @@ Máy lấy nên cùng loại CPU với các tablet. Tablet cần FreeKiosk từ 
 bộ nhiều tệp.
 
 
+TỰ CẬP NHẬT
+-----------
+Mỗi lần mở, công cụ hỏi website (địa chỉ trong Thiết lập) xem có bản mới hơn không. Có thì công cụ
+tự tải về, kiểm tra chữ ký, thay các tệp trong thư mục này rồi tự mở lại; tablet cài sau đó nhận bản
+FreeKiosk đi kèm bản mới. Không có mạng, hoặc Windows 10 (website yêu cầu TLS 1.3), thì công cụ chạy
+tiếp bằng bản đang có. Bản đang dùng ghi trên thanh tiêu đề cửa sổ.
+
+Thư mục công cụ phải ghi được: đừng để trong Program Files. Bản mới chỉ được nhận khi có chữ ký bằng
+khóa của người build công cụ, nên dù website bị chiếm cũng không phát được chương trình lạ.
+
+
 CẬP NHẬT PHIÊN BẢN FREEKIOSK
 ----------------------------
-Thay tệp FreeKiosk.apk trong thư mục này bằng bản mới, giữ nguyên tên tệp.
-Phải dùng bản build thường (assembleRelease), không dùng bản -Pcloudprovi.
+Người quản trị: chạy build.ps1 để có bản mới, rồi tải tệp release-builds/CaiTablet-USB-<phiên bản>.zip
+lên website, mục Ứng dụng (APK), thẻ Công cụ cài USB. Các máy tính đang dùng công cụ tự nhận bản mới
+ở lần mở sau.
+
+Muốn đổi tay trên một máy: thay tệp FreeKiosk.apk trong thư mục này bằng bản mới, giữ nguyên tên tệp.
+Phải dùng bản build thường (assembleRelease), không dùng bản -Pcloudprovi. Lần tự cập nhật sau sẽ
+đưa tệp này về bản trên website.
 
 
 DÀNH CHO NGƯỜI SỬA MÃ NGUỒN
 ---------------------------
 Mã nguồn nằm ở scripts/cai-tablet-usb. Chạy build.ps1 để tạo lại thư mục
-release-builds/CaiTablet-USB. Không cần cài thêm trình biên dịch: dùng csc.exe có sẵn trong Windows.
+release-builds/CaiTablet-USB và tệp .zip để tải lên website. Không cần cài thêm trình biên dịch:
+dùng csc.exe có sẵn trong Windows.
+
+build.ps1 ký tệp .zip bằng khóa scripts/cai-tablet-usb/khoa-ky-cap-nhat.xml (không đưa lên git).
+Lần đầu tạo khóa bằng: build.ps1 -NewSigningKey. Hãy sao lưu khóa này cùng khóa ký APK: build bằng
+khóa khác thì các công cụ đã phát hành từ chối bản đó, và phải chép công cụ mới bằng tay lên từng máy.

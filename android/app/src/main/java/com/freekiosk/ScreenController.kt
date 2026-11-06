@@ -127,32 +127,33 @@ object ScreenController {
         }
     }
 
-    fun turnScreenOff(reactContext: ReactApplicationContext) {
+    /** Any context: an install turns the screen off again from a new process too, with no React yet */
+    fun turnScreenOff(context: Context) {
         UiThreadUtil.runOnUiThread {
             try {
-                wakeLock?.release()
+                try { wakeLock?.release() } catch (_: Exception) { /* already released */ }
                 wakeLock = null
 
                 // Tell the screen-off receiver this was asked for, so auto-wake does not
                 // undo it the moment ACTION_SCREEN_OFF lands.
-                ScreenStateReceiver.markDeliberateScreenOff(reactContext)
+                ScreenStateReceiver.markDeliberateScreenOff(context)
 
-                val dpm = reactContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
-                val adminComp = ComponentName(reactContext, DeviceAdminReceiver::class.java)
+                val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                val adminComp = ComponentName(context, DeviceAdminReceiver::class.java)
 
-                if (dpm.isDeviceOwnerApp(reactContext.packageName) || dpm.isAdminActive(adminComp)) {
+                if (dpm.isDeviceOwnerApp(context.packageName) || dpm.isAdminActive(adminComp)) {
                     dpm.lockNow()
-                    val method = if (dpm.isDeviceOwnerApp(reactContext.packageName)) "Device Owner" else "Device Admin"
+                    val method = if (dpm.isDeviceOwnerApp(context.packageName)) "Device Owner" else "Device Admin"
                     Log.d(TAG, "Screen turned OFF via $method lockNow()")
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && FreeKioskAccessibilityService.isRunning()) {
                     val ok = FreeKioskAccessibilityService.performAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
                     if (ok) {
                         Log.d(TAG, "Screen locked via AccessibilityService")
                     } else {
-                        dimScreen(reactContext)
+                        dimScreen(context)
                     }
                 } else {
-                    dimScreen(reactContext)
+                    dimScreen(context)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to turn screen off: ${e.message}")
@@ -160,8 +161,8 @@ object ScreenController {
         }
     }
 
-    private fun dimScreen(reactContext: ReactApplicationContext) {
-        val activity = reactContext.currentActivity ?: return
+    private fun dimScreen(context: Context) {
+        val activity = (context as? ReactApplicationContext)?.currentActivity ?: return
         activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val layoutParams = activity.window.attributes
         layoutParams.screenBrightness = 0f

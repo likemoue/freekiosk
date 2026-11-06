@@ -6,7 +6,7 @@ import { Button, errorText, Progress } from '../ui';
 
 /** Picks files and sends them in parts; `finish` turns a finished upload into a record */
 export function UploadButton({ purpose, accept, multiple, label, onDone, finish, onError }: {
-  purpose: 'media' | 'apk';
+  purpose: 'media' | 'apk' | 'usb_tool';
   accept: string;
   multiple?: boolean;
   label: string;

@@ -8,6 +8,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Strip ACCESS_BACKGROUND_LOCATION: the Play Store asks for a declaration and a review for it.
+         The map of the management website then places such a tablet only while FreeKiosk is in front. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove" />
+
     <!-- Strip REQUEST_INSTALL_PACKAGES (self-update) -->
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"

@@ -106,3 +106,39 @@ dialog {
 .dark .soft-shadow {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
 }
+
+/* The map page (pages/DeviceMap.tsx) */
+.device-map.leaflet-container {
+  font: inherit;
+  background: var(--raised);
+}
+
+.dark .device-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.92);
+}
+
+.device-map .leaflet-popup-content-wrapper,
+.device-map .leaflet-popup-tip,
+.device-map .leaflet-tooltip {
+  background: var(--card);
+  color: var(--ink);
+}
+
+.device-map-popup {
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--soft);
+}
+
+.device-map-popup-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.device-map-popup-link {
+  margin-top: 4px;
+  font-weight: 600;
+}

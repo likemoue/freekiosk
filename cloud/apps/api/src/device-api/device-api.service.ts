@@ -14,6 +14,7 @@ import { COMMAND_LABELS, THROUGH_CONFIG_TYPES } from '../devices/catalog';
 import { PACKAGE_NAME } from '../devices/home-apps';
 import { HomeAppsService } from '../devices/home-apps.service';
 import { SignageService } from '../signage/signage.service';
+import { LOCATION_STATE_TEXT, locationColumns } from './location';
 
 const SCREENSHOTS_KEPT_PER_DEVICE = 30;
 const OWN_PACKAGE = 'com.freekiosk';
@@ -258,6 +259,8 @@ export class DeviceApiService {
     const now = new Date();
     const deviceVersion = int(body.config_version) ?? 0;
     const appsHash = str(body.installed_apps_hash, 64);
+    // Asked of every tablet unless switched off on the map page; a place sent once it is, is not kept
+    const { enabled: wantsLocation } = await this.settings.location();
 
     const data: Prisma.DeviceUpdateInput = {
       lastSeenAt: now,
@@ -265,6 +268,7 @@ export class DeviceApiService {
       publicIp: ip,
       ...this.telemetry(body),
       ...this.reportedConfig(device, body, deviceVersion),
+      ...(wantsLocation && body.location !== undefined ? locationColumns(device, obj(body.location), now) : {}),
     };
 
     const hasPending = device.pendingConfig !== null || device.pendingSensitiveEnc !== null;
@@ -322,6 +326,7 @@ export class DeviceApiService {
       // The app only sends the list when asked, and an icon only once per version across the fleet
       installed_apps_wanted: !!appsHash && appsHash !== device.installedAppsHash,
       app_icons_wanted: device.appIconsWanted ? await this.nextIcons(device.id, reportedApps(device.installedApps)) : [],
+      location_wanted: wantsLocation,
     };
   }
 
@@ -394,13 +399,25 @@ export class DeviceApiService {
   async recordResult(device: Device, commandId: string, body: Json): Promise<void> {
     const command = await this.prisma.command.findFirst({ where: { id: commandId, deviceId: device.id } });
     if (!command) throw new NotFoundException({ error: 'Không tìm thấy lệnh' });
-    const ok = body.status === 'success';
+    let ok = body.status === 'success';
+    let errorMessage = str(body.error_message, 2000);
+    // The tablet says what it found, also when it found nothing: the reason is put in words here
+    if (command.type === 'locate' && ok) {
+      const report = obj(obj(body.result).location);
+      if (report.state !== 'ok') {
+        ok = false;
+        errorMessage = LOCATION_STATE_TEXT[String(report.state)] ?? 'Máy không trả lời vị trí';
+      }
+      const columns = locationColumns(device, report);
+      if (Object.keys(columns).length && (await this.settings.location()).enabled) {
+        await this.prisma.device.update({ where: { id: device.id }, data: columns });
+      }
+    }
     // Up to 2.1.0-beta.9 a tablet could call a command interrupted while it was still running, on coming
     // back from Settings, and then say how it really ended. That is the one answer worth changing
     const onlyInterrupted = ok && command.status === 'ERROR' && command.errorMessage === INTERRUPTED_MESSAGE;
     // A result that arrives after the expiry is still the truth about what happened
     if ((command.status === 'SUCCESS' || command.status === 'ERROR') && !onlyInterrupted) return;
-    const errorMessage = str(body.error_message, 2000);
     await this.prisma.command.update({
       where: { id: command.id },
       data: {

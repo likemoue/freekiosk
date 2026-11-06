@@ -15,9 +15,11 @@ import { CommandsController, ConfigController, DevicesController, ScreenshotsCon
 import { DevicesService } from './devices/devices.service';
 import { HomeAppsController } from './devices/home-apps.controller';
 import { HomeAppsService } from './devices/home-apps.service';
+import { LocationsController } from './devices/locations.controller';
 import { ApkInspector } from './files/apk-inspector';
 import { ApksController, MediaController, UploadsController } from './files/files.controller';
 import { UploadsService } from './files/uploads.service';
+import { UsbToolController } from './files/usb-tool.controller';
 import { EnrollmentController, GroupsController, ProfilesController } from './fleet/fleet.controller';
 import { PublicController } from './public/public.controller';
 import { SchedulerController, SchedulerService } from './scheduler/scheduler.controller';
@@ -34,6 +36,7 @@ import { SignageService } from './signage/signage.service';
     ConfigController,
     CommandsController,
     HomeAppsController,
+    LocationsController,
     ScreenshotsController,
     GroupsController,
     ProfilesController,
@@ -41,6 +44,7 @@ import { SignageService } from './signage/signage.service';
     UploadsController,
     MediaController,
     ApksController,
+    UsbToolController,
     SignageController,
     SchedulerController,
     AlertsController,

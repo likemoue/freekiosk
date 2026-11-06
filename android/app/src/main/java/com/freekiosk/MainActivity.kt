@@ -819,6 +819,12 @@ class MainActivity : ReactActivity() {
     syncCameraForegroundService()
   }
 
+  /** A tablet lit for an install stays lit for whoever started using it meanwhile */
+  override fun onUserInteraction() {
+    super.onUserInteraction()
+    InstallScreen.noteUserInteraction()
+  }
+
   override fun onResume() {
     super.onResume()
 

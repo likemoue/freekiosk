@@ -5,7 +5,7 @@ import { mkdir, rename, rm, stat } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { env } from '../config/env';
 
-export type StorageArea = 'media' | 'apk' | 'screenshots' | 'tmp';
+export type StorageArea = 'media' | 'apk' | 'screenshots' | 'tools' | 'tmp';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -13,7 +13,7 @@ export class StorageService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await Promise.all(
-      (['media', 'apk', 'screenshots', 'tmp'] as StorageArea[]).map((area) =>
+      (['media', 'apk', 'screenshots', 'tools', 'tmp'] as StorageArea[]).map((area) =>
         mkdir(join(this.root, area), { recursive: true }),
       ),
     );

@@ -24,6 +24,7 @@ import { getCloudCredentials, CloudCredentials } from './secureStorage';
 import { StorageService } from './storage';
 import ManagedAppInstaller from './ManagedAppInstaller';
 import KioskModule from './KioskModule';
+import { locateNow } from './DeviceLocation';
 
 const { HttpServerModule, WifiControlModule } = NativeModules;
 
@@ -276,6 +277,10 @@ class CloudCommandServiceClass {
     if (cmd.type === 'set_screen_timeout') {
       return this.setScreenTimeout(cmd.params || {});
     }
+    // Where the tablet is, for the website alone: not for the LAN either
+    if (cmd.type === 'locate') {
+      return this.locate();
+    }
     // Straight to Android: the action layer goes through the kiosk screen, which may not be there
     if (cmd.type === 'set_volume') {
       return this.setVolume(cmd.params || {});
@@ -320,6 +325,16 @@ class CloudCommandServiceClass {
     } catch (error: any) {
       return { ok: false, error: error?.message ?? String(error) };
     }
+  }
+
+  /**
+   * A new fix for the map. What the tablet found is the result, also when it found nothing: the website
+   * puts the reason in words, and keeps the place it knew.
+   */
+  private async locate(): Promise<ActionResult> {
+    const location = await locateNow();
+    if (!location) return { ok: false, error: 'This app version cannot locate the device' };
+    return { ok: true, result: { location } };
   }
 
   /** How long the screen stays on with no touch. Android keeps it, across restarts too. */

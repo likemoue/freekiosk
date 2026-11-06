@@ -147,13 +147,14 @@ curl -s https://mdm.ism.io.vn/healthz
 | `/media/*` | Trình phát trên tablet | Tệp của danh sách phát, mở bằng mã trong đường dẫn |
 | `/player/*` | Trình phát trên tablet | Trang phát video YouTube |
 | `/dpc-apk-download*` | Trình cài đặt Android | Tải APK khi cấp phát bằng QR, chưa có tài khoản nào |
+| `/api/public/usb-tool`, `/usb-tool-download` | Công cụ cài tablet qua USB | Tự kiểm tra và tải bản mới mỗi khi mở, trước khi ai đăng nhập |
 
 Cụ thể:
 
 - **Phiên bản TLS.** Zone `ism.io.vn` đang đặt TLS tối thiểu 1.3. Android 8 và 9 không có TLS 1.3 nên **không kết nối được**,
   cả khi cấp phát bằng QR. Có máy đời đó thì phải hạ xuống 1.2, áp dụng cho cả zone.
 - **Cloudflare Access.** IMS của bạn đang dùng Access theo email công ty. Nếu muốn dùng cho trang này, hãy
-  tạo thêm một Access Application **Bypass (Everyone)** cho 4 đường dẫn trên, và không cần thêm gì cho
+  tạo thêm một Access Application **Bypass (Everyone)** cho các đường dẫn trên, và không cần thêm gì cho
   `/api/admin/*` vì đã có đăng nhập và 2FA riêng.
 - **WAF, Bot Fight Mode, Browser Integrity Check.** Ứng dụng Android gọi API bằng OkHttp, dễ bị xem là bot.
   Tạo **WAF Custom Rule**, hành động **Skip**, áp dụng cho `/api/v1/`, `/media/`, `/player/`,

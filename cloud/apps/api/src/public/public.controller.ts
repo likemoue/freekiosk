@@ -104,6 +104,35 @@ export class PublicController {
   }
 
   /**
+   * What the USB install tool asks at each start (scripts/cai-tablet-usb/CapNhat.cs). Public: the tool
+   * checks before anyone signs in, and it trusts what it downloads for its signature, not for the site.
+   */
+  @Get('api/public/usb-tool')
+  @Header('Cache-Control', 'no-store')
+  async usbTool() {
+    const release = await this.settings.usbTool();
+    if (!release) throw new NotFoundException('Website chưa có bản công cụ cài USB nào');
+    return {
+      version: release.version,
+      apkVersion: release.apkVersion,
+      size: release.sizeBytes,
+      sha256: release.sha256,
+      uploadedAt: release.uploadedAt,
+      download: '/usb-tool-download',
+    };
+  }
+
+  @Get('usb-tool-download')
+  async usbToolDownload(@Res() res: Response) {
+    const release = await this.settings.usbTool();
+    if (!release) throw new NotFoundException('Website chưa có bản công cụ cài USB nào');
+    res.type('application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="CaiTablet-USB-${release.version}.zip"`);
+    res.setHeader('Cache-Control', 'no-store');
+    sendStoredFile(res, this.storage.path(release.storageKey));
+  }
+
+  /**
    * The APK the Android setup wizard downloads during QR provisioning. It has to be public: the
    * wizard has no account and no key, and all it can do is check the file against the checksum
    * carried by the QR code.

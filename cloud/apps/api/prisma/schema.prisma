@@ -166,6 +166,14 @@ model Device {
   installedAppsHash      String?
   // Máy này còn icon chưa gửi, để tín hiệu kế tiếp hỏi lại nếu lần gửi trước đứt giữa chừng
   appIconsWanted         Boolean   @default(false)
+  // Vị trí máy tự báo cho bản đồ, chỉ nơi cuối cùng. locationAt theo đồng hồ server
+  latitude               Float?
+  longitude              Float?
+  locationAccuracyM      Float?
+  locationAt             DateTime?
+  locationProvider       String?
+  // ok, locating, no_fix, disabled, no_permission, no_provider, error; null: chưa từng báo
+  locationState          String?
 
   reportedConfig         Json?
   reportedConfigVersion  Int       @default(0)
