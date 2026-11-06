@@ -45,7 +45,8 @@ Máy chủ trả:
   "playlist_version": null,
   "device_name": "samsung SM-X210",
   "installed_apps_wanted": false,
-  "app_icons_wanted": []
+  "app_icons_wanted": [],
+  "location_wanted": true
 }
 ```
 
@@ -65,6 +66,15 @@ Cũng do bản fork này đặt ra, để trang quản lý chọn ứng dụng b
 - Nếu đứt giữa chừng, tín hiệu kế tiếp trả `app_icons_wanted` để làm tiếp. Mỗi icon chỉ cần một máy gửi, và chỉ gửi lại khi có `version_code` mới hơn.
 
 Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết lập khác: `general.managedApps` được thay nguyên cả mảng, tính riêng cho từng máy. Ứng dụng máy chưa có được gửi qua `install_apk` trước, và chỉ vào danh sách sau khi máy báo cài thành công. Lịch sử lệnh ghi các thay đổi này với loại `home_apps`, nhưng thiết bị không nhận loại lệnh đó.
+
+## Vị trí
+
+Cũng do bản fork này đặt ra, cho trang **Bản đồ** (`DeviceLocation.ts`, `DeviceLocationModule.kt`).
+
+- Câu trả lời tín hiệu có `location_wanted`, theo công tắc trên trang Bản đồ (bật nếu chưa ai tắt). Ứng dụng nhớ giá trị này qua các lần khởi động, và chỉ khi được hỏi mới lấy vị trí: Device Owner khi đó tự cấp quyền vị trí (cả chạy nền) và tự bật dịch vụ vị trí.
+- Từ tín hiệu sau, ứng dụng gửi `location`: `{ state: "ok", latitude, longitude, accuracy_m, age_ms, provider }`, hoặc chỉ `{ state }` khi không có vị trí (`locating`, `no_fix`, `disabled`, `no_permission`, `no_provider`, `error`). Tín hiệu không bao giờ chờ định vị: vị trí cũ hơn 15 phút thì ứng dụng xin vị trí mới, tín hiệu kế tiếp mang theo.
+- Máy chủ ghi thời điểm theo đồng hồ của nó, bằng `age_ms`, vì đồng hồ tablet có thể lệch. Vị trí cũ hơn vị trí đang giữ không thay nó. Máy chủ chỉ giữ vị trí cuối cùng, không giữ đường đi. Tắt công tắc thì máy chủ xóa mọi vị trí đã lưu và bỏ qua `location` gửi lên.
+- Lệnh `locate` (khả năng `locate`) xin vị trí mới ngay, chờ tối đa 40 giây. Kết quả luôn là `success` với `{ location }`; máy chủ đổi thành lỗi kèm lý do bằng lời khi `state` khác `ok`.
 
 ## Đồng bộ cấu hình
 
@@ -86,7 +96,7 @@ Một phiên bản có cả hai bản dựng thì trả bản không có `cloudp
 
 Kết quả: `{ status: "success" | "error", result, error_message }`. Mã 4xx báo cho ứng dụng thôi gửi lại.
 
-Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume` và `clear_app_data`. URL, độ sáng, âm lượng
+Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume`, `clear_app_data` và `locate`. URL, độ sáng, âm lượng
 không phải lệnh: chúng đi qua kênh cấu hình.
 
 `clear_app_data` nhận `{ packages: ["..."], labels: ["..."] }`, `labels` chỉ để hiện trong lịch sử. Kết quả là `{ cleared, missing, failed, permissionsLost }`: `missing` là ứng dụng máy không có, không tính là lỗi; `permissionsLost` ghi `gói/quyền` Android không cho cấp lại. Có `failed` thì trạng thái là `error`, `result` vẫn kèm theo.

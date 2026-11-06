@@ -38,7 +38,7 @@ const MEDIA_TYPES: Record<string, { kind: 'image' | 'video'; mime: string }> = {
 export class StartUploadDto {
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(255) fileName: string;
   @ApiProperty() @IsInt() @Min(1) sizeBytes: number;
-  @ApiProperty({ enum: ['media', 'apk'] }) @IsIn(['media', 'apk']) purpose: string;
+  @ApiProperty({ enum: ['media', 'apk', 'usb_tool'] }) @IsIn(['media', 'apk', 'usb_tool']) purpose: string;
 }
 
 export class FinishMediaDto {

@@ -7,6 +7,7 @@ import { CryptoService } from '../common/crypto.service';
 import { PrismaService } from '../common/prisma.service';
 import { StorageService } from '../common/storage.service';
 import { SignageService } from '../signage/signage.service';
+import { locationView } from '../device-api/location';
 import { APPLY_PROFILE_COMMAND } from './catalog';
 import { ConfigSyncService, SensitiveValues } from './config-sync.service';
 import { UpdateDeviceDto } from './devices.dto';
@@ -78,6 +79,8 @@ export class DevicesService {
       freeMemoryMb: d.freeMemoryMb,
       uptimeSeconds: d.uptimeSeconds,
       timezone: d.timezone,
+      location: locationView(d),
+      locationState: d.locationState,
       configPending: d.pendingConfig !== null || d.pendingSensitiveEnc !== null,
       forceUnenroll: d.forceUnenroll,
       enrolledAt: d.enrolledAt,

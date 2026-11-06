@@ -74,6 +74,8 @@ export const COMMANDS: Record<string, CommandSpec> = {
   execute_js: { adminOnly: true, validate: text('code', 'mã JavaScript', 20_000) },
   launch_app: { validate: text('package_name', 'tên gói ứng dụng', 200) },
   screenshot: { capability: 'screenshot' },
+  // Places the tablet on the map now, rather than at its next fix (every 15 minutes)
+  locate: { capability: 'locate', lacking: 'Cần FreeKiosk bản mới nhất' },
   add_wifi_network: {
     adminOnly: true,
     secretParams: ['password'],
@@ -146,6 +148,7 @@ export const COMMAND_LABELS: Record<string, string> = {
   execute_js: 'Chạy JavaScript',
   launch_app: 'Mở ứng dụng',
   screenshot: 'Chụp màn hình',
+  locate: 'Cập nhật vị trí',
   add_wifi_network: 'Thêm mạng Wi-Fi',
   install_apk: 'Cài APK',
 };

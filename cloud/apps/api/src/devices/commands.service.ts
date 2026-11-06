@@ -5,6 +5,7 @@ import { ActivityService } from '../common/activity.service';
 import { CryptoService } from '../common/crypto.service';
 import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
+import { SettingsService } from '../common/settings.service';
 import { TargetDto, targetWhere } from '../common/targets';
 import { COMMAND_LABELS, COMMANDS, CONFIG_COMMANDS, ConfigCommandSpec } from './catalog';
 import { ConfigSyncService } from './config-sync.service';
@@ -34,6 +35,7 @@ export class CommandsService {
     private readonly activity: ActivityService,
     private readonly configSync: ConfigSyncService,
     private readonly wake: DeviceWakeService,
+    private readonly settings: SettingsService,
   ) {}
 
   async send(options: SendOptions): Promise<SendResult> {
@@ -47,6 +49,10 @@ export class CommandsService {
     const params = { ...(options.params ?? {}) };
     const problem = spec.validate?.(params);
     if (problem) throw new BadRequestException(problem);
+    // A tablet asked where it is turns location on: not once the website has stopped asking
+    if (type === 'locate' && !(await this.settings.location()).enabled) {
+      throw new BadRequestException('Thu thập vị trí đang tắt: bật lại ở trang Bản đồ');
+    }
 
     const where = targetWhere(target);
     if (!where) throw new BadRequestException('Chưa chọn thiết bị');

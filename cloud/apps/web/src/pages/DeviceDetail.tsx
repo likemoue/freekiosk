@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BatteryFull, Camera, Check, Globe, HardDrive, Link2, Link2Off, Monitor, Pencil, Save, ShieldCheck, Trash2, Wifi, X } from 'lucide-react';
+import { ArrowLeft, BatteryFull, Camera, Check, Globe, HardDrive, Link2, Link2Off, MapPin, Monitor, Pencil, Save, ShieldCheck, Trash2, Wifi, X } from 'lucide-react';
 import { ReactNode, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -7,7 +7,7 @@ import { api } from '../api';
 import { useCan } from '../auth';
 import { CommandHistory, CommandPicker } from '../components/commands';
 import { ConfigForm, SECRET_FIELDS, settingLabel } from '../components/config';
-import { DeviceState, deviceSubtitle, StatusDot } from '../components/device';
+import { accuracyText, DeviceState, deviceSubtitle, locationMissing, StatusDot } from '../components/device';
 import { dateTime, duration, megabytes, timeAgo } from '../format';
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, Field, Input, Loading, Modal, notifyError, Notice, Select, Tabs, Textarea, useConfirm } from '../ui';
 
@@ -286,6 +286,20 @@ export default function DeviceDetail() {
           <Metric icon={<HardDrive />} label="Bộ nhớ trống" value={megabytes(d.freeStorageMb)} detail={d.freeMemoryMb !== null ? `RAM trống ${megabytes(d.freeMemoryMb)}` : undefined} />
           <Metric icon={<Globe />} label="Địa chỉ IP" value={d.ipAddress ?? '—'} detail={d.publicIp ? `Công khai: ${d.publicIp}` : undefined} />
           <Metric icon={<Link2 />} label="URL hiện tại" value={<span title={d.currentUrl ?? undefined}>{d.currentUrl || '—'}</span>} detail={d.kioskMode ? 'Đang ở chế độ khóa' : undefined} />
+          <Metric
+            icon={<MapPin />}
+            label="Vị trí"
+            value={
+              d.location ? (
+                <Link to={`/quan-ly/ban-do?thiet-bi=${d.id}`} className="text-brand-strong hover:underline dark:text-brand">
+                  Xem trên bản đồ
+                </Link>
+              ) : (
+                <span className="font-normal text-soft">Chưa có</span>
+              )
+            }
+            detail={d.location ? [accuracyText(d.location), timeAgo(d.location.at)].filter(Boolean).join(' · ') : <span title={locationMissing(d)}>{locationMissing(d)}</span>}
+          />
         </div>
         <p className="border-t border-line px-5 py-2.5 text-xs text-soft">
           ID: <code>{d.id}</code> · FreeKiosk {d.appVersion ?? '—'} · Đăng ký {timeAgo(d.enrolledAt)} · Thời gian chạy {duration(d.uptimeSeconds)}{d.timezone ? ` · ${d.timezone}` : ''}

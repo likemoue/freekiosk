@@ -59,7 +59,7 @@ const PART_SIZE = 20 * 1024 * 1024;
 const PART_RETRIES = 4;
 
 /** Sends a file in parts and returns the id of the finished upload */
-export async function uploadFile(file: File, purpose: 'media' | 'apk', onProgress?: (fraction: number) => void): Promise<string> {
+export async function uploadFile(file: File, purpose: 'media' | 'apk' | 'usb_tool', onProgress?: (fraction: number) => void): Promise<string> {
   const { id } = await api.post<{ id: string }>('/api/admin/uploads', { fileName: file.name, sizeBytes: file.size, purpose });
   let offset = 0;
   let failures = 0;

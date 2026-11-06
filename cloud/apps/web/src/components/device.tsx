@@ -12,6 +12,15 @@ export interface ProfileStatus {
   differences: string[];
 }
 
+/** Where the tablet last placed itself; the time is the server's */
+export interface DeviceLocation {
+  latitude: number;
+  longitude: number;
+  accuracyM: number | null;
+  at: string;
+  provider: string | null;
+}
+
 export interface DeviceSummary {
   id: string;
   name: string;
@@ -44,6 +53,9 @@ export interface DeviceSummary {
   freeMemoryMb: number | null;
   uptimeSeconds: number | null;
   timezone: string | null;
+  location: DeviceLocation | null;
+  /** ok, locating, no_fix, disabled, no_permission, no_provider, error; null: never said */
+  locationState: string | null;
   configPending: boolean;
   forceUnenroll: boolean;
   enrolledAt: string;
@@ -102,6 +114,29 @@ export function BatteryMeter({ level, charging }: { level: number | null; chargi
       <span className="w-9 text-xs tabular-nums text-soft">{level}%</span>
     </span>
   );
+}
+
+const LOCATION_MISSING: Record<string, string> = {
+  locating: 'Đang lấy vị trí lần đầu',
+  no_fix: 'Chưa định vị được: Android không tìm ra vị trí từ mạng Wi-Fi quanh máy',
+  disabled: 'Dịch vụ vị trí đang tắt và máy không tự bật được',
+  no_permission: 'FreeKiosk chưa có quyền vị trí (cần Device Owner)',
+  no_provider: 'Máy không có nguồn vị trí nào đang bật',
+  error: 'Máy báo lỗi khi lấy vị trí',
+};
+
+/** Why a tablet is not on the map, in a line */
+export function locationMissing(device: Pick<DeviceSummary, 'locationState' | 'capabilities' | 'online' | 'lastSeenAt'>): string {
+  if (device.locationState && LOCATION_MISSING[device.locationState]) return LOCATION_MISSING[device.locationState];
+  if (!device.lastSeenAt) return 'Chưa kết nối';
+  if (device.capabilities.length > 0 && !device.capabilities.includes('locate')) return 'Cần FreeKiosk bản mới nhất';
+  return device.online ? 'Chưa báo vị trí' : 'Chưa báo vị trí, máy đang ngoại tuyến';
+}
+
+/** "±30 m": how far the place may be off */
+export function accuracyText(location: Pick<DeviceLocation, 'accuracyM'>): string | null {
+  if (location.accuracyM === null) return null;
+  return location.accuracyM >= 1000 ? `±${(location.accuracyM / 1000).toFixed(1).replace('.', ',')} km` : `±${Math.round(location.accuracyM)} m`;
 }
 
 export function deviceSubtitle(device: Pick<DeviceSummary, 'model' | 'manufacturer' | 'androidVersion'>): string {

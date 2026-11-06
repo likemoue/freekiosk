@@ -15,6 +15,7 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const Overview = lazy(() => import('./pages/Overview'));
 const Devices = lazy(() => import('./pages/Devices'));
 const DeviceDetail = lazy(() => import('./pages/DeviceDetail'));
+const DeviceMap = lazy(() => import('./pages/DeviceMap'));
 const Enroll = lazy(() => import('./pages/Enroll'));
 const Groups = lazy(() => import('./pages/Groups'));
 const Commands = lazy(() => import('./pages/Commands'));
@@ -61,6 +62,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="thiet-bi" element={<Suspense fallback={<Loading />}><Devices /></Suspense>} />
                 <Route path="thiet-bi/them" element={<Suspense fallback={<Loading />}><Enroll /></Suspense>} />
                 <Route path="thiet-bi/:id" element={<Suspense fallback={<Loading />}><DeviceDetail /></Suspense>} />
+                <Route path="ban-do" element={<Suspense fallback={<Loading />}><DeviceMap /></Suspense>} />
                 <Route path="nhom" element={<Suspense fallback={<Loading />}><Groups /></Suspense>} />
                 <Route path="lenh" element={<Suspense fallback={<Loading />}><Commands /></Suspense>} />
                 <Route path="lich" element={<Suspense fallback={<Loading />}><Scheduler /></Suspense>} />

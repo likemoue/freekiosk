@@ -9,6 +9,7 @@ import {
   Home,
   Images,
   LogOut,
+  Map as MapIcon,
   Menu,
   Moon,
   Package,
@@ -92,6 +93,9 @@ function Sidebar({ deviceCount, online, onNavigate }: { deviceCount?: number; on
         </NavItem>
         <NavItem to="/quan-ly/thiet-bi" icon={<Smartphone />} count={deviceCount}>
           Thiết bị
+        </NavItem>
+        <NavItem to="/quan-ly/ban-do" icon={<MapIcon />}>
+          Bản đồ
         </NavItem>
         <NavItem to="/quan-ly/nhom" icon={<FolderClosed />}>
           Nhóm

@@ -10,6 +10,7 @@ import { DeviceSelect } from '../components/commands';
 import { DeviceSummary } from '../components/device';
 import { FleetVersions, needsLooking, useFleetVersions } from '../components/fleet-versions';
 import { UploadButton } from '../components/upload';
+import { UsbTool } from '../components/usb-tool';
 import { bytes, dateTime } from '../format';
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, notifyError, Notice, PageHeader, Pills, Select, Table, Tabs, td, th, trow, useConfirm } from '../ui';
 
@@ -53,7 +54,7 @@ export default function Apps() {
   const client = useQueryClient();
   const [deploying, setDeploying] = useState<any>(null);
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<'library' | 'versions'>(params.get('tab') === 'versions' ? 'versions' : 'library');
+  const [tab, setTab] = useState<'library' | 'versions' | 'usb'>(params.get('tab') === 'versions' ? 'versions' : params.get('tab') === 'usb' ? 'usb' : 'library');
   const versions = useFleetVersions();
   const problems = versions.data?.filter(needsLooking).length ?? 0;
   const apks = useQuery<any[]>({ queryKey: ['apks'], queryFn: () => api.get('/api/admin/apks') });
@@ -93,9 +94,11 @@ export default function Apps() {
         tabs={[
           { id: 'library', label: 'Thư viện APK' },
           { id: 'versions', label: problems ? `Phiên bản trên thiết bị (${problems} cần xem)` : 'Phiên bản trên thiết bị' },
+          { id: 'usb', label: 'Công cụ cài USB' },
         ]}
       />
       {tab === 'versions' && <FleetVersions />}
+      {tab === 'usb' && <UsbTool />}
       {tab === 'library' && <>
       <Notice className="mb-5">
         Cấp phát bằng QR cần bản <code>assembleRelease -Pcloudprovi</code>: bản GitHub khai báo dịch vụ trợ năng nên bị Play Protect chặn giữa chừng. Bản GitHub vẫn dùng được khi cài qua ADB.
