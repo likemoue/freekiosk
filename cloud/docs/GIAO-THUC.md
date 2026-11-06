@@ -69,6 +69,8 @@ Cũng do bản fork này đặt ra, để trang quản lý chọn ứng dụng b
 
 Trang quản lý đổi danh sách bằng kênh cấu hình như mọi thiết lập khác: `general.managedApps` được thay nguyên cả mảng, tính riêng cho từng máy. Ứng dụng máy chưa có được gửi qua `install_apk` trước, và chỉ vào danh sách sau khi máy báo cài thành công. Lịch sử lệnh ghi các thay đổi này với loại `home_apps`, nhưng thiết bị không nhận loại lệnh đó.
 
+Danh sách của một máy (thường do hồ sơ đặt lúc đăng ký) có ứng dụng máy chưa cài, mà thư viện APK có tệp cài được, thì máy chủ tự gửi `install_apk` cho ứng dụng đó, một lần (`HomeAppsService.installMissing`, nguồn `home_missing`, lịch sử ghi người gửi là Tự động). Máy chủ xét lúc nhận `POST apps`, và ở tín hiệu định kỳ khi `installed_apps_hash` khớp danh sách đang giữ. Lưới màn hình chính ẩn ô của ứng dụng chưa cài và chỉ xét lại khi danh sách đổi, nên trong lúc cài ứng dụng được đặt `showOnHomeScreen: false` (dòng `home_apps` có `wait_install`), rồi hiện lại khi máy báo cài xong như trên. Lần cài lỗi không tự gửi lại. Hai tệp cùng `versionCode` của một gói thì chọn tệp đã cài thành công lên máy nhiều hơn, rồi tệp tải lên sau.
+
 ## Vị trí
 
 Cũng do bản fork này đặt ra, cho trang **Bản đồ** (`DeviceLocation.ts`, `DeviceLocationModule.kt`).
@@ -84,7 +86,7 @@ Lệnh `pull_apk` `{ package_name, label }`, chỉ gửi cho một thiết bị 
 
 ## Xóa ứng dụng
 
-Lệnh `uninstall_app` `{ packages, labels }` gỡ ứng dụng không hỏi (cần Device Owner), không bao giờ gỡ FreeKiosk. Kết quả `{ removed, missing, failed }`; có `failed` thì trạng thái là `error`. Máy chủ bỏ các ứng dụng trong `removed` khỏi `general.managedApps` của máy đó (dòng lịch sử `home_apps`, nguồn `after_uninstall`), không đổi hồ sơ của nhóm.
+Lệnh `uninstall_app` `{ packages, labels }` gỡ ứng dụng không hỏi (cần Device Owner), không bao giờ gỡ FreeKiosk. Kết quả `{ removed, missing, failed }`, mỗi dòng `failed` là `gói: điều Android trả lời` (ứng dụng có sẵn theo máy trả `DELETE_FAILED_INTERNAL_ERROR`). Máy vẫn gỡ tiếp các ứng dụng khác khi một ứng dụng không gỡ được. Đến 2.1.0-beta.15 có `failed` thì ứng dụng báo `error`; máy chủ coi kết quả có danh sách `failed` là thành công kèm cảnh báo (trang Lệnh ghi Cảnh báo và tên ứng dụng không gỡ được), chỉ câu trả lời không có danh sách (không phải Device Owner, bản không gỡ được) mới là lỗi. Máy chủ bỏ các ứng dụng trong `removed` khỏi `general.managedApps` của máy đó (dòng lịch sử `home_apps`, nguồn `after_uninstall`), không đổi hồ sơ của nhóm.
 
 ## Màn hình trực tiếp
 

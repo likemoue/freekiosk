@@ -31,6 +31,9 @@ const apkLabel = (apk: ApkPackage) => apk.fileName.replace(/\.(apk|apks|xapk|apk
 
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
+/** The source of what the website starts by itself (installMissing): the history says Tự động */
+export const AUTO_INSTALL_SOURCE = 'home_missing';
+
 /** What was uploaded, for each package: what can be installed, and what cannot be on its own */
 interface Uploads {
   installable: Map<string, ApkPackage>;
@@ -39,6 +42,9 @@ interface Uploads {
 
 @Injectable()
 export class HomeAppsService {
+  /** What installMissing last looked at for each tablet */
+  private readonly lookedAt = new Map<string, string>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configSync: ConfigSyncService,
@@ -53,12 +59,30 @@ export class HomeAppsService {
     return this.prisma.device.findMany({ where, select: DEVICE_FIELDS });
   }
 
-  /** For each package the newest upload that can be installed: a broken newer one does not hide it */
+  /**
+   * For each package the newest upload that can be installed: a broken newer one does not hide it. Two
+   * files of the same version (iclass.apk and iclass-staging.apk) go by the one tablets were given
+   * before, then by the newer upload: the order the files went up in says nothing about which is meant.
+   */
   private async uploads(): Promise<Uploads> {
-    const rows = await this.prisma.apkPackage.findMany({
-      where: { packageName: { not: null } },
-      orderBy: [{ versionCode: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
-    });
+    const found = await this.prisma.apkPackage.findMany({ where: { packageName: { not: null } } });
+    // The history is read only for files that tie: the picker asks every 20 seconds
+    const versionOf = (apk: ApkPackage) => `${apk.packageName}/${apk.versionCode}`;
+    const files = new Map<string, number>();
+    for (const apk of found) files.set(versionOf(apk), (files.get(versionOf(apk)) ?? 0) + 1);
+    const tied = found.filter((apk) => (files.get(versionOf(apk)) ?? 0) > 1).map((apk) => apk.id);
+    const given = tied.length
+      ? await this.prisma.$queryRaw<Array<{ apk_id: string; installs: number }>>`
+          SELECT params->>'apk_id' AS apk_id, count(*)::int AS installs FROM "Command"
+          WHERE type = 'install_apk' AND status = 'SUCCESS' AND params->>'apk_id' = ANY(${tied}::text[]) GROUP BY 1`
+      : [];
+    const installs = new Map(given.map((row) => [row.apk_id, row.installs]));
+    const rows = found.sort(
+      (a, b) =>
+        (b.versionCode ?? -1) - (a.versionCode ?? -1) ||
+        (installs.get(b.id) ?? 0) - (installs.get(a.id) ?? 0) ||
+        b.createdAt.getTime() - a.createdAt.getTime(),
+    );
     const installable = new Map<string, ApkPackage>();
     const incomplete = new Map<string, ApkPackage>();
     for (const apk of rows) {
@@ -330,6 +354,100 @@ export class HomeAppsService {
       actor: { id: command.createdById, email: command.createdBy },
       batchId: command.batchId,
       source: 'after_uninstall',
+    });
+  }
+
+  /**
+   * A tablet whose home screen lists an app it lacks gets the app from the library, once. That is how a
+   * tablet enrolled with a profile comes up with the profile's apps, since a profile only says what goes
+   * on the screen, and how an app added to a profile reaches the tablets missing it. The grid hides a tile
+   * whose app is missing and looks again only when its list changes, so the tile leaves the list for the
+   * length of the install and comes back with showAfterInstall. An install that failed is not tried
+   * again by itself: the history shows it, and the picker can send it again. Looked at when the list of
+   * apps arrives, and at each heartbeat once it is current, at no cost unless something is missing.
+   */
+  async installMissing(device: TargetDevice & { installedAppsHash: string | null; configVersion: number }): Promise<void> {
+    const installed = installedOf(device);
+    if (!installed) return;
+    const general = generalOf(device);
+    const missing = managedAppsOf(general).filter((app) => app.packageName !== OWN_PACKAGE && !installed.has(app.packageName));
+    if (!missing.length) return;
+    // Once for each state of the tablet and of the library: a heartbeat every 30 seconds must not go
+    // through the library each time, and an APK uploaded later must still reach the tablets lacking it
+    const library = await this.prisma.apkPackage.aggregate({ _count: { _all: true }, _max: { createdAt: true } });
+    const state = `${device.configVersion}/${device.installedAppsHash}/${library._count._all}/${library._max.createdAt?.getTime() ?? 0}`;
+    if (this.lookedAt.get(device.id) === state) return;
+    this.lookedAt.set(device.id, state);
+    try {
+      await this.installFor(device, general, missing);
+    } catch (error) {
+      this.lookedAt.delete(device.id);
+      throw error;
+    }
+  }
+
+  private async installFor(device: TargetDevice, general: Json, missing: ManagedApp[]): Promise<void> {
+    // Under way, whoever sent it, or tried before by this code: what failed waits for someone to look
+    const earlier = await this.prisma.command.findMany({
+      where: { deviceId: device.id, type: 'install_apk', OR: [{ source: AUTO_INSTALL_SOURCE }, { status: { in: ['PENDING', 'SENT'] } }] },
+      select: { params: true },
+    });
+    const tried = new Set(earlier.map((row) => obj(row.params).package_name));
+    const wanted = missing.filter((app) => !tried.has(app.packageName));
+    if (!wanted.length) return;
+
+    const uploads = await this.uploads();
+    const now = new Date();
+    const batchId = randomUUID();
+    const nobody = { id: null, email: null };
+    const lines: Prisma.CommandCreateManyInput[] = [];
+    const waiting: ManagedApp[] = [];
+    for (const app of wanted) {
+      const apk = uploads.installable.get(app.packageName);
+      // Nothing to install it from: the grid keeps the tile hidden, as before
+      if (!apk) continue;
+      const label = app.displayName || apkLabel(apk);
+      const line: Prisma.CommandCreateManyInput = {
+        ...installCommandData(device.id, apk, nobody, app.showOnHomeScreen ? { show_on_home: true, label } : { label }, batchId),
+        source: AUTO_INSTALL_SOURCE,
+      };
+      const reason = whyCannotInstall(device.capabilities, apk);
+      if (reason) {
+        // Said once in the history, where the next look finds it and leaves it
+        lines.push({ ...line, status: 'ERROR', errorMessage: reason, completedAt: now });
+        continue;
+      }
+      lines.push(line);
+      if (app.showOnHomeScreen) waiting.push(app);
+    }
+    if (!lines.length) return;
+
+    if (waiting.length) {
+      const names = new Set(waiting.map((app) => app.packageName));
+      const managedApps = managedAppsOf(general).map((app) => (names.has(app.packageName) ? { ...app, showOnHomeScreen: false } : app));
+      await this.configSync.push([device.id], { general: { managedApps } }, undefined, {
+        type: HOME_APPS_COMMAND,
+        params: { wait_install: waiting.map((app) => app.displayName || app.packageName) },
+        actor: nobody,
+        batchId,
+        source: AUTO_INSTALL_SOURCE,
+      });
+    }
+    await this.prisma.command.createMany({ data: lines });
+    this.wake.notify([device.id], 'commands');
+
+    const labels = (rows: Prisma.CommandCreateManyInput[]) => rows.map((row) => String(obj(row.params).label)).join(', ');
+    const queued = lines.filter((line) => line.status !== 'ERROR');
+    const refused = lines.filter((line) => line.status === 'ERROR');
+    await this.activity.log({
+      action: 'apk.auto_install',
+      severity: refused.length ? 'warning' : 'info',
+      message: [
+        queued.length ? `Tự cài ${labels(queued)} lên ${device.name}: có trong danh sách màn hình chính của máy nhưng máy chưa cài` : '',
+        refused.length ? `Không tự cài được ${labels(refused)} lên ${device.name}: ${refused.map((row) => row.errorMessage).join('. ')}` : '',
+      ].filter(Boolean).join('. '),
+      device,
+      data: { batchId, packages: lines.map((row) => String(obj(row.params).package_name)) },
     });
   }
 
