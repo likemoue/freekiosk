@@ -13,9 +13,12 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipFile
 
@@ -36,6 +39,8 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
     companion object {
         private const val TAG = "ManagedAppInstaller"
         private const val INSTALL_ACTION = "com.freekiosk.MANAGED_APP_INSTALL_RESULT"
+        private const val UNINSTALL_ACTION = "com.freekiosk.MANAGED_APP_UNINSTALL_RESULT"
+        private const val UNINSTALL_WAIT_S = 60L
         private const val DOWNLOAD_ATTEMPTS = 3
         private const val DOWNLOAD_RETRY_DELAY_MS = 5_000L
         private const val MIN_APK_BYTES = 50_000L // anything smaller is almost certainly an HTML error page
@@ -298,6 +303,91 @@ class ManagedAppInstallerModule(reactContext: ReactApplicationContext) :
         if (expectedPackage == context.packageName) InstallScreen.beforeSelfUpdate(context)
         session.commit(pendingIntent.intentSender)
         session.close()
+    }
+
+    /**
+     * Removes apps for good, as a Device Owner may with no prompt (the uninstall_app command). One at a
+     * time, each waiting for Android's answer. An app this tablet lacks is no error, and FreeKiosk itself
+     * is never removed. Android refuses an app that came with the tablet: it says so, and that is reported.
+     */
+    @ReactMethod
+    fun uninstallPackages(packages: ReadableArray, promise: Promise) {
+        Thread {
+            val context = reactApplicationContext
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            if (!dpm.isDeviceOwnerApp(context.packageName)) {
+                promise.reject("NOT_DEVICE_OWNER", "Uninstalling apps requires Device Owner mode.")
+                return@Thread
+            }
+            val removed = Arguments.createArray()
+            val missing = Arguments.createArray()
+            val failed = Arguments.createArray()
+            for (i in 0 until packages.size()) {
+                val packageName = packages.getString(i)
+                if (packageName.isNullOrEmpty()) continue
+                if (packageName == context.packageName) {
+                    failed.pushString("$packageName: FreeKiosk cannot remove itself")
+                    continue
+                }
+                if (!isInstalled(packageName)) {
+                    missing.pushString(packageName)
+                    continue
+                }
+                val problem = try {
+                    uninstallOne(packageName)
+                } catch (e: Exception) {
+                    e.message ?: "error"
+                }
+                if (problem == null) removed.pushString(packageName) else failed.pushString("$packageName: $problem")
+            }
+            promise.resolve(Arguments.createMap().apply {
+                putArray("removed", removed)
+                putArray("missing", missing)
+                putArray("failed", failed)
+            })
+        }.start()
+    }
+
+    private fun isInstalled(packageName: String): Boolean =
+        try {
+            @Suppress("DEPRECATION")
+            reactApplicationContext.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+
+    /** Null when Android removed it, or what it said otherwise */
+    private fun uninstallOne(packageName: String): String? {
+        val context = reactApplicationContext
+        val action = "$UNINSTALL_ACTION.${packageName.hashCode()}.${System.nanoTime()}"
+        val done = CountDownLatch(1)
+        var problem: String? = "Android did not answer within $UNINSTALL_WAIT_S seconds"
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                val status = intent?.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+                    ?: PackageInstaller.STATUS_FAILURE
+                problem = if (status == PackageInstaller.STATUS_SUCCESS) null
+                    else "status $status: ${intent?.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""}"
+                done.countDown()
+            }
+        }
+        val filter = IntentFilter(action)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        try {
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+            val pending = PendingIntent.getBroadcast(context, action.hashCode(), Intent(action).setPackage(context.packageName), flags)
+            context.packageManager.packageInstaller.uninstall(packageName, pending.intentSender)
+            done.await(UNINSTALL_WAIT_S, TimeUnit.SECONDS)
+        } finally {
+            try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
+        }
+        android.util.Log.i(TAG, "Uninstall of $packageName: ${problem ?: "done"}")
+        return problem
     }
 
     @ReactMethod

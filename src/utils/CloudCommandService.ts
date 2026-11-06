@@ -23,8 +23,12 @@ import { ApiService, ActionResult } from './ApiService';
 import { getCloudCredentials, CloudCredentials } from './secureStorage';
 import { StorageService } from './storage';
 import ManagedAppInstaller from './ManagedAppInstaller';
+import { pullApk } from './ApkExport';
 import KioskModule from './KioskModule';
 import { locateNow } from './DeviceLocation';
+import AppLauncherModule from './AppLauncherModule';
+import OverlayServiceModule from './OverlayServiceModule';
+import { COMMANDS_ENDING_SETTINGS, SettingsSession } from './SettingsSession';
 
 const { HttpServerModule, WifiControlModule } = NativeModules;
 
@@ -257,6 +261,10 @@ class CloudCommandServiceClass {
   }
 
   private async runCommand(cmd: CloudCommand, c: CloudCredentials): Promise<ActionResult> {
+    // Settings left open must not come back to the front behind a command (SettingsSession.ts)
+    if (COMMANDS_ENDING_SETTINGS.has(cmd.type)) {
+      SettingsSession.end(cmd.type);
+    }
     // Screenshot needs a capture + upload round-trip, not a fire-and-forget action.
     if (cmd.type === 'screenshot') {
       return this.captureAndUploadScreenshot(c);
@@ -280,6 +288,19 @@ class CloudCommandServiceClass {
     // Where the tablet is, for the website alone: not for the LAN either
     if (cmd.type === 'locate') {
       return this.locate();
+    }
+    // Kept off the LAN too, like clearing app data: removing apps belongs to the website
+    if (cmd.type === 'uninstall_app') {
+      return this.uninstallApps(cmd.params || {});
+    }
+    // The APK of an app on this tablet, into the library of the website
+    if (cmd.type === 'pull_apk') {
+      return this.pullApk(cmd, c);
+    }
+    // Not through the kiosk screen, which is not there when FreeKiosk was started in the background:
+    // "Handler unavailable" on an SM-X210 started by the watchdog with its screen off
+    if (cmd.type === 'launch_app') {
+      return this.launchApp(cmd.params || {});
     }
     // Straight to Android: the action layer goes through the kiosk screen, which may not be there
     if (cmd.type === 'set_volume') {
@@ -322,6 +343,78 @@ class CloudCommandServiceClass {
         ok: true,
         result: { saved: true, ssid: saved?.ssid ?? ssid, secured: !!saved?.secured },
       };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /** Removed for good. An app this tablet lacks is nothing to do; one Android refuses is a failure */
+  private async uninstallApps(params: Record<string, any>): Promise<ActionResult> {
+    const packages: string[] = Array.isArray(params.packages)
+      ? params.packages.filter((name: unknown): name is string => typeof name === 'string' && name.length > 0 && name !== OWN_PACKAGE)
+      : [];
+    if (packages.length === 0) {
+      return { ok: false, error: 'No apps chosen' };
+    }
+    if (!ManagedAppInstaller.canUninstall()) {
+      return { ok: false, error: 'This app version cannot uninstall apps' };
+    }
+    try {
+      const outcome = await ManagedAppInstaller.uninstall(packages);
+      if (outcome.failed.length > 0) {
+        return { ok: false, error: `Could not uninstall ${outcome.failed.join('; ')}`, result: { ...outcome } };
+      }
+      return { ok: true, result: { ...outcome } };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  private async pullApk(cmd: CloudCommand, c: CloudCredentials): Promise<ActionResult> {
+    const packageName = typeof cmd.params?.package_name === 'string' ? cmd.params.package_name.trim() : '';
+    if (!packageName) {
+      return { ok: false, error: 'Missing package name' };
+    }
+    try {
+      const result = await pullApk(packageName, c, cmd.id);
+      return { ok: true, result: { ...result } };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /**
+   * Opens an app as a tap on the home screen does: the overlay service first, with the settings the
+   * kiosk screen would pass it, then the app, which the launcher adds to the lock task packages.
+   */
+  private async launchApp(params: Record<string, any>): Promise<ActionResult> {
+    const packageName = typeof params.package_name === 'string' ? params.package_name.trim() : '';
+    if (!packageName) {
+      return { ok: false, error: 'Missing package name' };
+    }
+    if (!AppLauncherModule?.launchExternalApp) {
+      return { ok: false, error: 'This app version cannot open apps' };
+    }
+    try {
+      if (!(await AppLauncherModule.isAppInstalled(packageName))) {
+        return { ok: false, error: `App not installed: ${packageName}` };
+      }
+      try {
+        const [tapCount, tapTimeout, returnMode, buttonPosition, autoRelaunch, nfcEnabled] = await Promise.all([
+          StorageService.getReturnTapCount(),
+          StorageService.getReturnTapTimeout(),
+          StorageService.getReturnMode(),
+          StorageService.getReturnButtonPosition(),
+          StorageService.getAutoRelaunchApp(),
+          StorageService.getAllowNotifications(),
+        ]);
+        await OverlayServiceModule?.startOverlayService(tapCount, tapTimeout, returnMode, buttonPosition, packageName, autoRelaunch, nfcEnabled);
+      } catch (error) {
+        // As on the home screen: the app opens without the overlay rather than not at all
+        console.warn('[CloudCommand] Overlay service not started before opening the app:', error);
+      }
+      await AppLauncherModule.launchExternalApp(packageName);
+      return { ok: true, result: { launched: packageName } };
     } catch (error: any) {
       return { ok: false, error: error?.message ?? String(error) };
     }

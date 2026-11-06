@@ -13,6 +13,7 @@ import { httpServer } from './HttpServerModule';
 import { mqttClient } from './MqttModule';
 import { StorageService } from './storage';
 import { getSecureMqttPassword, readSecureApiKey } from './secureStorage';
+import { SettingsSession } from './SettingsSession';
 
 const { HttpServerModule, MqttModule, SoundPlayer } = NativeModules;
 
@@ -425,6 +426,8 @@ class ApiServiceClass {
 
       case 'launchApp':
         if (!p.package) return fail('Missing package name');
+        // Settings left open must not wait behind the app (SettingsSession.ts)
+        SettingsSession.end('launchApp');
         if (!cb.onLaunchApp) return fail('Handler unavailable');
         cb.onLaunchApp(p.package);
         return ok();

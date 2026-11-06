@@ -87,7 +87,11 @@ object CloudWake {
                             retryMs = MIN_RETRY_MS
                             pauseMs = MIN_ROUND_MS - (System.currentTimeMillis() - startedAt)
                             val answer = JSONObject(response.body?.string() ?: "{}")
-                            if (answer.optBoolean("wake") && target === mine) {
+                            if (answer.optBoolean("live") && target === mine) {
+                                // Someone watches this screen on the website: natively, like this loop
+                                LiveScreen.start(context, mine.cloudUrl, mine.deviceId, mine.apiKey)
+                            }
+                            if (answer.optBoolean("wake") && target === mine && (answer.optBoolean("commands") || answer.optBoolean("config"))) {
                                 deliver(context, answer.optBoolean("commands"), answer.optBoolean("config"))
                             }
                         }
