@@ -65,6 +65,9 @@ export type Capability =
   | 'pull_apk'
   // Shows its screen live on the website, and takes taps from it (LiveScreen.kt)
   | 'remote_view'
+  // Installs the maker's Android update through its own screens (SystemUpdater.kt): Samsung, Device
+  // Owner and the accessibility service of FreeKiosk
+  | 'system_update'
   | 'bluetooth';
 
 const BASELINE: Capability[] = [
@@ -160,6 +163,9 @@ export async function getCapabilities(): Promise<string[]> {
   }
   if (P.BLUETOOTH_CONNECT && (await hasRuntimePermission(P.BLUETOOTH_CONNECT))) {
     caps.add('bluetooth');
+  }
+  if (isDeviceOwner && (await safe(NativeModules.SystemUpdateModule?.supported(), false))) {
+    caps.add('system_update');
   }
 
   return Array.from(caps);

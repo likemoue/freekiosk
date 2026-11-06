@@ -80,7 +80,7 @@ export class CommandsService {
     });
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + (options.ttlMinutes ?? DEFAULT_TTL_MINUTES) * 60_000);
+    const expiresAt = new Date(now.getTime() + (options.ttlMinutes ?? spec.ttlMinutes ?? DEFAULT_TTL_MINUTES) * 60_000);
     if (skipped.length) {
       await this.prisma.command.createMany({
         data: skipped.map((line) => ({

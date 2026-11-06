@@ -133,6 +133,19 @@ export class DeviceApiController {
     return { status: 'ok' };
   }
 
+  /** How far a long command has got, before its result: an Android update downloading, say */
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('commands/:commandId/progress')
+  @HttpCode(200)
+  async progress(
+    @CurrentDevice() device: Device,
+    @Param('commandId', ParseUUIDPipe) commandId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return { status: (await this.service.recordProgress(device, commandId, body ?? {})) ? 'ok' : 'finished' };
+  }
+
   @UseGuards(DeviceGuard)
   @ApiBearerAuth()
   @Post('devices/:deviceId/screenshot')

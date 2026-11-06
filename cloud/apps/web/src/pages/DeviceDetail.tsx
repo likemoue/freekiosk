@@ -24,6 +24,17 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
   );
 }
 
+/** The maker's build of Android and its security patch, as FreeKiosk 2.1.0-beta.16 and later report them */
+const androidBuildText = (telemetry: unknown): string => {
+  const system = (telemetry as any)?.system ?? {};
+  const build = typeof system.android_build === 'string' ? system.android_build.split('.').pop() : null;
+  const patch = typeof system.security_patch === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(system.security_patch)
+    ? system.security_patch.split('-').reverse().join('/')
+    : null;
+  if (!build && !patch) return '';
+  return ` · Android ${system.android_version ?? ''} ${build ?? ''}${patch ? `, bản vá bảo mật ${patch}` : ''}`.replace(/\s+/g, ' ');
+};
+
 const shortValue = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return 'trống';
   if (value === true) return 'bật';
@@ -302,7 +313,7 @@ export default function DeviceDetail() {
           />
         </div>
         <p className="border-t border-line px-5 py-2.5 text-xs text-soft">
-          ID: <code>{d.id}</code> · FreeKiosk {d.appVersion ?? '—'} · Đăng ký {timeAgo(d.enrolledAt)} · Thời gian chạy {duration(d.uptimeSeconds)}{d.timezone ? ` · ${d.timezone}` : ''}
+          ID: <code>{d.id}</code> · FreeKiosk {d.appVersion ?? '—'}{androidBuildText(d.telemetry)} · Đăng ký {timeAgo(d.enrolledAt)} · Thời gian chạy {duration(d.uptimeSeconds)}{d.timezone ? ` · ${d.timezone}` : ''}
         </p>
       </Card>
 

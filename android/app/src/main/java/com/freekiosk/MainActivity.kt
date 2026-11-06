@@ -662,6 +662,9 @@ class MainActivity : ReactActivity() {
           whitelist.add("com.android.systemui")
         }
         
+        // An Android update the website asked for keeps its screens through a restart of the kiosk
+        whitelist.addAll(SystemUpdater.lockTaskPackages(this))
+
         val uniqueWhitelist = whitelist.distinct()
 
         // Configurer la whitelist Lock Task
@@ -757,18 +760,10 @@ class MainActivity : ReactActivity() {
         DebugLog.d("MainActivity", "Could not unmute audio streams: ${e.message}")
       }
 
-      val samsungUpdateApps = arrayOf(
-        "com.samsung.android.app.updatecenter",
-        "com.sec.android.fotaclient",
-        "com.wssyncmldm",
-        "com.samsung.android.sdm.config",
-        "com.sec.android.soagent"
-      )
-      
-      devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, true)
-      
-      val policy = android.app.admin.SystemUpdatePolicy.createPostponeInstallPolicy()
-      devicePolicyManager.setSystemUpdatePolicy(adminComponent, policy)
+      // Samsung's updates stay out of the kiosk, unless the website asked for one (SystemUpdater)
+      if (!SystemUpdater.isActive(this)) {
+        SystemUpdater.blockUpdates(devicePolicyManager, adminComponent)
+      }
 
       DebugLog.d("MainActivity", "Kiosk restrictions enabled")
     } catch (e: Exception) {
@@ -793,16 +788,7 @@ class MainActivity : ReactActivity() {
         DebugLog.d("MainActivity", "Lock task features restored to defaults")
       }
 
-      val samsungUpdateApps = arrayOf(
-        "com.samsung.android.app.updatecenter",
-        "com.sec.android.fotaclient",
-        "com.wssyncmldm",
-        "com.samsung.android.sdm.config",
-        "com.sec.android.soagent"
-      )
-      
-      devicePolicyManager.setPackagesSuspended(adminComponent, samsungUpdateApps, false)
-      devicePolicyManager.setSystemUpdatePolicy(adminComponent, null)
+      SystemUpdater.unblockUpdates(devicePolicyManager, adminComponent)
 
       DebugLog.d("MainActivity", "Kiosk restrictions disabled")
     } catch (e: Exception) {

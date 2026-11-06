@@ -23,6 +23,7 @@ export const SETTINGS_IDLE_MS = 5 * 60_000;
 /** Commands from the website after which Settings must not still be behind the screen */
 export const COMMANDS_ENDING_SETTINGS = new Set([
   'launch_app',
+  'system_update',
   'stop_apps',
   'screen_on',
   'screen_off',

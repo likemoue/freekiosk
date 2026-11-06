@@ -183,6 +183,55 @@ describe('apps taken from a tablet, apps removed, and the screen live', () => {
     });
   });
 
+  describe('updating Android', () => {
+    const progress = (tablet: FakeTablet, commandId: string, body: Record<string, unknown>) =>
+      fetch(`${server.base}/api/v1/commands/${commandId}/progress/`, {
+        method: 'POST',
+        headers: { ...tablet.auth(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(async (response) => ({ status: response.status, body: (await response.json()) as any }));
+
+    it('shows how far the tablet has got, then what it came to, and lasts long enough for it', async () => {
+      const capabilities = [...ALL, 'system_update'];
+      const tablet = await enrolled(capabilities);
+      await beat(tablet, {}, capabilities);
+      assert.equal((await send('system_update', {}, [tablet.deviceId])).status, 201);
+      const [command] = await take(tablet);
+      assert.equal(command.type, 'system_update');
+      const sent = await server.prisma.command.findUniqueOrThrow({ where: { id: command.id } });
+      assert.ok(sent.expiresAt.getTime() - Date.now() > 5 * 3_600_000);
+
+      const first = await progress(tablet, command.id, { stage: 'downloading', percent: 45 });
+      assert.deepEqual([first.status, first.body.status], [200, 'ok']);
+      const line = (await admin.json<any[]>('GET', `/api/admin/commands?deviceId=${tablet.deviceId}`)).find((l) => l.id === command.id);
+      assert.equal(line.status, 'SENT');
+      assert.deepEqual([line.result.progress.stage, line.result.progress.percent], ['downloading', 45]);
+
+      await tablet.sendResult(command.id, 'success', { from: 'X210XXSBEZBA', to: 'X210XXSCFZJ1', security_patch: '2026-10-01' });
+      const done = await server.prisma.command.findUniqueOrThrow({ where: { id: command.id } });
+      assert.equal(done.status, 'SUCCESS');
+      assert.equal((done.result as any).to, 'X210XXSCFZJ1');
+      // Nothing more to say once it is over, and what is said does not undo the result
+      assert.equal((await progress(tablet, command.id, { stage: 'downloading', percent: 99 })).body.status, 'finished');
+      assert.equal(((await server.prisma.command.findUniqueOrThrow({ where: { id: command.id } })).result as any).to, 'X210XXSCFZJ1');
+    });
+
+    it('skips a tablet that cannot, saying why, and takes word only from the tablet it was sent to', async () => {
+      const tablet = await enrolled();
+      await beat(tablet);
+      const response = await send('system_update', {}, [tablet.deviceId]);
+      const sent = (await response.json()) as any;
+      assert.equal(sent.sent, 0);
+      assert.match(sent.skipped[0].reason, /dịch vụ trợ năng/);
+      // Another tablet's command is not this one's to report on
+      const other = await enrolled([...ALL, 'system_update']);
+      await beat(other, {}, [...ALL, 'system_update']);
+      await send('system_update', {}, [other.deviceId]);
+      const [command] = await take(other);
+      assert.equal((await progress(tablet, command.id, { stage: 'checking' })).status, 404);
+    });
+  });
+
   describe('the screen, live', () => {
     const watch = (deviceIds: string[], mode: 'grid' | 'detail', viewer = 'trang-thu-1') => admin.json<any[]>('POST', '/api/admin/live/watch', { viewer, deviceIds, mode });
     const frame = async (tablet: FakeTablet, jpeg: Buffer, query = 'w=1920&h=1200&control=1') =>

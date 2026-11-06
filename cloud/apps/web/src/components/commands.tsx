@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  AppWindow, Ban, Bell, Camera, LocateFixed, PackageMinus, DownloadCloud, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
+  AppWindow, ArrowUpCircle, Ban, Bell, Camera, LocateFixed, PackageMinus, DownloadCloud, CircleStop, Code2, Eraser, Globe, LayoutGrid, Moon, MousePointerClick, Power, RefreshCw, RotateCcw, Search, Sun, SunDim, Timer, Trash2, Volume1, Volume2, VolumeX, Wifi, MessageSquareText, Sparkles,
 } from 'lucide-react';
 import { ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -105,6 +105,17 @@ const COMMANDS: CommandDef[] = [
   { type: 'set_url', label: 'Đổi URL hiển thị', hint: 'Trang hiển thị trên kiosk đổi ngay khi thiết bị nhận được.', icon: <Globe />, category: 'advanced', viaConfig: true, params: [{ name: 'url', label: 'URL', type: 'url', required: true, placeholder: 'https://...' }] },
   { type: 'set_brightness', label: 'Đổi độ sáng', hint: 'Nhập từ 0 đến 100.', icon: <Sparkles />, category: 'advanced', viaConfig: true, params: [{ name: 'percent', label: 'Độ sáng (%)', required: true, placeholder: '70' }] },
   { type: 'set_screen_timeout', label: 'Thời gian sáng màn hình', hint: 'Màn hình tự tắt sau bao lâu khi không có thao tác, kể cả khi đang mở ứng dụng khác.', icon: <Timer />, category: 'advanced', capability: 'screen_timeout', lacking: 'Thiết bị này cần FreeKiosk bản mới nhất. Bản mới cài ở mục Ứng dụng (APK).', params: [{ name: 'seconds', label: 'Tắt màn hình sau', type: 'select', required: true, options: SCREEN_TIMEOUTS }] },
+  {
+    type: 'system_update',
+    label: 'Cập nhật Android',
+    hint: 'Tablet tự mở Cập nhật phần mềm của Samsung, tải bản mới về và cài đặt, rồi khởi động lại. Màn hình tablet và lịch sử lệnh hiện % đang tải. Máy đã ở bản mới nhất thì không làm gì, nên có thể hẹn giờ chạy mỗi đêm ở Lịch hẹn giờ. Cần Wi-Fi, pin từ 30% hoặc đang sạc, FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk.',
+    icon: <ArrowUpCircle />,
+    category: 'advanced',
+    capability: 'system_update',
+    lacking: 'Thiết bị này cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk. Hiện chỉ máy Samsung.',
+    confirmLabel: 'Cập nhật',
+    dangerFor: (_values, deviceCount) => `Cập nhật Android trên ${deviceCount} thiết bị? Mỗi máy tải bản mới về (thường 1 đến 3 GB), không dùng được trong lúc cài, rồi tự khởi động lại. Không hạ lại bản cũ được sau khi cập nhật.`,
+  },
   { type: 'add_wifi_network', label: 'Thêm mạng Wi-Fi', hint: 'Chỉ lưu để dùng sau, không chuyển mạng ngay. Mật khẩu chỉ gửi tới thiết bị, không lưu lại.', icon: <Wifi />, category: 'advanced', adminOnly: true, params: [{ name: 'ssid', label: 'Tên mạng (SSID)', required: true }, { name: 'password', label: 'Mật khẩu', type: 'password' }] },
   { type: 'execute_js', label: 'Chạy JavaScript', hint: 'Mã chạy ngay trong trang đang hiển thị. Chỉ dùng mã bạn hiểu rõ.', icon: <Code2 />, category: 'advanced', adminOnly: true, danger: 'Mã JavaScript sẽ chạy trong trang kiosk trên các thiết bị đã chọn.', params: [{ name: 'code', label: 'Mã JavaScript', type: 'textarea', required: true }] },
 ];
@@ -297,6 +308,7 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
     const missing = Array.isArray(command.result?.missing) ? command.result.missing.length : 0;
     return [Array.isArray(names) ? names.join(', ') : '', missing ? `Máy không có ${missing} ứng dụng` : ''].filter(Boolean).join('. ') || null;
   }
+  if (command.type === 'system_update') return systemUpdateDetail(command);
   if (command.type === 'set_screen_timeout') return SCREEN_TIMEOUTS.find((option) => option.value === String(params.seconds))?.label ?? `${params.seconds} giây`;
   if (command.type === 'set_url') return params.url ?? null;
   if (command.type === 'locate') {
@@ -321,6 +333,26 @@ function commandDetail(command: { type: string; params?: Record<string, any>; re
     return parts.filter(Boolean).join('. ') || null;
   }
   return Object.keys(params).length ? JSON.stringify(params).slice(0, 80) : null;
+}
+
+const SYSTEM_UPDATE_STAGES: Record<string, string> = {
+  checking: 'Đang kiểm tra bản cập nhật',
+  downloading: 'Đang tải bản cập nhật',
+  installing: 'Đang cài đặt, máy sắp khởi động lại',
+};
+
+/** Where an Android update is while it runs (SystemUpdater.kt reports it), then what it came to */
+function systemUpdateDetail(command: { status?: string; result?: Record<string, any> | null }): string | null {
+  const result = command.result ?? {};
+  if (command.status === 'SUCCESS') {
+    if (result.up_to_date) return `Đã là bản mới nhất (${result.build ?? 'không rõ bản'})`;
+    const patch = result.security_patch ? `, bản vá bảo mật ${result.security_patch}` : '';
+    return result.from && result.to ? `${result.from} → ${result.to}${patch}` : null;
+  }
+  const progress = result.progress;
+  if (!progress || (command.status !== 'SENT' && command.status !== 'EXPIRED')) return null;
+  const stage = SYSTEM_UPDATE_STAGES[progress.stage] ?? 'Đang cập nhật';
+  return typeof progress.percent === 'number' ? `${stage}: ${progress.percent}%` : `${stage}…`;
 }
 
 /**
@@ -362,6 +394,15 @@ const COMMAND_ERRORS: Array<[RegExp, string]> = [
   [/Uninstalling apps requires Device Owner/, 'Xóa ứng dụng cần chế độ Device Owner.'],
   [/This app version cannot (uninstall apps|send apps to the website)/, 'Cần FreeKiosk bản mới nhất.'],
   [/Clearing app data requires Device Owner/, 'Xóa dữ liệu ứng dụng cần chế độ Device Owner.'],
+  [/System update needs Wi-Fi/, 'Cần Wi-Fi để tải bản cập nhật Android. Gửi lại khi máy có Wi-Fi.'],
+  [/Battery too low for a system update/, 'Pin dưới 30% và không sạc. Cắm sạc rồi gửi lại.'],
+  [/System update needs the accessibility service/, 'Cần bật dịch vụ trợ năng của FreeKiosk trên máy.'],
+  [/System update needs Device Owner/, 'Cập nhật Android cần chế độ Device Owner.'],
+  [/No Samsung software update/, 'Máy này không có mục Cập nhật phần mềm của Samsung.'],
+  [/Software update did not answer/, 'Màn hình Cập nhật phần mềm không phản hồi. Xem màn hình máy ở Ảnh màn hình > Trực tiếp rồi gửi lại.'],
+  [/Download stopped/, 'Bản cập nhật dừng tải giữa chừng (thường do mất Wi-Fi). Gửi lại để tải tiếp.'],
+  [/Restarted on the same build/, 'Máy đã khởi động lại nhưng vẫn ở bản Android cũ: chưa cài được bản cập nhật.'],
+  [/A system update is already under way/, 'Máy đang cập nhật Android từ một lệnh trước.'],
   [/Clearing app data requires Android 9/, 'Xóa dữ liệu ứng dụng cần Android 9 trở lên.'],
   [/INSTALL_FAILED_MISSING_SPLIT/, 'Tệp APK này chỉ là một phần của ứng dụng (đóng gói dạng App Bundle) nên Android không cài được một mình. Hãy tải lên cả bộ tệp của ứng dụng.'],
   [/INSTALL_FAILED_UPDATE_INCOMPATIBLE/, 'Máy đang có bản ký bằng khóa khác, cần gỡ bản đó trước.'],

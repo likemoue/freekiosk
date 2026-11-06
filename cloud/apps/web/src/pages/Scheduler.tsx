@@ -29,6 +29,8 @@ const SCHEDULABLE = [
   { type: 'speak', param: 'text', paramLabel: 'Văn bản cần đọc' },
   { type: 'play_sound', param: 'url', paramLabel: 'URL âm thanh' },
   { type: 'launch_app', param: 'package_name', paramLabel: 'Ứng dụng' },
+  // At night, say: a tablet already up to date answers so and does nothing
+  { type: 'system_update' },
 ];
 
 const BLANK = { name: '', commandType: 'reload', paramValue: '', targetType: 'all', groupId: '', deviceIds: [] as string[], days: [1, 2, 3, 4, 5], time: '07:00', enabled: true };
