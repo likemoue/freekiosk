@@ -2149,6 +2149,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         map.putString("model", android.os.Build.MODEL ?: "")
         map.putString("manufacturer", android.os.Build.MANUFACTURER ?: "")
         map.putString("androidVersion", android.os.Build.VERSION.RELEASE ?: "")
+        // The maker's build and its security patch: what tells two tablets on Android 16 apart
+        map.putString("androidBuild", android.os.Build.DISPLAY ?: "")
+        map.putString("securityPatch", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.os.Build.VERSION.SECURITY_PATCH ?: "" else "")
         map.putString("serial", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "unknown" else
             @Suppress("DEPRECATION") (android.os.Build.SERIAL ?: ""))
         map.putLong("uptimeSeconds", android.os.SystemClock.elapsedRealtime() / 1000)

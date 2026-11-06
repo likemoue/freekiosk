@@ -31,7 +31,7 @@ import AppLauncherModule from './AppLauncherModule';
 import OverlayServiceModule from './OverlayServiceModule';
 import { COMMANDS_ENDING_SETTINGS, SettingsSession } from './SettingsSession';
 
-const { HttpServerModule, WifiControlModule } = NativeModules;
+const { HttpServerModule, WifiControlModule, SystemUpdateModule } = NativeModules;
 
 /** Our own package, so a self-update is recognised as a process-killing command. */
 const OWN_PACKAGE = 'com.freekiosk';
@@ -177,7 +177,8 @@ class CloudCommandServiceClass {
 
         const outcome = await this.runCommand(cmd, c);
         await StorageService.saveInflightCommand(null);
-        await this.reportResult(c, cmd.id, outcome);
+        // None: the native side says how it ended, after the restart if it comes to one (SystemUpdater.kt)
+        if (outcome) await this.reportResult(c, cmd.id, outcome);
       } finally {
         this.underWay.delete(cmd.id);
       }
@@ -261,7 +262,7 @@ class CloudCommandServiceClass {
     await StorageService.savePendingReports(deduped);
   }
 
-  private async runCommand(cmd: CloudCommand, c: CloudCredentials): Promise<ActionResult> {
+  private async runCommand(cmd: CloudCommand, c: CloudCredentials): Promise<ActionResult | null> {
     // Settings left open must not come back to the front behind a command (SettingsSession.ts)
     if (COMMANDS_ENDING_SETTINGS.has(cmd.type)) {
       SettingsSession.end(cmd.type);
@@ -297,6 +298,10 @@ class CloudCommandServiceClass {
     // The APK of an app on this tablet, into the library of the website
     if (cmd.type === 'pull_apk') {
       return this.pullApk(cmd, c);
+    }
+    // The maker's Android update: it outlives this process, so the native side reports it
+    if (cmd.type === 'system_update') {
+      return this.startSystemUpdate(cmd, c);
     }
     // Not through the kiosk screen, which is not there when FreeKiosk was started in the background:
     // "Handler unavailable" on an SM-X210 started by the watchdog with its screen off
@@ -367,6 +372,22 @@ class CloudCommandServiceClass {
         return { ok: false, error: `Could not uninstall ${outcome.failed.join('; ')}`, result: { ...outcome } };
       }
       return { ok: true, result: { ...outcome } };
+    } catch (error: any) {
+      return { ok: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /**
+   * Hands the update to SystemUpdater.kt, which presses through Samsung's screens, sends the percent to the
+   * website and the result once the tablet is back from the restart. Null once it is under way.
+   */
+  private async startSystemUpdate(cmd: CloudCommand, c: CloudCredentials): Promise<ActionResult | null> {
+    if (!SystemUpdateModule?.start) {
+      return { ok: false, error: 'This app version cannot update Android' };
+    }
+    try {
+      const problem: string | null = await SystemUpdateModule.start(cmd.id, c.cloudUrl, c.deviceId, c.apiKey);
+      return problem ? { ok: false, error: problem } : null;
     } catch (error: any) {
       return { ok: false, error: error?.message ?? String(error) };
     }

@@ -31,6 +31,8 @@ Trả về `{ device_id, api_key, organization_name }`, hoặc `{ error }` với
 
 Ứng dụng gửi trạng thái (`battery`, `network`, `display`, `app`, `system`), toàn bộ cấu hình (`config`,
 `config_version`, `config_updated_at`) và thông tin bí mật (`sensitive_config`, không bao giờ có PIN).
+Từ 2.1.0-beta.16 `system` có thêm `android_build` (`Build.DISPLAY`, như `BP2A.250605.031.A3.X210XXSBEZBA`) và
+`security_patch` (`YYYY-MM-DD`): bản Android của hãng, trang thiết bị ghi lại.
 
 Máy chủ trả:
 
@@ -88,6 +90,10 @@ Lệnh `pull_apk` `{ package_name, label }`, chỉ gửi cho một thiết bị 
 
 Lệnh `uninstall_app` `{ packages, labels }` gỡ ứng dụng không hỏi (cần Device Owner), không bao giờ gỡ FreeKiosk. Kết quả `{ removed, missing, failed }`, mỗi dòng `failed` là `gói: điều Android trả lời` (ứng dụng có sẵn theo máy trả `DELETE_FAILED_INTERNAL_ERROR`). Máy vẫn gỡ tiếp các ứng dụng khác khi một ứng dụng không gỡ được. Đến 2.1.0-beta.15 có `failed` thì ứng dụng báo `error`; máy chủ coi kết quả có danh sách `failed` là thành công kèm cảnh báo (trang Lệnh ghi Cảnh báo và tên ứng dụng không gỡ được), chỉ câu trả lời không có danh sách (không phải Device Owner, bản không gỡ được) mới là lỗi. Máy chủ bỏ các ứng dụng trong `removed` khỏi `general.managedApps` của máy đó (dòng lịch sử `home_apps`, nguồn `after_uninstall`), không đổi hồ sơ của nhóm.
 
+## Cập nhật Android
+
+Lệnh `system_update` không có tham số, khả năng `system_update` (máy Samsung, Device Owner, dịch vụ trợ năng của FreeKiosk đang bật), sống 6 giờ. Ứng dụng (`SystemUpdater.kt`) không báo kết quả ngay: nó mở Cập nhật phần mềm của Samsung, tự bấm qua các bước, và gửi tiến độ bằng `POST /api/v1/commands/{id}/progress/` với `{ stage, percent }`, `stage` là `checking`, `downloading` hoặc `installing`. Máy chủ giữ tiến độ trong `result.progress` khi lệnh còn ở trạng thái đã gửi, và trả `{ status: "finished" }` khi lệnh đã xong. Kết quả gửi sau lần khởi động lại để cài, ở tín hiệu đầu tiên: `{ from, to, security_patch }` khi bản Android đã đổi, `{ up_to_date: true, build, security_patch }` khi máy đã ở bản mới nhất, hoặc `error` với lý do (`System update needs Wi-Fi`, `Battery too low for a system update`, `Download stopped`, `Restarted on the same build`, hay `Samsung: ` và lời của Samsung).
+
 ## Màn hình trực tiếp
 
 Khi có người xem màn hình trên trang Ảnh màn hình, câu trả lời của `wait` có `live: true`. Ứng dụng (khả năng `remote_view`) gửi `POST live/frame/` với thân là ảnh JPEG, hoặc thân rỗng và `problem` (`screen_off`, `starting`, hoặc lỗi chụp), kèm kích thước màn hình `w`, `h` và `control=1` khi dịch vụ trợ năng có quyền thao tác. Câu trả lời `{ active, interval_ms, max_width, quality, inputs }`: `active: false` là không còn ai xem, thì dừng. `inputs` là thao tác cần làm, tọa độ theo tỉ lệ ảnh từ 0 đến 1: `{ type: "tap" | "long_press", x, y }`, `{ type: "swipe", x, y, x2, y2, ms }`, `{ type: "key", key: "back" | "home" | "recents" | "enter" | "backspace" }`, `{ type: "text", text }`. Lưới các màn hình nhận ảnh 5 giây một lần, rộng 480; một màn hình mở lớn nhận 1 giây một lần, rộng 1280. Máy chủ chỉ giữ ảnh cuối cùng trong bộ nhớ.
@@ -112,7 +118,7 @@ Một phiên bản có cả hai bản dựng thì trả bản không có `cloudp
 
 Kết quả: `{ status: "success" | "error", result, error_message }`. Mã 4xx báo cho ứng dụng thôi gửi lại.
 
-Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume`, `clear_app_data`, `locate`, `uninstall_app`, `pull_apk` và `launch_app` (chạy được cả khi FreeKiosk chạy nền, không có màn hình kiosk). URL, độ sáng, âm lượng
+Các lệnh được hỗ trợ ở `COMMAND_MAP` trong `CloudCommandService.ts`, cộng `screenshot`, `add_wifi_network`, `stop_apps`, `set_screen_timeout`, `set_volume`, `clear_app_data`, `locate`, `uninstall_app`, `pull_apk`, `system_update` và `launch_app` (chạy được cả khi FreeKiosk chạy nền, không có màn hình kiosk). URL, độ sáng, âm lượng
 không phải lệnh: chúng đi qua kênh cấu hình.
 
 `clear_app_data` nhận `{ packages: ["..."], labels: ["..."] }`, `labels` chỉ để hiện trong lịch sử. Kết quả là `{ cleared, missing, failed, permissionsLost }`: `missing` là ứng dụng máy không có, không tính là lỗi; `permissionsLost` ghi `gói/quyền` Android không cho cấp lại. Có `failed` thì trạng thái là `error`, `result` vẫn kèm theo.

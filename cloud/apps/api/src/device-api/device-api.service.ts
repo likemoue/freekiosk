@@ -453,6 +453,28 @@ export class DeviceApiService {
     }
   }
 
+  /**
+   * Where a command still running has got (system_update: checking, downloading with its percent,
+   * installing), kept in its result for the history until the result itself replaces it. False once
+   * it is over, which tells the tablet that nobody needs to hear more.
+   */
+  async recordProgress(device: Device, commandId: string, body: Json): Promise<boolean> {
+    const command = await this.prisma.command.findFirst({ where: { id: commandId, deviceId: device.id }, select: { id: true, status: true } });
+    if (!command) throw new NotFoundException({ error: 'Không tìm thấy lệnh' });
+    const percent = int(body.percent);
+    const progress = {
+      stage: str(body.stage, 40) ?? 'running',
+      ...(percent !== undefined ? { percent: Math.min(100, Math.max(0, percent)) } : {}),
+      ...(str(body.message, 300) ? { message: str(body.message, 300) } : {}),
+      at: new Date().toISOString(),
+    };
+    const { count } = await this.prisma.command.updateMany({
+      where: { id: command.id, status: 'SENT' },
+      data: { result: { progress } as Prisma.InputJsonValue },
+    });
+    return count > 0;
+  }
+
   // ─── Screenshots ──────────────────────────────────────────────────────────
 
   async saveScreenshot(device: Device, file: Express.Multer.File | undefined, capturedAtRaw: unknown): Promise<void> {

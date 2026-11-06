@@ -733,6 +733,8 @@ class FreeKioskAccessibilityService : AccessibilityService() {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString()
         if (pkg.isNullOrBlank()) return
+        // Samsung's update screens, told apart by class for an Android update from the website
+        SystemUpdater.onWindow(pkg, event.className?.toString())
         try {
             BlockingOverlayManager.getInstance(this).setForegroundPackage(pkg)
         } catch (e: Exception) {

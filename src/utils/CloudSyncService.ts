@@ -365,6 +365,9 @@ class CloudSyncServiceClass {
             model: status.device.model,
             manufacturer: status.device.manufacturer,
             android_version: status.device.androidVersion,
+            // Which update of the maker the tablet runs, for Cập nhật Android on the website
+            ...(status.device.androidBuild ? { android_build: status.device.androidBuild } : {}),
+            ...(status.device.securityPatch ? { security_patch: status.device.securityPatch } : {}),
             form_factor: formFactor(),
             free_storage_mb: status.device.freeStorageMb,
             free_memory_mb: status.device.freeMemoryMb,

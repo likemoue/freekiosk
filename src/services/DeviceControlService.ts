@@ -42,6 +42,9 @@ export interface DeviceInfo {
   model: string;
   manufacturer: string;
   androidVersion: string;
+  /** The maker's build of Android (Build.DISPLAY) and its security patch, YYYY-MM-DD */
+  androidBuild: string;
+  securityPatch: string;
 }
 
 export interface WifiStatus {
@@ -236,6 +239,8 @@ class DeviceControlServiceClass {
     let model = '';
     let manufacturer = '';
     let androidVersion = '';
+    let androidBuild = '';
+    let securityPatch = '';
     let uptime = 0;
     try {
       if (KioskModule?.getStorageInfo) {
@@ -251,6 +256,8 @@ class DeviceControlServiceClass {
         model = sys.model || '';
         manufacturer = sys.manufacturer || '';
         androidVersion = sys.androidVersion || '';
+        androidBuild = sys.androidBuild || '';
+        securityPatch = sys.securityPatch || '';
         uptime = sys.uptimeSeconds || 0;
       }
     } catch (error) {
@@ -269,6 +276,8 @@ class DeviceControlServiceClass {
       model,
       manufacturer,
       androidVersion,
+      androidBuild,
+      securityPatch,
     };
   }
 

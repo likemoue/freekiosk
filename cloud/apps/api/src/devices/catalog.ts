@@ -15,6 +15,8 @@ export interface CommandSpec {
   singleDevice?: boolean;
   /** What to say of a device without the capability, when there is more to say than that it cannot */
   lacking?: string;
+  /** How long it may take, from sending to its result, when that is more than an hour */
+  ttlMinutes?: number;
   adminOnly?: boolean;
   /** Parameters kept encrypted until delivery, and never shown back */
   secretParams?: string[];
@@ -99,6 +101,14 @@ export const COMMANDS: Record<string, CommandSpec> = {
   screenshot: { capability: 'screenshot' },
   // Places the tablet on the map now, rather than at its next fix (every 15 minutes)
   locate: { capability: 'locate', lacking: 'Cần FreeKiosk bản mới nhất' },
+  // The Android update of the maker, through its own screens (SystemUpdater.kt): a download of a
+  // gigabyte or two, an install, a restart, and the result only once the tablet is back. No more for
+  // operators than a restart, and a schedule may run it at night: a tablet up to date does nothing
+  system_update: {
+    capability: 'system_update',
+    lacking: 'Cần FreeKiosk bản mới nhất, chế độ Device Owner và dịch vụ trợ năng của FreeKiosk, trên máy Samsung',
+    ttlMinutes: 6 * 60,
+  },
   add_wifi_network: {
     adminOnly: true,
     secretParams: ['password'],
@@ -174,6 +184,7 @@ export const COMMAND_LABELS: Record<string, string> = {
   launch_app: 'Mở ứng dụng',
   screenshot: 'Chụp màn hình',
   locate: 'Cập nhật vị trí',
+  system_update: 'Cập nhật Android',
   add_wifi_network: 'Thêm mạng Wi-Fi',
   install_apk: 'Cài APK',
 };

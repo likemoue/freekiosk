@@ -50,6 +50,8 @@ object CloudWake {
     @Synchronized
     fun start(context: Context, cloudUrl: String, deviceId: String, apiKey: String) {
         val url = cloudUrl.trimEnd('/')
+        // An Android update in the middle, or just back from the restart that installed it
+        SystemUpdater.resume(context, url, deviceId, apiKey)
         if (target?.sameAs(url, deviceId, apiKey) == true && worker?.isAlive == true) return
         stop()
         val mine = Target(url, deviceId, apiKey)
