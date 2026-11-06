@@ -70,6 +70,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         // Store the current instance to allow sending events from MainActivity
         @Volatile
         private var currentInstance: KioskModule? = null
+
+        /** For native code that needs React, the live screen say: null until React is up */
+        fun reactContextOrNull(): ReactApplicationContext? = currentInstance?.reactApplicationContext
         
         /**
          * Send an event to React Native from outside the module (e.g., from MainActivity)

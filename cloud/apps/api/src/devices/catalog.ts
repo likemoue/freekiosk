@@ -11,6 +11,8 @@ import { PACKAGE_NAME } from './home-apps';
  */
 export interface CommandSpec {
   capability?: string;
+  /** For one tablet at a time: the same app sent by thirty tablets would be thirty uploads of it */
+  singleDevice?: boolean;
   /** What to say of a device without the capability, when there is more to say than that it cannot */
   lacking?: string;
   adminOnly?: boolean;
@@ -23,6 +25,16 @@ const text = (name: string, label: string, max = 2000) => (params: Record<string
   const value = params[name];
   if (typeof value !== 'string' || !value.trim()) return `Cần nhập ${label}`;
   if (value.length > max) return `${label} quá dài`;
+  return null;
+};
+
+/** Apps chosen by package, never FreeKiosk itself */
+const packages = (own: string) => (params: Record<string, unknown>) => {
+  const list = params.packages;
+  if (!Array.isArray(list) || list.length === 0) return 'Chưa chọn ứng dụng nào';
+  if (list.length > 100) return 'Chọn quá nhiều ứng dụng';
+  if (list.some((name) => typeof name !== 'string' || !PACKAGE_NAME.test(name))) return 'Tên gói ứng dụng không hợp lệ';
+  if (list.includes('com.freekiosk')) return own;
   return null;
 };
 
@@ -52,12 +64,23 @@ export const COMMANDS: Record<string, CommandSpec> = {
   clear_app_data: {
     capability: 'clear_app_data',
     lacking: 'Cần FreeKiosk bản mới nhất và chế độ Device Owner',
+    validate: packages('Không thể xóa dữ liệu của chính FreeKiosk'),
+  },
+  // Removed for good, as a Device Owner may with no prompt. The home screens drop them once it worked
+  uninstall_app: {
+    capability: 'uninstall_app',
+    lacking: 'Cần FreeKiosk bản mới nhất và chế độ Device Owner',
+    validate: packages('Không thể xóa chính FreeKiosk'),
+  },
+  // The APK of an app this tablet has, sent to the library to install it on the others
+  pull_apk: {
+    capability: 'pull_apk',
+    lacking: 'Cần FreeKiosk bản mới nhất',
+    singleDevice: true,
     validate: (params) => {
-      const packages = params.packages;
-      if (!Array.isArray(packages) || packages.length === 0) return 'Chưa chọn ứng dụng nào';
-      if (packages.length > 100) return 'Chọn quá nhiều ứng dụng';
-      if (packages.some((name) => typeof name !== 'string' || !PACKAGE_NAME.test(name))) return 'Tên gói ứng dụng không hợp lệ';
-      if (packages.includes('com.freekiosk')) return 'Không thể xóa dữ liệu của chính FreeKiosk';
+      const name = params.package_name;
+      if (typeof name !== 'string' || !PACKAGE_NAME.test(name)) return 'Chưa chọn ứng dụng';
+      if (name === 'com.freekiosk') return 'FreeKiosk đã có trong thư viện từ bản build, không cần lấy từ thiết bị';
       return null;
     },
   },
@@ -143,6 +166,8 @@ export const COMMAND_LABELS: Record<string, string> = {
   clear_cache: 'Xóa bộ nhớ đệm',
   stop_apps: 'Dừng mọi ứng dụng',
   clear_app_data: 'Xóa dữ liệu ứng dụng',
+  uninstall_app: 'Xóa ứng dụng',
+  pull_apk: 'Lấy APK về website',
   set_screen_timeout: 'Thời gian sáng màn hình',
   toast: 'Hiện thông báo',
   execute_js: 'Chạy JavaScript',

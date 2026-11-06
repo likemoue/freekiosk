@@ -212,7 +212,7 @@ describe('on the server', () => {
       await new Promise((done) => setTimeout(done, 200));
       await admin.json('POST', '/api/admin/commands', { type: 'wake', target: { deviceIds: [tablet.deviceId] } });
       const { value, ms } = await wait;
-      assert.deepEqual(value, { wake: true, commands: true, config: false });
+      assert.deepEqual(value, { wake: true, commands: true, config: false, live: false });
       assert.ok(ms < 2000, `took ${ms} ms`);
     });
 
@@ -222,7 +222,7 @@ describe('on the server', () => {
       await new Promise((done) => setTimeout(done, 200));
       await admin.json('POST', '/api/admin/commands', { type: 'set_brightness', params: { percent: 40 }, target: { deviceIds: [tablet.deviceId] } });
       const { value, ms } = await wait;
-      assert.deepEqual(value, { wake: true, commands: false, config: true });
+      assert.deepEqual(value, { wake: true, commands: false, config: true, live: false });
       assert.ok(ms < 2000, `took ${ms} ms`);
     });
 
@@ -240,14 +240,14 @@ describe('on the server', () => {
       await waiting(tablet);
       await tablet.get('commands');
       const { value, ms } = await heldFor(waiting(tablet, 1));
-      assert.deepEqual(value, { wake: false, commands: false, config: false });
+      assert.deepEqual(value, { wake: false, commands: false, config: false, live: false });
       assert.ok(ms >= 900, `took ${ms} ms`);
     });
 
     it('keeps a word said between two requests', async () => {
       const tablet = await enrolled();
       await admin.json('POST', '/api/admin/commands', { type: 'set_brightness', params: { percent: 40 }, target: { deviceIds: [tablet.deviceId] } });
-      assert.deepEqual(await waiting(tablet), { wake: true, commands: false, config: true });
+      assert.deepEqual(await waiting(tablet), { wake: true, commands: false, config: true, live: false });
       // Said once: the heartbeat that follows takes care of it
       assert.equal((await waiting(tablet, 1)).wake, false);
     });

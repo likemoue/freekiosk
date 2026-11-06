@@ -26,6 +26,7 @@ const Profiles = lazy(() => import('./pages/Profiles'));
 const Apps = lazy(() => import('./pages/Apps'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const Screenshots = lazy(() => import('./pages/Screenshots'));
+const LiveScreen = lazy(() => import('./pages/LiveScreen'));
 const Alerts = lazy(() => import('./pages/Alerts'));
 const GettingStarted = lazy(() => import('./pages/GettingStarted'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -72,6 +73,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="ung-dung" element={<Suspense fallback={<Loading />}><Apps /></Suspense>} />
                 <Route path="nhat-ky" element={<Suspense fallback={<Loading />}><ActivityLog /></Suspense>} />
                 <Route path="anh-man-hinh" element={<Suspense fallback={<Loading />}><Screenshots /></Suspense>} />
+                <Route path="anh-man-hinh/truc-tiep/:id" element={<Suspense fallback={<Loading />}><LiveScreen /></Suspense>} />
                 <Route path="canh-bao" element={<Suspense fallback={<Loading />}><Alerts /></Suspense>} />
                 <Route path="bat-dau" element={<Suspense fallback={<Loading />}><GettingStarted /></Suspense>} />
                 <Route path="cai-dat" element={<Suspense fallback={<Loading />}><Settings /></Suspense>} />

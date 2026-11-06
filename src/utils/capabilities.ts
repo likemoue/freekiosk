@@ -17,6 +17,8 @@ import KioskModule from './KioskModule';
 import AccessibilityModule from './AccessibilityModule';
 import OverlayPermissionModule from './OverlayPermissionModule';
 import { canLocate } from './DeviceLocation';
+import { canPullApk } from './ApkExport';
+import ManagedAppInstaller from './ManagedAppInstaller';
 
 // Capability vocabulary. Keep in sync with the cloud (device-feature-audit.md).
 export type Capability =
@@ -57,6 +59,12 @@ export type Capability =
   | 'location'
   // Places itself on the map of the management website when asked (DeviceLocationModule)
   | 'locate'
+  // Removes apps with no prompt, as a Device Owner
+  | 'uninstall_app'
+  // Sends the APK of an installed app to the library of the website (ApkExportModule)
+  | 'pull_apk'
+  // Shows its screen live on the website, and takes taps from it (LiveScreen.kt)
+  | 'remote_view'
   | 'bluetooth';
 
 const BASELINE: Capability[] = [
@@ -113,6 +121,7 @@ export async function getCapabilities(): Promise<string[]> {
     caps.add('split_install');
     caps.add('stop_apps');
     if (Number(Platform.Version) >= 28) caps.add('clear_app_data');
+    if (ManagedAppInstaller.canUninstall()) caps.add('uninstall_app');
     caps.add('screen_off_lock');
   }
 
@@ -143,6 +152,11 @@ export async function getCapabilities(): Promise<string[]> {
   // Grants itself what it lacks when asked: told apart from an older app, which reports 'location' too
   if (canLocate()) {
     caps.add('locate');
+  }
+  if (canPullApk()) {
+    caps.add('pull_apk');
+    // Same version: the live screen came with it. Whether the hand works, the screen says itself
+    caps.add('remote_view');
   }
   if (P.BLUETOOTH_CONNECT && (await hasRuntimePermission(P.BLUETOOTH_CONNECT))) {
     caps.add('bluetooth');

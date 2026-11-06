@@ -6,6 +6,8 @@ import cookieParser from 'cookie-parser';
 import { json, NextFunction, raw, Request, Response, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AuthService, SESSION_COOKIE } from './auth/auth.service';
+import { sha256 } from './common/crypto.service';
+import { PrismaService } from './common/prisma.service';
 
 // Sizes are stored as BigInt, which JSON cannot carry; a file size fits a number with no loss
 (BigInt.prototype as unknown as { toJSON: () => number }).toJSON = function (this: bigint) {
@@ -71,6 +73,20 @@ export async function createApp(options: { logger?: false } = {}): Promise<INest
     next();
   });
   app.use('/api/admin/uploads/:id/part', raw({ type: () => true, limit: UPLOAD_PART_LIMIT }));
+  // A tablet's own key, checked before 16 MB of APK are read for it (pull_apk). DeviceGuard checks again
+  const prisma = app.get(PrismaService);
+  app.use('/api/v1/devices/:deviceId/apk-uploads/:uploadId/part', async (req: Request, res: Response, next: NextFunction) => {
+    const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? '');
+    const device = match ? await prisma.device.findUnique({ where: { apiKeyHash: sha256(match[1].trim()) }, select: { id: true } }).catch(() => null) : null;
+    if (!device || device.id !== req.params.deviceId) {
+      res.status(401).json({ error: 'Khóa API không hợp lệ' });
+      return;
+    }
+    next();
+  });
+  app.use('/api/v1/devices/:deviceId/apk-uploads/:uploadId/part', raw({ type: () => true, limit: UPLOAD_PART_LIMIT }));
+  // A picture of the screen, a few hundred kilobytes at most (LiveScreen.kt)
+  app.use('/api/v1/devices/:deviceId/live/frame', raw({ type: () => true, limit: '4mb' }));
   // A heartbeat carries the whole configuration of the tablet, playlists and all
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: false, limit: '1mb' }));

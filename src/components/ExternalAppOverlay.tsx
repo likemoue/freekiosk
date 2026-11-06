@@ -160,15 +160,25 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   const isMultiAppMode = externalAppMode === 'multi';
   const homeScreenPackages = homeScreenApps.map(app => app.packageName).join(',');
   
+  // Apps on the list but gone from the tablet, removed from the website or by hand: no tile that opens nothing
+  const [missingApps, setMissingApps] = useState<string>('');
+
   // Resolve app labels and icons for display
   useEffect(() => {
     const resolveLabelsAndIcons = async () => {
       const labels: Record<string, string> = {};
       const icons: Record<string, string> = {};
+      const missing: string[] = [];
       const appsToResolve = isMultiAppMode ? homeScreenApps : 
         (externalAppPackage ? [{ packageName: externalAppPackage, displayName: '' }] : []);
       
       await Promise.all(appsToResolve.map(async (app) => {
+        // Only a clear no hides a tile: an answer that did not come is no reason to
+        const installed = await Promise.resolve(AppLauncherModule.isAppInstalled?.(app.packageName)).catch(() => true);
+        if (isMultiAppMode && installed === false) {
+          missing.push(app.packageName);
+          return;
+        }
         try {
           const label = await AppLauncherModule.getPackageLabel(app.packageName);
           labels[app.packageName] = label;
@@ -184,6 +194,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
       }));
       setAppLabels(labels);
       setAppIcons(icons);
+      setMissingApps(missing.sort().join(','));
     };
     resolveLabelsAndIcons();
     // By package, not by count: the website can swap one app for another in a single change. And
@@ -250,7 +261,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
           <Text style={styles.multiAppTitle} numberOfLines={1}>{displayName}</Text>
         </View>
         <FlatList
-          data={homeScreenApps}
+          data={missingApps ? homeScreenApps.filter(app => !missingApps.split(',').includes(app.packageName)) : homeScreenApps}
           renderItem={renderAppIcon}
           keyExtractor={item => item.packageName}
           numColumns={APP_GRID_NUM_COLUMNS}

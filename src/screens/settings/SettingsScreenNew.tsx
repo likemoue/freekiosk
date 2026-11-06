@@ -37,6 +37,7 @@ import { findLatestUpdate, installFromServer } from '../../utils/AppUpdateCheck'
 import AutoBrightnessModule from '../../utils/AutoBrightnessModule';
 import { httpServer } from '../../utils/HttpServerModule';
 import { hasSettingsAccess, revokeSettingsAccess } from '../../utils/authState';
+import { SETTINGS_IDLE_MS, SettingsSession } from '../../utils/SettingsSession';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -415,6 +416,32 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       console.warn('[Settings] Access denied — no valid PIN verification. Redirecting to Kiosk.');
       navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] });
     }
+  }, [navigation]);
+
+  // The session ends when FreeKiosk hands the screen to something else (SettingsSession.ts): an app
+  // or a command from the website, the screen turning off, five minutes untouched. Back to the kiosk
+  // screen, and the PIN is asked again.
+  const lastTouchRef = useRef(Date.now());
+  useEffect(() => {
+    const leave = (reason: string) => {
+      console.log(`[Settings] Session ended (${reason}): back to the kiosk screen, the PIN is asked again`);
+      revokeSettingsAccess();
+      navigation.reset({ index: 0, routes: [{ name: 'Kiosk' }] });
+    };
+    const stopListening = SettingsSession.onEnd(leave);
+    const screenSub = DeviceEventEmitter.addListener('onScreenStateChanged', (isScreenOn: boolean) => {
+      // A microtask, not a timer: JS timers stop with the screen off, and Settings must be gone before
+      // anyone turns it back on
+      if (!isScreenOn) Promise.resolve().then(() => SettingsSession.end('screen_off'));
+    });
+    const idle = setInterval(() => {
+      if (Date.now() - lastTouchRef.current >= SETTINGS_IDLE_MS) SettingsSession.end('idle');
+    }, 15_000);
+    return () => {
+      stopListening();
+      screenSub.remove();
+      clearInterval(idle);
+    };
   }, [navigation]);
 
   // Subscribe to camera device changes — handles the race condition where
@@ -2454,7 +2481,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   };
 
   return (
-    <View style={settingsStyles.container}>
+    <View style={settingsStyles.container} onTouchStart={() => { lastTouchRef.current = Date.now(); }}>
       {/* Download Progress Modal */}
       <Modal visible={downloading} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={settingsStyles.modalOverlay}>

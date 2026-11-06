@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -10,6 +10,8 @@ import { AuthedRequest, clientIp, CurrentDevice, Public, sendStoredFile } from '
 import { rateLimit } from '../common/rate-limit';
 import { env } from '../config/env';
 import { SignageService } from '../signage/signage.service';
+import { LiveService } from '../devices/live.service';
+import { ApkPullService } from './apk-pull.service';
 import { DeviceApiService } from './device-api.service';
 import { DeviceGuard } from './device.guard';
 
@@ -29,6 +31,8 @@ export class DeviceApiController {
   constructor(
     private readonly service: DeviceApiService,
     private readonly signage: SignageService,
+    private readonly apkPull: ApkPullService,
+    private readonly live: LiveService,
   ) {}
 
   @Public()
@@ -140,6 +144,54 @@ export class DeviceApiController {
   ) {
     await this.service.saveScreenshot(device, file, capturedAt);
     return { status: 'ok' };
+  }
+
+  /** The APK of an app on this tablet, for the library (pull_apk): started, sent in parts, finished */
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/apk-uploads')
+  @HttpCode(200)
+  startApkUpload(@CurrentDevice() device: Device, @Body() body: Record<string, unknown>) {
+    return this.apkPull.start(device, body ?? {});
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Put('devices/:deviceId/apk-uploads/:uploadId/part')
+  apkUploadPart(
+    @CurrentDevice() device: Device,
+    @Param('uploadId', ParseUUIDPipe) uploadId: string,
+    @Query('offset') offset: string,
+    @Req() req: AuthedRequest,
+  ) {
+    const position = Number(offset);
+    if (!Number.isSafeInteger(position) || position < 0) throw new BadRequestException({ error: 'offset không hợp lệ' });
+    return this.apkPull.part(device, uploadId, position, req.body);
+  }
+
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/apk-uploads/:uploadId/finish')
+  @HttpCode(200)
+  finishApkUpload(@CurrentDevice() device: Device, @Param('uploadId', ParseUUIDPipe) uploadId: string) {
+    return this.apkPull.finish(device, uploadId);
+  }
+
+  /** A picture of the screen while someone watches it on the website; the answer carries their taps */
+  @UseGuards(DeviceGuard)
+  @ApiBearerAuth()
+  @Post('devices/:deviceId/live/frame')
+  @HttpCode(200)
+  liveFrame(
+    @CurrentDevice() device: Device,
+    @Query('w') width: string,
+    @Query('h') height: string,
+    @Query('problem') problem: string | undefined,
+    @Query('control') control: string | undefined,
+    @Req() req: AuthedRequest,
+  ) {
+    const jpeg = Buffer.isBuffer(req.body) && req.body.length > 0 ? req.body : null;
+    return this.live.frame(device.id, jpeg, Number(width) || 0, Number(height) || 0, problem ? String(problem).slice(0, 300) : null, control === '1');
   }
 
   @UseGuards(DeviceGuard)

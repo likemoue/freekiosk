@@ -3,7 +3,6 @@ import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { randomUUID } from 'node:crypto';
-import { mkdir, rm } from 'node:fs/promises';
 import { extname } from 'node:path';
 import type { User } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
@@ -16,8 +15,8 @@ import { TargetDto, targetWhere } from '../common/targets';
 import { env } from '../config/env';
 import { SignageService } from '../signage/signage.service';
 import { ApkInspector } from './apk-inspector';
-import { ApkBundle, BUNDLE_EXTENSIONS, BundleError, readApkBundle } from './apk-bundle';
-import { INCOMPLETE_APK, isApkBundle, readApkManifest } from './apk-reader';
+import { ApkLibraryService } from './apk-library.service';
+import { INCOMPLETE_APK, isApkBundle } from './apk-reader';
 import { UploadsService } from './uploads.service';
 import { installCommandData, whyCannotInstall } from '../devices/catalog';
 import { fleetVersions } from '../devices/fleet-versions';
@@ -162,6 +161,7 @@ export class ApksController {
     private readonly activity: ActivityService,
     private readonly inspector: ApkInspector,
     private readonly wake: DeviceWakeService,
+    private readonly library: ApkLibraryService,
   ) {}
 
   /** Which version of each app the tablets have, and what is newer in the library */
@@ -195,54 +195,7 @@ export class ApksController {
   @Roles('ADMIN', 'OPERATOR')
   async finish(@Param('uploadId', ParseUUIDPipe) uploadId: string, @Body() dto: FinishApkDto, @CurrentUser() actor: User) {
     const { upload, file } = await this.uploads.finish(uploadId, 'apk');
-    const extension = extname(upload.fileName).toLowerCase();
-    const work = this.storage.tmpPath(`bundle-${uploadId}`);
-    const cleanUp = async () => {
-      await rm(work, { recursive: true, force: true });
-      await rm(file, { force: true });
-    };
-    const refuse = async (message: string): Promise<never> => {
-      await cleanUp();
-      throw new BadRequestException(message);
-    };
-    if (extension !== '.apk' && !BUNDLE_EXTENSIONS.includes(extension)) return refuse('Chỉ nhận tệp .apk, .apks, .xapk, .apkm hoặc .zip');
-
-    // A set is unpacked and checked here, so that what is wrong with it is said to the person uploading
-    let bundle: ApkBundle | null = null;
-    if (extension !== '.apk') {
-      await mkdir(work, { recursive: true });
-      try {
-        bundle = await readApkBundle(file, work);
-      } catch (error) {
-        if (error instanceof BundleError) return refuse(error.message);
-        await cleanUp();
-        throw error;
-      }
-    }
-    const final = bundle?.file ?? file;
-    const manifest = bundle?.manifest ?? (await readApkManifest(file));
-    if (!manifest) return refuse('Không đọc được tệp APK: tệp hỏng hoặc không phải APK');
-    if (!bundle && manifest.incomplete) return refuse(INCOMPLETE_APK);
-
-    const digest = await this.storage.sha256File(final);
-    const sizeBytes = await this.storage.size(final);
-    const storageKey = await this.storage.adopt(final, 'apk', bundle?.isBundle ? '.zip' : '.apk');
-    await cleanUp();
-    const apk = await this.prisma.apkPackage.create({
-      data: {
-        fileName: upload.fileName,
-        storageKey,
-        sizeBytes,
-        sha256Hex: digest.toString('hex'),
-        // URL-safe base64 with no padding: what Android expects in the provisioning QR
-        checksumBase64: digest.toString('base64url'),
-        packageName: manifest.packageName,
-        versionName: manifest.versionName,
-        versionCode: manifest.versionCode,
-        notes: dto.notes,
-        createdById: actor.id,
-      },
-    });
+    const { apk, manifest } = await this.library.add(file, upload.fileName, uploadId, { createdById: actor.id, notes: dto.notes });
     await this.activity.log({ action: 'apk.uploaded', message: `${actor.email} đã tải lên ${upload.fileName} (${manifest.packageName} ${manifest.versionName ?? ''})`, user: actor });
     return apk;
   }

@@ -185,6 +185,36 @@ class FreeKioskAccessibilityService : AccessibilityService() {
             return false
         }
 
+        /** Taps and swipes from the website (LiveScreen) need this capability, granted at enable time */
+        fun canPerformGestures(): Boolean {
+            val service = instance ?: return false
+            return try {
+                val capabilities = service.serviceInfo?.capabilities ?: 0
+                (capabilities and AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES) != 0
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        /** A tap or a swipe where someone pointed on the website, in screen pixels */
+        fun stroke(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false
+            val service = instance ?: return false
+            return try {
+                val path = Path().apply {
+                    moveTo(x1, y1)
+                    lineTo(x2, y2)
+                }
+                val gesture = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, 0, durationMs.coerceIn(1L, 3_000L)))
+                    .build()
+                service.dispatchGesture(gesture, null, null)
+            } catch (e: Exception) {
+                Log.w(TAG, "Gesture failed: ${e.message}")
+                false
+            }
+        }
+
         /**
          * Perform a global action (Back, Home, Recents, etc.)
          */

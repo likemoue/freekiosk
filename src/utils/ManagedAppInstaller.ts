@@ -12,6 +12,13 @@ export interface ManagedInstallResult {
   package: string;
 }
 
+/** What uninstallPackages answers: `failed` names the package and what Android said */
+export interface UninstallResult {
+  removed: string[];
+  missing: string[];
+  failed: string[];
+}
+
 export const ManagedAppInstaller = {
   /** Whether silent install is possible (Device Owner mode). */
   async isDeviceOwner(): Promise<boolean> {
@@ -36,6 +43,18 @@ export const ManagedAppInstaller = {
       return Promise.reject(new Error('ManagedAppInstaller native module unavailable'));
     }
     return Native.installFromUrl(url, authToken, expectedPackage);
+  },
+
+  /** Removes apps for good, with no prompt: Device Owner only. FreeKiosk itself is never removed */
+  canUninstall(): boolean {
+    return !!Native?.uninstallPackages;
+  },
+
+  uninstall(packages: string[]): Promise<UninstallResult> {
+    if (!Native?.uninstallPackages) {
+      return Promise.reject(new Error('This app version cannot uninstall apps'));
+    }
+    return Native.uninstallPackages(packages);
   },
 };
 

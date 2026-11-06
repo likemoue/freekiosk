@@ -436,6 +436,10 @@ export class DeviceApiService {
       });
     }
     if (ok && command.type === 'install_apk') await this.homeApps.showAfterInstall(device.id, command);
+    // What went is off the home screen, also when another app of the same command could not go
+    if (command.type === 'uninstall_app') {
+      await this.homeApps.hideAfterUninstall(device.id, command, strings(obj(body.result).removed) ?? []);
+    }
   }
 
   // ─── Screenshots ──────────────────────────────────────────────────────────
