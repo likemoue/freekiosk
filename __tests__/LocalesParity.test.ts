@@ -5,6 +5,8 @@ import fr from '../src/i18n/locales/fr.json';
 import itIT from '../src/i18n/locales/it.json';
 import nl from '../src/i18n/locales/nl.json';
 import ptBR from '../src/i18n/locales/pt-BR.json';
+import pl from '../src/i18n/locales/pl.json';
+import zhHans from '../src/i18n/locales/zh-Hans.json';
 import vi from '../src/i18n/locales/vi.json';
 
 // A new language goes in this list too, next to src/i18n/index.ts.
@@ -15,6 +17,8 @@ const LOCALES: Array<[string, Tree]> = [
   ['it', itIT],
   ['nl', nl],
   ['pt-BR', ptBR],
+  ['pl', pl],
+  ['zh-Hans', zhHans],
   ['vi', vi],
 ];
 

@@ -39,6 +39,15 @@ class MainActivity : ReactActivity() {
     /** #280: delay before the alarm relaunches the app after an ADB config restart. */
     private const val ADB_RESTART_DELAY_MS = 1500L
 
+    /** A swipe starting this close to the top or bottom edge may have shown transient system bars. */
+    private const val EDGE_TOUCH_DP = 32f
+
+    /** How far a touch that started at an edge must move inward to count as an edge swipe. */
+    private const val EDGE_SWIPE_MIN_DP = 16f
+
+    /** When to clear transient bars after an edge touch; the system normally hides them in about 3 s. */
+    private val STUCK_TRANSIENT_BARS_CHECKS_MS = longArrayOf(4_000L, 10_000L)
+
     /**
      * #238: how long JS may take to finish starting before we release screen pinning.
      * Generous on purpose: React Native legitimately takes one to two minutes on the
@@ -74,6 +83,11 @@ class MainActivity : ReactActivity() {
     // (slow cold boot), so it must not depend on reactApplicationContext.currentActivity.
     @Volatile var kioskScreenActive = false
 
+    // Android TV has no touch screen, so a remote key has to wake the screensaver. True while the
+    // Kiosk screen shows it (set from JS, like kioskScreenActive): the key is then consumed here
+    // and does not also act on the page behind the screensaver.
+    @Volatile var screensaverShowing = false
+
     // Set before bringToFront() when the screensaver activates in External App mode.
     // Tells onResume() to skip auto-relaunch and stay in the foreground for the screensaver.
     @Volatile
@@ -101,6 +115,7 @@ class MainActivity : ReactActivity() {
       "media_player_cache_limit_mb" to "@kiosk_media_player_cache_limit_mb",
       "auto_reload" to "@kiosk_auto_reload",
       "hide_error_url" to "@kiosk_hide_error_url",
+      "always_load_from_network" to "@kiosk_always_load_from_network",
       "auto_relaunch" to "@kiosk_auto_relaunch_app",
       "auto_relaunch_app" to "@kiosk_auto_relaunch_app",
       "keep_screen_on" to "@kiosk_keep_screen_on",
@@ -218,6 +233,10 @@ class MainActivity : ReactActivity() {
   // Debounce handler for hideSystemUI to avoid dismissing the power menu (GlobalActions)
   // on devices where onWindowFocusChanged fires rapidly (e.g. TECNO/HiOS on Android 14)
   private val hideSystemUIHandler = Handler(Looper.getMainLooper())
+  private val stuckBarsHandler = Handler(Looper.getMainLooper())
+  // Edge swipe tracking: which edge the current gesture started at (0 = none, -1 top, 1 bottom).
+  private var edgeSwipeStartEdge = 0
+  private var edgeSwipeStartY = 0f
   private var lastFocusLostTime = 0L
 
   // #248: a re-lock deferred because the power menu is probably open. Consumed when
@@ -267,6 +286,7 @@ class MainActivity : ReactActivity() {
       setShowWhenLocked(true)
       setTurnScreenOn(true)
     }
+    KeyguardHelper.dismissIfInsecure(this)
 
     // Extend content into display cutout areas to prevent OEM chrome from appearing (#94)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -288,17 +308,18 @@ class MainActivity : ReactActivity() {
       return  // Exit - app restarting with new config
     }
 
-    // Request location permission for WiFi SSID access (Android 8+ requires it)
-    requestLocationPermission()
-
-    // Request Bluetooth runtime permissions (Android 12+ / API 31+)
-    requestBluetoothPermissions()
-
-    // Request Android 13+ WiFi scan permission for visible SSID results
-    requestWifiPermissions()
-
-    // Request camera permission for motion detection
-    requestCameraPermission()
+    // Runtime permissions: location for WiFi SSID access (Android 8+ requires it), Bluetooth
+    // (Android 12+), the Android 13+ WiFi scan permission for visible SSID results, the camera
+    // for motion detection, and notifications (Android 13+: on Samsung, a wake lock of an app
+    // with notifications off is cancelled, so Auto Wake could not turn the screen back on, #317).
+    // Device Owner grants them silently; the others come back here and are asked in ONE request:
+    // Android keeps a single pending request per activity, so separate calls swallowed each other
+    // and the last prompt only showed after several launches.
+    val toAsk = requestLocationPermission() + requestBluetoothPermissions() +
+      requestWifiPermissions() + requestCameraPermission() + requestNotificationPermission()
+    if (toAsk.isNotEmpty()) {
+      ActivityCompat.requestPermissions(this, toAsk.toTypedArray(), 1001)
+    }
 
     // Adjust content padding when the soft keyboard appears.
     // In immersive/kiosk mode adjustResize is ignored, so we listen for IME insets
@@ -386,7 +407,7 @@ class MainActivity : ReactActivity() {
     }
   }
 
-  private fun requestLocationPermission() {
+  private fun requestLocationPermission(): List<String> {
     val needed = mutableListOf<String>()
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
         != PackageManager.PERMISSION_GRANTED) {
@@ -396,7 +417,7 @@ class MainActivity : ReactActivity() {
         != PackageManager.PERMISSION_GRANTED) {
       needed.add(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
-    if (needed.isEmpty()) return
+    if (needed.isEmpty()) return emptyList()
 
     if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
       needed.forEach { perm ->
@@ -410,13 +431,14 @@ class MainActivity : ReactActivity() {
         } catch (_: Exception) {}
       }
     } else {
-      ActivityCompat.requestPermissions(this, needed.toTypedArray(), 1001)
+      return needed
     }
+    return emptyList()
   }
 
-  private fun requestCameraPermission() {
+  private fun requestCameraPermission(): List<String> {
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-        == PackageManager.PERMISSION_GRANTED) return
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
 
     // Device Owner can grant silently (consistent with location/bluetooth/wifi
     // above); otherwise fall back to the runtime prompt.
@@ -430,19 +452,41 @@ class MainActivity : ReactActivity() {
         )
       } catch (_: Exception) {}
     } else {
-      ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1002)
+      return listOf(Manifest.permission.CAMERA)
     }
+    return emptyList()
   }
 
-  private fun requestBluetoothPermissions() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+  private fun requestNotificationPermission(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return emptyList()
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
+
+    // Device Owner grants silently, like camera and location above; otherwise the prompt.
+    if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+      try {
+        devicePolicyManager.setPermissionGrantState(
+          adminComponent,
+          packageName,
+          Manifest.permission.POST_NOTIFICATIONS,
+          DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
+      } catch (_: Exception) {}
+    } else {
+      return listOf(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    return emptyList()
+  }
+
+  private fun requestBluetoothPermissions(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
 
     val needed = mutableListOf<String>()
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
         != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.BLUETOOTH_CONNECT)
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
         != PackageManager.PERMISSION_GRANTED) needed.add(Manifest.permission.BLUETOOTH_SCAN)
-    if (needed.isEmpty()) return
+    if (needed.isEmpty()) return emptyList()
 
     if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
       needed.forEach { perm ->
@@ -456,14 +500,15 @@ class MainActivity : ReactActivity() {
         } catch (_: Exception) {}
       }
     } else {
-      ActivityCompat.requestPermissions(this, needed.toTypedArray(), 1003)
+      return needed
     }
+    return emptyList()
   }
 
-  private fun requestWifiPermissions() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+  private fun requestWifiPermissions(): List<String> {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return emptyList()
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES)
-        == PackageManager.PERMISSION_GRANTED) return
+        == PackageManager.PERMISSION_GRANTED) return emptyList()
 
     if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
       try {
@@ -475,8 +520,9 @@ class MainActivity : ReactActivity() {
         )
       } catch (_: Exception) {}
     } else {
-      ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 1004)
+      return listOf(Manifest.permission.NEARBY_WIFI_DEVICES)
     }
+    return emptyList()
   }
 
   /**
@@ -813,6 +859,8 @@ class MainActivity : ReactActivity() {
 
   override fun onResume() {
     super.onResume()
+    // The lock screen comes back after the screen was off; a swipe-only one is dismissed again.
+    KeyguardHelper.dismissIfInsecure(this)
 
     cookieFlushHandler.removeCallbacks(cookieFlushRunnable)
     cookieFlushHandler.postDelayed(cookieFlushRunnable, COOKIE_FLUSH_INTERVAL_MS)
@@ -1112,6 +1160,60 @@ class MainActivity : ReactActivity() {
     }
   }
 
+  /**
+   * Clear "transient" system bars that Android leaves on screen.
+   *
+   * An edge swipe in immersive mode shows the bars transiently: the system shows them
+   * over the app and hides them again on its own timer. Pulling down on that transient
+   * status bar while the shade cannot open (screen pinning without Device Owner) cancels
+   * the timer, and on some devices nothing restarts it, so the bars stay for good.
+   * hideSystemUI() cannot clear them, because the app already requests them hidden, and
+   * the app cannot see them either: its insets still report the bars as hidden. Asking
+   * for them to be shown and hidden again in the same frame ends the transient state.
+   *
+   * The first swipe of that gesture starts on our window (the bars are hidden then), so
+   * a swipe that starts at the top or bottom edge and moves inward schedules the clean-up.
+   * Taps near an edge (page or nav bar buttons) do not, which keeps the show + hide away
+   * from normal use, when the bars are hidden.
+   */
+  private fun onEdgeTouchMaybeShowingTransientBars(ev: android.view.MotionEvent) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    val density = resources.displayMetrics.density
+    when (ev.actionMasked) {
+      android.view.MotionEvent.ACTION_DOWN -> {
+        // Only a swipe that starts at the top or bottom edge reveals transient bars; a tap
+        // there (a page button, a nav bar button) must not schedule anything.
+        val edge = EDGE_TOUCH_DP * density
+        val height = window.decorView.height
+        edgeSwipeStartEdge = when {
+          ev.rawY <= edge -> -1
+          ev.rawY >= height - edge -> 1
+          else -> 0
+        }
+        edgeSwipeStartY = ev.rawY
+      }
+      android.view.MotionEvent.ACTION_MOVE -> {
+        if (edgeSwipeStartEdge == 0) return
+        // Inward = down from the top edge, up from the bottom edge.
+        val inward = (ev.rawY - edgeSwipeStartY) * -edgeSwipeStartEdge
+        if (inward < EDGE_SWIPE_MIN_DP * density) return
+        edgeSwipeStartEdge = 0 // once per gesture
+        stuckBarsHandler.removeCallbacksAndMessages(null)
+        for (delay in STUCK_TRANSIENT_BARS_CHECKS_MS) {
+          stuckBarsHandler.postDelayed({ clearTransientSystemBars() }, delay)
+        }
+      }
+      android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> edgeSwipeStartEdge = 0
+    }
+  }
+
+  private fun clearTransientSystemBars() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    if (!hasWindowFocus() || PrintModule.isPrintActive) return
+    window.insetsController?.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+    hideSystemUI()
+  }
+
   private fun hideSystemUI() {
     // Pour Android 11+ (API 30+), utiliser la nouvelle API WindowInsetsController
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -1196,7 +1298,35 @@ class MainActivity : ReactActivity() {
         return true
       }
     }
+
+    // Wake the screensaver with any remote key, and swallow the key (and its release) so an OK or
+    // a D-pad press does not also click or move the focus in the page that is hidden behind it.
+    // Only while the Kiosk screen is in front: the PIN page and Settings keep their keys.
+    if (isTelevision && isWakeKey(event.keyCode)) {
+      if (screensaverShowing && kioskScreenActive) {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+          if (event.repeatCount == 0) KioskModule.sendEventFromNative("onTvKeyWake")
+          wakeKeyDown = event.keyCode
+        }
+        return true
+      }
+      if (event.action == KeyEvent.ACTION_UP && event.keyCode == wakeKeyDown) {
+        wakeKeyDown = -1
+        return true
+      }
+    }
     return super.dispatchKeyEvent(event)
+  }
+
+  /** The key whose press woke the screensaver: its release is swallowed too. */
+  private var wakeKeyDown = -1
+
+  /** Volume, power and Home keep their own meaning; every other key counts as "someone is there". */
+  private fun isWakeKey(keyCode: Int): Boolean = when (keyCode) {
+    KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE,
+    KeyEvent.KEYCODE_POWER, KeyEvent.KEYCODE_SLEEP, KeyEvent.KEYCODE_WAKEUP,
+    KeyEvent.KEYCODE_HOME -> false
+    else -> true
   }
 
   // Volume Up 5-tap tracking
@@ -1372,15 +1502,48 @@ class MainActivity : ReactActivity() {
 
   override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
     // Observe (never consume) the initial press of each gesture.
+    if (ev != null) {
+      onEdgeTouchMaybeShowingTransientBars(ev)
+    }
     if (ev != null && ev.actionMasked == android.view.MotionEvent.ACTION_DOWN && kioskScreenActive) {
       refreshTapSettingsConfig()
       if (tapSettingsEnabled) {
         handleTapForSettings(ev.rawX, ev.rawY)
       }
     }
-    return super.dispatchTouchEvent(ev)
+    // Dashboard tile navigation (not part of #180; keep if #180 is reverted).
+    val swipe = if (ev != null && navGestureEnabled) feedNavGesture(ev) else null
+    val handled = super.dispatchTouchEvent(ev)
+    // After super, so the page has already had the final ACTION_UP when the tile switches.
+    if (swipe != null) KioskModule.sendEventFromNative("onNavGesture", swipe.jsName)
+    return handled
   }
   // ===== END #180 native tap-to-settings fallback =====
+
+  // ===== Dashboard tile navigation =====
+  // Two-finger swipes, observed here so nothing is injected into
+  // the page and they work whatever state it is in. KioskScreen turns this on only while a
+  // tile is on screen. See TwoFingerSwipeDetector.
+  @Volatile var navGestureEnabled = false
+  private val navGestureDetector by lazy {
+    val density = resources.displayMetrics.density
+    TwoFingerSwipeDetector(
+      TwoFingerSwipeDetector.MIN_DRAG_DP * density,
+      TwoFingerSwipeDetector.MAX_GAP_CHANGE_DP * density,
+    )
+  }
+  private val navGestureXs = FloatArray(2)
+  private val navGestureYs = FloatArray(2)
+
+  private fun feedNavGesture(ev: android.view.MotionEvent): TwoFingerSwipeDetector.Direction? {
+    val count = minOf(ev.pointerCount, 2)
+    for (i in 0 until count) {
+      navGestureXs[i] = ev.getX(i)
+      navGestureYs[i] = ev.getY(i)
+    }
+    return navGestureDetector.onTouch(ev.actionMasked, ev.pointerCount, navGestureXs, navGestureYs)
+  }
+  // ===== END Dashboard tile navigation =====
 
   // Every Back reaches this method: below Android 16 the platform calls it (the manifest leaves
   // enableOnBackInvokedCallback out for that, see the comment there, #221), and on Android 16
@@ -1927,7 +2090,9 @@ class MainActivity : ReactActivity() {
     val allEntries = verifyPrefs.all
     android.util.Log.i("FreeKiosk-ADB", "Pending config verification - ${allEntries.size} entries:")
     for ((key, value) in allEntries) {
-      android.util.Log.i("FreeKiosk-ADB", "  Pending: $key = $value")
+      // The pending keys are storage keys ("@kiosk_pin"), the sensitive list holds ADB names ("pin")
+      val shown = if (ADB_SENSITIVE_KEYS.any { key.endsWith(it) }) "***" else value
+      android.util.Log.i("FreeKiosk-ADB", "  Pending: $key = $shown")
     }
     
     } catch (e: Exception) {

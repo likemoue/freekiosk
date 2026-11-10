@@ -20,6 +20,8 @@ import {
   EscPosPrinterSection,
 } from '../../../components/settings';
 import { ManagedApp } from '../../../types/managedApps';
+import { MultiAppAppearance } from '../../../types/multiAppAppearance';
+import MultiAppAppearanceSection from '../../../components/settings/MultiAppAppearanceSection';
 import Icon from '../../../components/Icon';
 import { Colors, Spacing, Typography } from '../../../theme';
 import AppLauncherModule, { AppInfo } from '../../../utils/AppLauncherModule';
@@ -53,6 +55,8 @@ interface GeneralTabProps {
   loadingApps: boolean;
   
   // External app sub-mode (single vs multi)
+  multiAppAppearance: MultiAppAppearance;
+  onMultiAppAppearanceChange: (value: MultiAppAppearance) => void;
   externalAppMode: 'single' | 'multi';
   onExternalAppModeChange: (mode: 'single' | 'multi') => void;
   
@@ -87,6 +91,8 @@ interface GeneralTabProps {
   onAutoReloadChange: (value: boolean) => void;
   hideErrorUrl: boolean;
   onHideErrorUrlChange: (value: boolean) => void;
+  alwaysLoadFromNetwork: boolean;
+  onAlwaysLoadFromNetworkChange: (value: boolean) => void;
   
   // PDF Viewer (webview only)
   pdfViewerEnabled: boolean;
@@ -211,6 +217,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onExternalAppPackageChange,
   onPickApp,
   loadingApps,
+  multiAppAppearance,
+  onMultiAppAppearanceChange,
   externalAppMode,
   onExternalAppModeChange,
   managedApps,
@@ -235,6 +243,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onAutoReloadChange,
   hideErrorUrl,
   onHideErrorUrlChange,
+  alwaysLoadFromNetwork,
+  onAlwaysLoadFromNetworkChange,
   pdfViewerEnabled,
   onPdfViewerEnabledChange,
   windowPrintEnabled,
@@ -878,6 +888,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             </SettingsSection>
           )}
 
+          {externalAppMode === 'multi' && (
+            <MultiAppAppearanceSection appearance={multiAppAppearance} onChange={onMultiAppAppearanceChange} />
+          )}
+
           {/* Managed Apps for Single App mode (optional, for background/accessibility features) */}
           {externalAppMode === 'single' && (
             <SettingsSection title={t('general.additionalApps.title')} icon="apps">
@@ -1061,6 +1075,12 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             hint={t('general.autoReload.hideUrlHint')}
             value={hideErrorUrl}
             onValueChange={onHideErrorUrlChange}
+          />
+          <SettingsSwitch
+            label={t('general.autoReload.alwaysNetwork')}
+            hint={t('general.autoReload.alwaysNetworkHint')}
+            value={alwaysLoadFromNetwork}
+            onValueChange={onAlwaysLoadFromNetworkChange}
           />
         </SettingsSection>
       )}

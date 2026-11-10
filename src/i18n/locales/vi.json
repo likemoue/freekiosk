@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "Trên TV, FreeKiosk không nhận được thao tác nào khi ứng dụng khác đang hiển thị phía trước, nên không thể dùng điều khiển từ xa để quay lại các cài đặt này. Hãy dùng máy chủ quản lý, MQTT, REST API hoặc adb để thay đổi.",
+    "appearance": {
+      "title": "Giao diện nhiều ứng dụng",
+      "background": "Màu nền",
+      "customColor": "Màu tùy chọn",
+      "invalidColor": "Nhập màu theo dạng #RRGGBB, ví dụ #2b7fff.",
+      "colorHint": "Tiêu đề và tên ứng dụng tự dùng màu chữ tương phản.",
+      "showTitle": "Hiện tiêu đề",
+      "heading": "Nội dung tiêu đề",
+      "showLogo": "Hiện logo",
+      "chooseLogo": "Chọn logo từ thiết bị",
+      "defaultLogo": "Dùng logo mặc định",
+      "logoHint": "Ảnh đã chọn được lưu trên thiết bị này. Bản sao lưu giữ cài đặt nhưng không kèm tệp ảnh.",
+      "preview": "Xem trước",
+      "sampleApp": "Tên ứng dụng",
+      "reset": "Đặt lại giao diện mặc định",
+      "logoErrorTitle": "Không chọn được logo",
+      "logoError": "Vui lòng chọn ảnh khác."
+    },
     "language": {
       "title": "Ngôn ngữ",
       "label": "Ngôn ngữ ứng dụng"
@@ -186,7 +204,9 @@
       "reloadOnError": "Tải lại khi có lỗi",
       "reloadOnErrorHint": "Tự động tải lại trang khi gặp lỗi mạng",
       "hideUrl": "Ẩn URL trên màn hình lỗi",
-      "hideUrlHint": "Khi trang không tải được, chỉ hiện thông báo lỗi, không hiện địa chỉ"
+      "hideUrlHint": "Khi trang không tải được, chỉ hiện thông báo lỗi, không hiện địa chỉ",
+      "alwaysNetwork": "Luôn tải từ mạng",
+      "alwaysNetworkHint": "Tải lại mọi ảnh, script và stylesheet ở mỗi lần tải, để trang đã cập nhật không bao giờ hiện tệp cũ. Tốn nhiều dữ liệu hơn, và khi mất mạng trang không hiện được từ bộ nhớ đệm."
     },
     "pdfViewer": {
       "title": "Trình xem PDF",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "Độ sáng bảo vệ màn hình đang dưới 10%. Tăng độ sáng (xem thanh trượt bên dưới) để nội dung hiển thị rõ, hoặc chuyển sang \"Chỉ giảm độ sáng\".",
       "brightnessTitle": "Độ sáng bảo vệ màn hình",
       "brightnessHint": "Độ sáng màn hình khi bảo vệ màn hình đang hoạt động",
+      "fadeTitle": "Tối dần",
+      "fadeHint": "Số giây để màn hình tối dần xuống độ sáng của bảo vệ màn hình. Đánh thức vẫn tức thì.",
+      "fadeOff": "Tắt",
+      "fadeSeconds": "{{value}} giây",
       "blackScreen": "Màn hình đen",
       "veryDim": "Rất tối (5%)",
       "dim": "Tối (10%)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Vị trí camera",
       "cameraPositionHint": "Chọn camera dùng để phát hiện chuyển động",
       "cameraUnavailable": "Camera đã chọn không có trên thiết bị này",
+      "motionRequireFace": "Chỉ đánh thức khi thấy khuôn mặt",
+      "motionRequireFaceHint": "Chuyển động chỉ đánh thức màn hình khi có khuôn mặt trong ảnh camera, nên thú cưng và thay đổi ánh sáng bị bỏ qua. Hiệu quả nhất khi khuôn mặt nhìn vào camera; khuôn mặt quay đi hoặc ở xa có thể không được nhận ra.",
       "proximityTitle": "Phát hiện tiệm cận",
       "proximityEnable": "Bật đánh thức bằng cảm biến tiệm cận",
       "proximityEnableHint": "Đánh thức màn hình khi tay hoặc cơ thể đến gần cảm biến mặt trước",
@@ -744,6 +770,17 @@
       "medium": "Vừa",
       "large": "Lớn",
       "xlarge": "Rất lớn"
+    },
+    "tilePages": {
+      "title": "Trang ô",
+      "autoHide": "Tự ẩn thanh điều hướng",
+      "autoHideHint": "Trên trang ô, ẩn thanh điều hướng để trang lấp đầy màn hình. Vuốt xuống bằng hai ngón để hiện, vuốt lên để ẩn lại.",
+      "hideAfter": "Ẩn sau (giây)",
+      "hideAfterHint": "Thanh còn hiện bao lâu sau khi được hiện hoặc được chạm lần cuối.",
+      "swipeBetweenTiles": "Vuốt giữa các ô",
+      "swipeBetweenTilesHint": "Trên trang ô, vuốt sang trái bằng hai ngón để sang ô tiếp theo, sang phải để về ô trước.",
+      "keepTilesLoaded": "Giữ các ô luôn tải sẵn",
+      "keepTilesLoadedHint": "Tải các ô (tối đa 5) ở chế độ nền ngay khi bảng điều khiển khởi động và giữ chúng chạy, để mở hay chuyển ô là tức thì và mỗi trang giữ nguyên trạng thái. Tốn nhiều bộ nhớ hơn."
     },
     "iconColor": "Màu biểu tượng",
     "colorAuto": "Tự động",
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Lỗi khi kiểm tra mã PIN",
     "cloudCannotReach": "Không kết nối được máy chủ",
     "cloudEnrollFailed": "Đăng ký thiết bị thất bại",
+    "cloudKeystoreFailed": "Thiết bị này không lưu được thông tin đăng nhập website quản lý vào Android Keystore. Đã hủy đăng ký.",
     "dayAbbr": {
       "0": "CN",
       "1": "T2",

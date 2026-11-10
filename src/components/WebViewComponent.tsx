@@ -13,6 +13,7 @@ import {
   findNodeHandle,
   DeviceEventEmitter,
   Platform,
+  useColorScheme,
 } from 'react-native';
 
 const { HttpServerModule } = NativeModules;
@@ -46,6 +47,7 @@ interface WebViewComponentProps {
   url: string;
   autoReload: boolean;
   hideErrorUrl?: boolean; // Leave the failed URL out of the error screen (#217)
+  alwaysLoadFromNetwork?: boolean; // #263: never reuse cached subresources
   reportPageTouches?: boolean; // Post 'page-touch' on touches and keys only (#235, URL rotation pause)
   onPageTouch?: () => void;
   keyboardMode?: string; // 'default', 'force_numeric', 'smart', 'none'
@@ -74,6 +76,7 @@ interface WebViewComponentProps {
   customUserAgent?: string; // Custom User-Agent string (empty = default modern Chrome UA)
   basicAuthCredential?: { username: string; password: string };
   onRenderProcessGone?: (didCrash: boolean) => void; // #198 — renderer process died, ask parent to remount
+  inactive?: boolean; // Kept loaded but hidden (dashboard): no speech, no print
 }
 
 export interface WebViewComponentRef {
@@ -90,6 +93,9 @@ export interface WebViewComponentRef {
 // complement to the native WebView.onPause() (which alone doesn't stop <audio> on every
 // OEM WebView). Ends with `true;` to silence react-native-webview's injection warning.
 const MEDIA_PAUSE_JS = `(function(){try{document.querySelectorAll('audio,video').forEach(function(m){try{m.pause();}catch(e){}});}catch(e){}})();true;`;
+
+// Page messages ignored from a dashboard tile kept loaded in the background.
+const HIDDEN_TILE_IGNORED_MESSAGES = ['SPEECH_SYNTH_SPEAK', 'SPEECH_SYNTH_CANCEL', 'PRINT_REQUEST'];
 
 // Only has to be unguessable to the page, which cannot observe this generator.
 const makePrinterNonce = (): string =>
@@ -109,6 +115,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   url, 
   autoReload,
   hideErrorUrl = false,
+  alwaysLoadFromNetwork = false,
   reportPageTouches = false,
   onPageTouch,
   keyboardMode = 'default',
@@ -137,6 +144,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   customUserAgent = '',
   basicAuthCredential,
   onRenderProcessGone,
+  inactive = false,
 }, ref) => {
   const { t } = useTranslation();
   const displayName = useDisplayName();
@@ -149,6 +157,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   const containerViewRef = useRef<View>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
+  // The loading overlay follows the device's dark theme, so a dark dashboard is not
+  // preceded by a white flash on every load.
+  const darkLoading = useColorScheme() === 'dark';
   const [pageLoaded, setPageLoaded] = useState<boolean>(false);
   const [blockedUrlMessage, setBlockedUrlMessage] = useState<string | null>(null);
   // App version for the error-overlay footer — read from the installed APK (build.gradle)
@@ -1253,6 +1264,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       // Parse JSON message
       try {
         const data = JSON.parse(message);
+        // A dashboard tile kept loaded in the background must not reach what the tile on
+        // screen shares: native TTS, or a print (which prints the page on screen).
+        if (inactive && HIDDEN_TILE_IGNORED_MESSAGES.includes(data.type)) return;
         if (data.type === 'FIVE_TAP_CLICK' && onUserInteraction) {
           onUserInteraction({ isTap: true, x: data.x, y: data.y });
         } else if (data.type === 'SPEECH_SYNTH_SPEAK') {
@@ -1550,6 +1564,13 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           // allow-listed origin to get it past the URL check.
           if (silentPrintEnabled) rotatePrinterNonce();
 
+          // #263: a reload reuses a cached image, script or style sheet still within its
+          // max-age, so a site updated behind a long-lived kiosk shows its new page with old
+          // files. cacheMode LOAD_NO_CACHE does not change that (checked on an Android 15
+          // emulator: the cached file was never fetched again); clearing the cache does.
+          // Done on every page load, whoever starts it: the page itself, FreeKiosk or a command.
+          if (alwaysLoadFromNetwork) webViewRef.current?.clearCache(true);
+
           // Don't reset error state when loading about:blank (error recovery)
           if (!error) {
             setLoading(true);
@@ -1786,12 +1807,14 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       />
       
       {loading && !error && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2b7fff" />
-          <Text style={styles.loadingText}>{t('components.webView.loading')}</Text>
+        <View style={[styles.loadingContainer, darkLoading && styles.loadingContainerDark]}>
+          <ActivityIndicator size="large" color={darkLoading ? '#8ab4ff' : '#2b7fff'} />
+          <Text style={[styles.loadingText, darkLoading && styles.loadingTextDark]}>
+            {t('components.webView.loading')}
+          </Text>
           {/* Fallback settings button inside loading overlay */}
           <TouchableOpacity
-            style={styles.fallbackSettingsButton}
+            style={[styles.fallbackSettingsButton, darkLoading && styles.fallbackSettingsButtonDark]}
             activeOpacity={0.7}
             onPress={() => {
               if (onUserInteraction) {
@@ -1799,7 +1822,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               }
             }}
           >
-            <Icon name="cog" size={24} color="#333" />
+            <Icon name="cog" size={24} color={darkLoading ? '#ccc' : '#333'} />
           </TouchableOpacity>
         </View>
       )}
@@ -2071,10 +2094,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  loadingText: { 
-    marginTop: 10, 
-    fontSize: 16, 
-    color: '#666' 
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666'
+  },
+  loadingContainerDark: {
+    backgroundColor: '#000',
+  },
+  loadingTextDark: {
+    color: '#aaa',
+  },
+  fallbackSettingsButtonDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   errorContainer: {
     position: 'absolute',
@@ -2168,4 +2200,6 @@ const styles = StyleSheet.create({
 
 WebViewComponent.displayName = 'WebViewComponent';
 
-export default WebViewComponent;
+// Memoized so a dashboard tile kept loaded in the background (KioskScreen passes it stable
+// props) does not re-render on every KioskScreen update.
+export default React.memo(WebViewComponent);

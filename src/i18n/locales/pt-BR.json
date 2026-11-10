@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "Em uma TV, nenhuma tecla chega ao FreeKiosk enquanto outro aplicativo está em primeiro plano, então o controle remoto não consegue levar você de volta a estas configurações. Use o FreeKiosk Cloud, MQTT, a API REST ou o adb para alterá-las.",
+    "appearance": {
+      "title": "Aparência multiapp",
+      "background": "Cor de fundo",
+      "customColor": "Cor personalizada",
+      "invalidColor": "Digite uma cor no formato #RRGGBB, por exemplo #2b7fff.",
+      "colorHint": "O título e os nomes dos apps usam automaticamente um texto com contraste.",
+      "showTitle": "Mostrar o título",
+      "heading": "Texto do título",
+      "showLogo": "Mostrar o logo",
+      "chooseLogo": "Escolher um logo do dispositivo",
+      "defaultLogo": "Usar o logo padrão",
+      "logoHint": "A imagem escolhida fica salva neste dispositivo. Os backups mantêm a configuração, mas não incluem o arquivo da imagem.",
+      "preview": "Pré-visualização",
+      "sampleApp": "Nome do app",
+      "reset": "Restaurar a aparência padrão",
+      "logoErrorTitle": "Não foi possível escolher o logo",
+      "logoError": "Tente escolher outra imagem."
+    },
     "language": {
       "title": "Idioma",
       "label": "Idioma do aplicativo"
@@ -186,7 +204,9 @@
       "reloadOnError": "Recarregar em caso de erro",
       "reloadOnErrorHint": "Recarregar a página automaticamente quando houver erro de rede",
       "hideUrl": "Ocultar a URL na tela de erro",
-      "hideUrlHint": "Mostra apenas a mensagem de erro quando uma página não carrega, sem o endereço"
+      "hideUrlHint": "Mostra apenas a mensagem de erro quando uma página não carrega, sem o endereço",
+      "alwaysNetwork": "Sempre carregar da rede",
+      "alwaysNetworkHint": "Baixa de novo cada imagem, script e folha de estilo a cada carregamento, para que um site atualizado nunca mostre arquivos antigos. Usa mais dados, e a página não pode ser exibida do cache quando a rede cai."
     },
     "pdfViewer": {
       "title": "Visualizador de PDF",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "O brilho do protetor de tela está abaixo de 10%. Aumente-o (veja o controle abaixo) para que o conteúdo fique visível, ou mude para Só escurecer.",
       "brightnessTitle": "Brilho do protetor de tela",
       "brightnessHint": "Brilho da tela enquanto o protetor de tela estiver ativo",
+      "fadeTitle": "Esmaecer",
+      "fadeHint": "Segundos em que a tela escurece aos poucos até o nível do protetor de tela. Despertar continua imediato.",
+      "fadeOff": "Não",
+      "fadeSeconds": "{{value}} s",
       "blackScreen": "Tela preta",
       "veryDim": "Muito escuro (5%)",
       "dim": "Escuro (10%)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Posição da câmera",
       "cameraPositionHint": "Selecione qual câmera usar para a detecção de movimento",
       "cameraUnavailable": "A câmera selecionada não está disponível neste dispositivo",
+      "motionRequireFace": "Despertar só com um rosto",
+      "motionRequireFaceHint": "O movimento desperta a tela somente quando há um rosto na imagem da câmera, assim animais e mudanças de luz são ignorados. Funciona melhor com um rosto olhando para a câmera; um rosto virado ou distante pode não ser detectado.",
       "proximityTitle": "Detecção de proximidade",
       "proximityEnable": "Ativar despertar por proximidade",
       "proximityEnableHint": "Despertar a tela quando uma mão ou um corpo se aproximar do sensor frontal",
@@ -744,6 +770,17 @@
       "medium": "Médio",
       "large": "Grande",
       "xlarge": "Extragrande"
+    },
+    "tilePages": {
+      "title": "Páginas dos blocos",
+      "autoHide": "Ocultar automaticamente a barra de navegação",
+      "autoHideHint": "Em uma página de bloco, oculta a barra de navegação para que a página ocupe a tela inteira. Deslize para baixo com dois dedos para mostrá-la e para cima para ocultá-la de novo.",
+      "hideAfter": "Ocultar após (segundos)",
+      "hideAfterHint": "Por quanto tempo a barra fica visível depois de aparecer ou de ser tocada pela última vez.",
+      "swipeBetweenTiles": "Deslizar entre blocos",
+      "swipeBetweenTilesHint": "Em uma página de bloco, deslize para a esquerda com dois dedos para o próximo bloco e para a direita para o anterior.",
+      "keepTilesLoaded": "Manter os blocos carregados",
+      "keepTilesLoadedHint": "Carrega seus blocos (até 5) em segundo plano assim que o painel inicia e os mantém ativos: abrir ou trocar de bloco é instantâneo e cada página mantém seu estado. Usa mais memória."
     },
     "iconColor": "Cor do ícone",
     "colorAuto": "Automática",
@@ -1378,7 +1415,7 @@
       "noOrigins": "Nenhuma origem permitida",
       "noOriginsHint": "Nenhuma página pode imprimir até você adicionar uma",
       "printTestPage": "Imprimir página de teste",
-      "info": "As páginas web imprimem silenciosamente chamando window.FreeKiosk.silentPrinter.print() ou printImage(). print() monta a página de forma que um pixel CSS seja um ponto.\n\nwindow.print() não é afetado: ele abre a caixa de impressão do Android quando a Impressão da janela está ativada, e não faz nada caso contrário.\n\nPara um acesso que sobreviva às reinicializações: conecte a impressora, escolha FreeKiosk e marque \"Sempre abrir\". O botão acima só concede acesso até a impressora ser desconectada, e o modo de tarefa bloqueada suprime essa caixa de diálogo por completo.\n\nImpressoras que expõem uma interface USB específica do fabricante em vez da classe padrão de impressora ainda imprimem, mas não conseguem informar o nível de papel."
+      "info": "As páginas web imprimem silenciosamente chamando window.FreeKiosk.silentPrinter.print() ou printImage(). print() monta a página de forma que um pixel CSS seja um ponto.\n\nPor padrão, window.print() abre a caixa de impressão do Android quando a Impressão da janela está ativada, e não faz nada caso contrário. Com “Enviar window.print() para esta impressora” ativado, ele imprime sem caixa de diálogo na impressora ESC/POS.\n\nPara um acesso que sobreviva às reinicializações: conecte a impressora, escolha FreeKiosk e marque \"Sempre abrir\". O botão acima só concede acesso até a impressora ser desconectada, e o modo de tarefa bloqueada suprime essa caixa de diálogo por completo.\n\nImpressoras que expõem uma interface USB específica do fabricante em vez da classe padrão de impressora ainda imprimem, mas não conseguem informar o nível de papel."
     }
   },
   "screens": {
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Erro ao verificar o PIN",
     "cloudCannotReach": "Não foi possível acessar o servidor",
     "cloudEnrollFailed": "Falha no registro",
+    "cloudKeystoreFailed": "Este dispositivo não conseguiu armazenar suas credenciais da nuvem no Keystore do Android. O registro foi cancelado.",
     "dayAbbr": {
       "0": "Dom",
       "1": "Seg",
