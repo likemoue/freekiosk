@@ -265,7 +265,7 @@ All entities are grouped under one HA device:
 
 
 
-#### Switches (3)
+#### Switches (4)
 
 
 
@@ -274,6 +274,7 @@ All entities are grouped under one HA device:
 | **Screen Power** | `.../set/screen` | ON / OFF |
 | **Screensaver** | `.../set/screensaver` | ON / OFF |
 | **Always-on Motion Detection** | `.../set/motion_always_on` | ON / OFF |
+| **Auto Brightness** | `.../set/auto_brightness` | ON / OFF |
 
 
 
@@ -387,6 +388,7 @@ Commands are sent by publishing to `{baseTopic}/{topicId}/set/{entity}`.
 | **screen** | screenOn / screenOff | `ON` / `OFF` | Turn screen on or off |
 | **screensaver** | screensaverOn / screensaverOff | `ON` / `OFF` | Enable/disable screensaver |
 | **motion_always_on** | setMotionAlwaysOn | `ON` / `OFF` | Toggle always-on motion detection |
+| **auto_brightness** | autoBrightnessEnable / autoBrightnessDisable | `ON` / `OFF` | Follow the light sensor with the configured min/max, or go back to the manual brightness |
 | **reload** | reload | any | Reload WebView |
 | **wake** | wake | any | Wake from screensaver |
 | **reboot** | reboot | any | Reboot device (Device Owner required) |
@@ -444,6 +446,8 @@ FreeKiosk can detect motion using the device camera and report it as a binary se
 
 
 **Always-on mode**: Enable "Always-on Motion Detection" in MQTT settings or via the HA switch entity to run motion detection continuously. The `motion_detected` binary sensor will update in real-time. Note: this uses the camera continuously and increases battery usage.
+
+**Only wake for a face**: with Settings > Display > Screensaver > Motion Detection > *Only wake for a face* on, `motion_detected` turns on only for motion followed by a face in the camera image (a face looking at the camera; a turned or distant one may be missed). Movement measured on a running camera stream has no face check and is not reported while the option is on. The setting is applied even with always-on motion detection, though the switch is only shown in the screensaver settings while screensaver motion detection is on.
 
 > [!NOTE]
 > Camera permission must be granted for motion detection to work. FreeKiosk requests this permission automatically on first launch.

@@ -25,6 +25,7 @@ import { CONFIG_UPDATED_EVENT } from '../../utils/CloudSyncService';
 import CookieManager from '@react-native-cookies/cookies';
 import { Camera } from 'react-native-vision-camera';
 import { StorageService } from '../../utils/storage';
+import { formatInactivityMinutes, resolveInactivityDelayMs, StoredInactivityDelay } from '../../utils/inactivityDelay';
 import i18n, { setAppLanguage, resolveSupportedLanguage, SupportedLanguage } from '../../i18n';
 import { useTranslation } from 'react-i18next';
 import { saveSecurePin, hasSecurePin, clearSecurePin, saveSecureBasicAuthPassword, getSecureBasicAuthPassword } from '../../utils/secureStorage';
@@ -55,6 +56,7 @@ import ScreenScheduleRuleEditor from '../../components/settings/ScreenScheduleRu
 import { ScheduledEvent } from '../../types/planner';
 import { ScreenScheduleRule } from '../../types/screenScheduler';
 import { ManagedApp } from '../../types/managedApps';
+import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, isHexColor } from '../../types/multiAppAppearance';
 import { MediaItem, MediaFitMode, generateMediaItemId, detectMediaType } from '../../types/mediaPlayer';
 import FilePickerModule from '../../utils/FilePickerModule';
 
@@ -98,16 +100,20 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [pinMaxAttemptsText, setPinMaxAttemptsText] = useState<string>('5');
   const [autoReload, setAutoReload] = useState<boolean>(false);
   const [hideErrorUrl, setHideErrorUrl] = useState<boolean>(false);
+  const [alwaysLoadFromNetwork, setAlwaysLoadFromNetwork] = useState<boolean>(false);
   const [kioskEnabled, setKioskEnabled] = useState<boolean>(false);
   const [autoLaunchEnabled, setAutoLaunchEnabled] = useState<boolean>(false);
   const [screenLockCompatEnabled, setScreenLockCompatEnabled] = useState<boolean>(false);
   const [defaultLauncherEnabled, setDefaultLauncherEnabled] = useState<boolean>(false);
   const [screensaverEnabled, setScreensaverEnabled] = useState<boolean>(false);
   const [inactivityDelay, setInactivityDelay] = useState<string>('10');
+  // What was stored and how the field showed it: an untouched field is saved back as it was (utils/inactivityDelay)
+  const storedInactivityDelayRef = useRef<StoredInactivityDelay | null>(null);
   const [motionEnabled, setMotionEnabled] = useState<boolean>(false);
   const [motionSensitivity, setMotionSensitivity] = useState<'low' | 'medium' | 'high'>('medium');
   const [motionCameraPosition, setMotionCameraPosition] = useState<'front' | 'back'>('front');
   const [proximityEnabled, setProximityEnabled] = useState<boolean>(false);
+  const [motionRequireFace, setMotionRequireFace] = useState<boolean>(false);
   const [availableCameras, setAvailableCameras] = useState<Array<{position: 'front' | 'back', id: string}>>([]);
   const [screensaverBrightness, setScreensaverBrightness] = useState<number>(0);
   const [screensaverType, setScreensaverType] = useState<'dim' | 'url' | 'video'>('dim');
@@ -115,6 +121,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [screensaverVideoItems, setScreensaverVideoItems] = useState<MediaItem[]>([]);
   const [screensaverVideoLoop, setScreensaverVideoLoop] = useState<boolean>(true);
   const [screensaverKeepExternalApp, setScreensaverKeepExternalApp] = useState<boolean>(false);
+  const [screensaverFadeSeconds, setScreensaverFadeSeconds] = useState<number>(0);
   const [pickingScreensaverMedia, setPickingScreensaverMedia] = useState<boolean>(false);
   const [defaultBrightness, setDefaultBrightness] = useState<number>(0.5);
   const [certificates, setCertificates] = useState<CertificateInfo[]>([]);
@@ -138,6 +145,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [isDeviceOwner, setIsDeviceOwner] = useState<boolean>(false);
   const [managedApps, setManagedApps] = useState<ManagedApp[]>([]);
   const [externalAppMode, setExternalAppMode] = useState<'single' | 'multi'>('single');
+  const [multiAppAppearance, setMultiAppAppearance] = useState<MultiAppAppearance>({ ...DEFAULT_MULTI_APP_APPEARANCE });
   const [statusBarEnabled, setStatusBarEnabled] = useState<boolean>(false);
   const [statusBarOnOverlay, setStatusBarOnOverlay] = useState<boolean>(true);
   const [statusBarOnReturn, setStatusBarOnReturn] = useState<boolean>(true);
@@ -565,12 +573,14 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const savedMotionSensitivity = await StorageService.getScreensaverMotionSensitivity();
     const savedMotionCameraPosition = await StorageService.getMotionCameraPosition();
     const savedProximityEnabled = await StorageService.getScreensaverProximityEnabled();
+    const savedMotionRequireFace = await StorageService.getScreensaverMotionRequireFace();
     const savedScreensaverBrightness = await StorageService.getScreensaverBrightness();
     const savedScreensaverType = await StorageService.getScreensaverType();
     const savedScreensaverUrl = await StorageService.getScreensaverUrl();
     const savedScreensaverVideoItems = await StorageService.getScreensaverVideoItems<MediaItem>();
     const savedScreensaverVideoLoop = await StorageService.getScreensaverVideoLoop();
     const savedScreensaverKeepExternalApp = await StorageService.getScreensaverKeepExternalApp();
+    const savedScreensaverFadeSeconds = await StorageService.getScreensaverFadeSeconds();
     const hasPinConfigured = await hasSecurePin();
     
     setIsPinConfigured(hasPinConfigured);
@@ -579,6 +589,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
 
     setAutoReload(savedAutoReload);
     setHideErrorUrl(await StorageService.getHideErrorUrl());
+    setAlwaysLoadFromNetwork(await StorageService.getAlwaysLoadFromNetwork());
     setKioskEnabled(savedKioskEnabled);
     setAutoLaunchEnabled(savedAutoLaunch ?? false);
     setScreenLockCompatEnabled(savedScreenLockCompat ?? false);
@@ -598,20 +609,25 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setMotionSensitivity((savedMotionSensitivity as 'low' | 'medium' | 'high') ?? 'medium');
     setMotionCameraPosition(savedMotionCameraPosition ?? 'front');
     setProximityEnabled(savedProximityEnabled ?? false);
+    setMotionRequireFace(savedMotionRequireFace);
     setScreensaverBrightness(savedScreensaverBrightness ?? 0);
     setScreensaverType(savedScreensaverType);
     setScreensaverUrl(savedScreensaverUrl);
     setScreensaverVideoItems(savedScreensaverVideoItems);
     setScreensaverVideoLoop(savedScreensaverVideoLoop);
     setScreensaverKeepExternalApp(savedScreensaverKeepExternalApp);
+    setScreensaverFadeSeconds(savedScreensaverFadeSeconds);
 
     // Detect available cameras (first attempt — may return [] on slow SoCs before
     // ProcessCameraProvider resolves; the CameraDevicesChanged listener handles the retry)
     detectCameras();
 
     if (savedInactivityDelay && !isNaN(savedInactivityDelay)) {
-      setInactivityDelay(String(Math.floor(savedInactivityDelay / 60000)));
+      const text = formatInactivityMinutes(savedInactivityDelay);
+      storedInactivityDelayRef.current = { ms: savedInactivityDelay, text };
+      setInactivityDelay(text);
     } else {
+      storedInactivityDelayRef.current = null;
       setInactivityDelay('10');
     }
 
@@ -692,6 +708,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     // External app sub-mode
     const savedExternalAppMode = await StorageService.getExternalAppMode();
     setExternalAppMode(savedExternalAppMode);
+    setMultiAppAppearance(await StorageService.getMultiAppAppearance());
 
     setOverlayButtonVisible(savedOverlayButtonVisible);
     setPinMaxAttempts(savedPinMaxAttempts);
@@ -1468,6 +1485,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   // ============ SAVE FUNCTION ============
 
   const handleSave = async (): Promise<void> => {
+    if (displayMode === 'external_app' && externalAppMode === 'multi' && !isHexColor(multiAppAppearance.backgroundColor)) {
+      Alert.alert(t('screens.settingsMain.error'), t('general.appearance.invalidColor'));
+      return;
+    }
     // Validation
     if (displayMode === 'webview' && !url && !dashboardModeEnabled) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.enterUrl'));
@@ -1583,9 +1604,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       return;
     }
 
-    // Inactivity delay validation
-    const inactivityDelayNumber = parseInt(inactivityDelay, 10);
-    if (isNaN(inactivityDelayNumber) || inactivityDelayNumber <= 0) {
+    // Inactivity delay validation: a delay set by ADB or the cloud that the minutes field cannot
+    // show (10 s) is kept as it is when the field was not touched, not refused or rounded
+    const inactivityDelayMs = resolveInactivityDelayMs(inactivityDelay, storedInactivityDelayRef.current);
+    if (inactivityDelayMs === null) {
       Alert.alert(t('screens.settingsMain.error'), t('screens.settingsMain.enterValidInactivityDelay'));
       return;
     }
@@ -1626,20 +1648,24 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     // Screensaver settings apply to all display modes (external_app now supports screensaver)
     await StorageService.saveScreensaverEnabled(screensaverEnabled);
     await StorageService.saveScreensaverInactivityEnabled(true);
-    await StorageService.saveScreensaverInactivityDelay(inactivityDelayNumber * 60000);
+    await StorageService.saveScreensaverInactivityDelay(inactivityDelayMs);
+    storedInactivityDelayRef.current = { ms: inactivityDelayMs, text: inactivityDelay };
     await StorageService.saveScreensaverMotionEnabled(motionEnabled);
     await StorageService.saveScreensaverMotionSensitivity(motionSensitivity);
     await StorageService.saveScreensaverProximityEnabled(proximityEnabled);
+    await StorageService.saveScreensaverMotionRequireFace(motionRequireFace);
     await StorageService.saveScreensaverBrightness(screensaverBrightness);
     await StorageService.saveScreensaverType(screensaverType);
     await StorageService.saveScreensaverUrl(screensaverUrl);
     await StorageService.saveScreensaverVideoItems(screensaverVideoItems);
     await StorageService.saveScreensaverVideoLoop(screensaverVideoLoop);
     await StorageService.saveScreensaverKeepExternalApp(screensaverKeepExternalApp);
+    await StorageService.saveScreensaverFadeSeconds(screensaverFadeSeconds);
 
     if (displayMode === 'webview' || displayMode === 'media_player') {
       await StorageService.saveAutoReload(displayMode === 'webview' ? autoReload : false);
       await StorageService.saveHideErrorUrl(hideErrorUrl);
+      await StorageService.saveAlwaysLoadFromNetwork(alwaysLoadFromNetwork);
       await StorageService.saveKioskEnabled(kioskEnabled);
       await StorageService.saveDefaultBrightness(defaultBrightness);
       // #242: also mirror it natively, so the wake paths and a reboot keep it.
@@ -1677,6 +1703,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     await StorageService.saveDisplayMode(displayMode);
     await StorageService.saveExternalAppPackage(externalAppPackage);
     await StorageService.saveExternalAppMode(externalAppMode);
+    await StorageService.saveMultiAppAppearance(multiAppAppearance);
     await StorageService.saveAutoRelaunchApp(autoRelaunchApp);
     await StorageService.saveManagedApps(managedApps);
     await StorageService.saveOverlayButtonVisible(overlayButtonVisible);
@@ -1931,10 +1958,12 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               setPinMaxAttemptsText('5');
               setAutoReload(false);
               setHideErrorUrl(false);
+              setAlwaysLoadFromNetwork(false);
               setKioskEnabled(false);
               setAutoLaunchEnabled(false);
               setScreensaverEnabled(false);
               setInactivityDelay('10');
+              storedInactivityDelayRef.current = null;
               setMotionEnabled(false);
               setScreensaverBrightness(0);
               setDefaultBrightness(0.5);
@@ -1942,6 +1971,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
               setDisplayMode('webview');
               setExternalAppPackage('');
               setExternalAppMode('single');
+              setMultiAppAppearance({ ...DEFAULT_MULTI_APP_APPEARANCE });
               setAutoRelaunchApp(true);
               setOverlayButtonVisible(false);
               setStatusBarEnabled(false);
@@ -2113,6 +2143,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             loadingApps={loadingApps}
             managedApps={managedApps}
             onManagedAppsChange={setManagedApps}
+            multiAppAppearance={multiAppAppearance}
+            onMultiAppAppearanceChange={setMultiAppAppearance}
             externalAppMode={externalAppMode}
             onExternalAppModeChange={setExternalAppMode}
             hasOverlayPermission={hasOverlayPermission}
@@ -2146,6 +2178,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onAutoReloadChange={setAutoReload}
             hideErrorUrl={hideErrorUrl}
             onHideErrorUrlChange={setHideErrorUrl}
+            alwaysLoadFromNetwork={alwaysLoadFromNetwork}
+            onAlwaysLoadFromNetworkChange={setAlwaysLoadFromNetwork}
             pdfViewerEnabled={pdfViewerEnabled}
             onPdfViewerEnabledChange={setPdfViewerEnabled}
             windowPrintEnabled={windowPrintEnabled}
@@ -2336,6 +2370,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onScreensaverVideoLoopChange={setScreensaverVideoLoop}
             screensaverKeepExternalApp={screensaverKeepExternalApp}
             onScreensaverKeepExternalAppChange={setScreensaverKeepExternalApp}
+            screensaverFadeSeconds={screensaverFadeSeconds}
+            onScreensaverFadeSecondsChange={setScreensaverFadeSeconds}
             onPickScreensaverMedia={handlePickScreensaverMediaFromDevice}
             pickingScreensaverMedia={pickingScreensaverMedia}
             inactivityDelay={inactivityDelay}
@@ -2346,6 +2382,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             onMotionSensitivityChange={setMotionSensitivity}
             motionCameraPosition={motionCameraPosition}
             onMotionCameraPositionChange={handleMotionCameraPositionChange}
+            motionRequireFace={motionRequireFace}
+            onMotionRequireFaceChange={setMotionRequireFace}
             proximityEnabled={proximityEnabled}
             onProximityEnabledChange={setProximityEnabled}
             availableCameras={availableCameras}

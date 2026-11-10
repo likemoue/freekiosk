@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "On a TV, nothing reaches FreeKiosk while another app is in front, so the remote cannot bring you back to these settings. Use FreeKiosk Cloud, MQTT, the REST API or adb to change them.",
+    "appearance": {
+      "title": "Multi-App appearance",
+      "background": "Background colour",
+      "customColor": "Custom colour",
+      "invalidColor": "Enter a colour in #RRGGBB format, for example #2b7fff.",
+      "colorHint": "Heading and app labels automatically use contrasting text.",
+      "showTitle": "Show heading",
+      "heading": "Heading text",
+      "showLogo": "Show logo",
+      "chooseLogo": "Choose logo from device",
+      "defaultLogo": "Use default logo",
+      "logoHint": "The selected image is stored on this device. Backups retain the setting but do not include the image file.",
+      "preview": "Preview",
+      "sampleApp": "Application name",
+      "reset": "Reset appearance to defaults",
+      "logoErrorTitle": "Could not select logo",
+      "logoError": "Please try selecting a different image."
+    },
     "language": {
       "title": "Language",
       "label": "App Language"
@@ -186,7 +204,9 @@
       "reloadOnError": "Reload on Error",
       "reloadOnErrorHint": "Automatically reload the page on network error",
       "hideUrl": "Hide the URL on the error screen",
-      "hideUrlHint": "Show only the error message when a page fails to load, not its address"
+      "hideUrlHint": "Show only the error message when a page fails to load, not its address",
+      "alwaysNetwork": "Always Load from the Network",
+      "alwaysNetworkHint": "Fetch every image, script and style sheet again on each load, so an updated site never shows old files. Uses more data, and the page cannot show from cache while the network is down."
     },
     "pdfViewer": {
       "title": "PDF Viewer",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "Screensaver Brightness is below 10%. Raise it (see slider below) so the content is visible, or switch to Dim Only.",
       "brightnessTitle": "Screensaver Brightness",
       "brightnessHint": "Screen brightness when screensaver is active",
+      "fadeTitle": "Fade Out",
+      "fadeHint": "Seconds over which the screen slowly dims to the screensaver level. Waking stays instant.",
+      "fadeOff": "Off",
+      "fadeSeconds": "{{value}} s",
       "blackScreen": "Black Screen",
       "veryDim": "Very Dim (5%)",
       "dim": "Dim (10%)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Camera Position",
       "cameraPositionHint": "Select which camera to use for motion detection",
       "cameraUnavailable": "Selected camera not available on this device",
+      "motionRequireFace": "Only wake for a face",
+      "motionRequireFaceHint": "Motion wakes the screen only when a face is in the camera image, so pets and light changes are ignored. Works best with a face looking at the camera; a turned or distant face may be missed.",
       "proximityTitle": "Proximity Detection",
       "proximityEnable": "Enable Proximity Wake",
       "proximityEnableHint": "Wake the screen when a hand or body comes close to the front sensor",
@@ -744,6 +770,17 @@
       "medium": "Medium",
       "large": "Large",
       "xlarge": "Extra large"
+    },
+    "tilePages": {
+      "title": "Tile Pages",
+      "autoHide": "Auto-hide navigation bar",
+      "autoHideHint": "On a tile page, hide the navigation bar so the page fills the screen. Swipe down with two fingers to show it, and up to hide it again.",
+      "hideAfter": "Hide after (seconds)",
+      "hideAfterHint": "How long the bar stays visible after it is shown or last touched.",
+      "swipeBetweenTiles": "Swipe between tiles",
+      "swipeBetweenTilesHint": "On a tile page, swipe left with two fingers for the next tile and right for the previous one.",
+      "keepTilesLoaded": "Keep tiles loaded",
+      "keepTilesLoadedHint": "Load your tiles (up to 5) in the background as soon as the dashboard starts, and keep them running, so opening or switching tiles is instant and each page keeps its state. Uses more memory."
     },
     "iconColor": "Icon Color",
     "colorAuto": "Auto",
@@ -1378,7 +1415,7 @@
       "noOrigins": "No origins allowed",
       "noOriginsHint": "No page can print until you add one",
       "printTestPage": "Print test page",
-      "info": "Web pages print silently by calling window.FreeKiosk.silentPrinter.print() or printImage(). print() lays the page out so one CSS pixel is one dot.\n\nwindow.print() is not affected: it opens the Android print dialog when Window Printing is enabled, and does nothing otherwise.\n\nFor access that survives reboots: plug the printer in, then choose FreeKiosk and tick \"Always open\". The button above only grants access until the printer is unplugged, and lock task mode suppresses that dialog entirely.\n\nPrinters exposing a vendor-specific USB interface instead of the standard printer class still print, but cannot report paper level."
+      "info": "Web pages print silently by calling window.FreeKiosk.silentPrinter.print() or printImage(). print() lays the page out so one CSS pixel is one dot.\n\nBy default, window.print() opens the Android print dialog when Window Printing is enabled, and does nothing otherwise. With \"Send window.print() to this printer\" on, it prints with no dialog on the ESC/POS printer instead.\n\nFor access that survives reboots: plug the printer in, then choose FreeKiosk and tick \"Always open\". The button above only grants access until the printer is unplugged, and lock task mode suppresses that dialog entirely.\n\nPrinters exposing a vendor-specific USB interface instead of the standard printer class still print, but cannot report paper level."
     }
   },
   "screens": {
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Error verifying PIN",
     "cloudCannotReach": "Cannot reach server",
     "cloudEnrollFailed": "Enrollment failed",
+    "cloudKeystoreFailed": "This device could not store its cloud credentials in the Android Keystore. Enrollment was cancelled.",
     "dayAbbr": {
       "0": "Sun",
       "1": "Mon",

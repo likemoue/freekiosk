@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "Sur un téléviseur, aucune touche n'arrive à FreeKiosk tant qu'une autre application est au premier plan : la télécommande ne peut donc pas vous ramener à ces réglages. Utilisez FreeKiosk Cloud, MQTT, l'API REST ou adb pour les modifier.",
+    "appearance": {
+      "title": "Apparence multi-applications",
+      "background": "Couleur de fond",
+      "customColor": "Couleur personnalisée",
+      "invalidColor": "Saisissez une couleur au format #RRGGBB, par exemple #2b7fff.",
+      "colorHint": "Le titre et les noms des applications utilisent automatiquement un texte contrasté.",
+      "showTitle": "Afficher le titre",
+      "heading": "Texte du titre",
+      "showLogo": "Afficher le logo",
+      "chooseLogo": "Choisir un logo sur cet appareil",
+      "defaultLogo": "Utiliser le logo par défaut",
+      "logoHint": "L’image sélectionnée est enregistrée sur cet appareil. Les sauvegardes conservent le paramètre mais ne contiennent pas le fichier image.",
+      "preview": "Aperçu",
+      "sampleApp": "Nom de l’application",
+      "reset": "Rétablir l’apparence par défaut",
+      "logoErrorTitle": "Impossible de sélectionner le logo",
+      "logoError": "Veuillez essayer de sélectionner une autre image."
+    },
     "language": {
       "title": "Langue",
       "label": "Langue de l'application"
@@ -186,7 +204,9 @@
       "reloadOnError": "Recharger en cas d'erreur",
       "reloadOnErrorHint": "Recharger automatiquement la page en cas d'erreur réseau",
       "hideUrl": "Masquer l'URL sur l'écran d'erreur",
-      "hideUrlHint": "N'affiche que le message d'erreur quand une page ne se charge pas, sans son adresse"
+      "hideUrlHint": "N'affiche que le message d'erreur quand une page ne se charge pas, sans son adresse",
+      "alwaysNetwork": "Toujours charger depuis le réseau",
+      "alwaysNetworkHint": "Télécharge à nouveau chaque image, script et feuille de style à chaque chargement, pour qu'un site mis à jour n'affiche jamais d'anciens fichiers. Consomme plus de données, et la page ne peut plus s'afficher depuis le cache quand le réseau est coupé."
     },
     "pdfViewer": {
       "title": "Lecteur PDF",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "La luminosité de l'économiseur d'écran est inférieure à 10 %. Augmentez-la (voir le curseur ci-dessous) pour que le contenu soit visible, ou passez en Assombrissement seul.",
       "brightnessTitle": "Luminosité de l'économiseur d'écran",
       "brightnessHint": "Luminosité de l'écran quand l'économiseur d'écran est actif",
+      "fadeTitle": "Fondu",
+      "fadeHint": "Secondes pendant lesquelles l'écran s'assombrit progressivement jusqu'au niveau de l'économiseur. Le réveil reste immédiat.",
+      "fadeOff": "Non",
+      "fadeSeconds": "{{value}} s",
       "blackScreen": "Écran noir",
       "veryDim": "Très sombre (5 %)",
       "dim": "Sombre (10 %)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Position de la caméra",
       "cameraPositionHint": "Sélectionnez quelle caméra utiliser pour la détection de mouvement",
       "cameraUnavailable": "La caméra sélectionnée n'est pas disponible sur cet appareil",
+      "motionRequireFace": "Réveiller seulement pour un visage",
+      "motionRequireFaceHint": "Le mouvement ne réveille l'écran que si un visage est dans l'image de la caméra : les animaux et les changements de lumière sont ignorés. Fonctionne mieux avec un visage tourné vers la caméra ; un visage de profil ou éloigné peut ne pas être détecté.",
       "proximityTitle": "Détection de proximité",
       "proximityEnable": "Activer le réveil par proximité",
       "proximityEnableHint": "Réveiller l'écran quand une main ou un corps s'approche du capteur avant",
@@ -744,6 +770,17 @@
       "medium": "Moyenne",
       "large": "Grande",
       "xlarge": "Très grande"
+    },
+    "tilePages": {
+      "title": "Pages des tuiles",
+      "autoHide": "Masquer automatiquement la barre de navigation",
+      "autoHideHint": "Sur une page de tuile, masque la barre de navigation pour que la page occupe tout l'écran. Balayez vers le bas avec deux doigts pour l'afficher, et vers le haut pour la masquer.",
+      "hideAfter": "Masquer après (secondes)",
+      "hideAfterHint": "Durée pendant laquelle la barre reste visible après son affichage ou le dernier toucher.",
+      "swipeBetweenTiles": "Balayer entre les tuiles",
+      "swipeBetweenTilesHint": "Sur une page de tuile, balayez vers la gauche avec deux doigts pour la tuile suivante et vers la droite pour la précédente.",
+      "keepTilesLoaded": "Garder les tuiles chargées",
+      "keepTilesLoadedHint": "Charge vos tuiles (jusqu'à 5) en arrière-plan dès le démarrage du tableau de bord et les garde actives : ouvrir ou changer de tuile est instantané et chaque page garde son état. Utilise plus de mémoire."
     },
     "iconColor": "Couleur de l'icône",
     "colorAuto": "Auto",
@@ -1378,7 +1415,7 @@
       "noOrigins": "Aucune origine autorisée",
       "noOriginsHint": "Aucune page ne peut imprimer tant que vous n'en ajoutez pas une",
       "printTestPage": "Imprimer une page de test",
-      "info": "Les pages web impriment sans dialogue en appelant window.FreeKiosk.silentPrinter.print() ou printImage(). print() met la page en forme pour qu'un pixel CSS corresponde à un point.\n\nwindow.print() n'est pas concerné : il ouvre la boîte de dialogue d'impression Android quand l'impression de la page est activée, et ne fait rien sinon.\n\nPour un accès qui survit aux redémarrages : branchez l'imprimante, choisissez FreeKiosk et cochez l'option qui l'ouvre toujours pour cet appareil. Le bouton ci-dessus n'accorde l'accès que jusqu'au débranchement de l'imprimante, et le mode kiosque verrouillé masque complètement cette boîte de dialogue.\n\nLes imprimantes qui exposent une interface USB propre au fabricant au lieu de la classe imprimante standard impriment quand même, mais ne peuvent pas indiquer le niveau de papier."
+      "info": "Les pages web impriment sans dialogue en appelant window.FreeKiosk.silentPrinter.print() ou printImage(). print() met la page en forme pour qu'un pixel CSS corresponde à un point.\n\nPar défaut, window.print() ouvre la boîte de dialogue d'impression Android quand l'impression de la page est activée, et ne fait rien sinon. Avec « Envoyer window.print() vers cette imprimante » activé, il imprime sans dialogue sur l'imprimante ESC/POS à la place.\n\nPour un accès qui survit aux redémarrages : branchez l'imprimante, choisissez FreeKiosk et cochez l'option qui l'ouvre toujours pour cet appareil. Le bouton ci-dessus n'accorde l'accès que jusqu'au débranchement de l'imprimante, et le mode kiosque verrouillé masque complètement cette boîte de dialogue.\n\nLes imprimantes qui exposent une interface USB propre au fabricant au lieu de la classe imprimante standard impriment quand même, mais ne peuvent pas indiquer le niveau de papier."
     }
   },
   "screens": {
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Erreur lors de la vérification du PIN",
     "cloudCannotReach": "Impossible de joindre le serveur",
     "cloudEnrollFailed": "Échec de l’enrôlement",
+    "cloudKeystoreFailed": "Cet appareil n'a pas pu enregistrer ses identifiants cloud dans le Keystore Android. L'inscription a été annulée.",
     "dayAbbr": {
       "0": "Dim",
       "1": "Lun",

@@ -20,6 +20,7 @@ import { Colors, Spacing, Typography } from '../../../theme';
 import { ScreenScheduleRule } from '../../../types/screenScheduler';
 import type { MediaItem } from '../../../types/mediaPlayer';
 import { getMediaDisplayName } from '../../../types/mediaPlayer';
+import { MAX_SCREENSAVER_FADE_SECONDS } from '../../../utils/storage';
 import { useTranslation } from 'react-i18next';
 
 interface DisplayTabProps {
@@ -110,6 +111,8 @@ interface DisplayTabProps {
   onScreensaverVideoLoopChange: (value: boolean) => void;
   screensaverKeepExternalApp: boolean;
   onScreensaverKeepExternalAppChange: (value: boolean) => void;
+  screensaverFadeSeconds: number;
+  onScreensaverFadeSecondsChange: (value: number) => void;
   onPickScreensaverMedia: (type: 'video' | 'image' | 'any') => void;
   pickingScreensaverMedia: boolean;
 
@@ -120,6 +123,8 @@ interface DisplayTabProps {
   onMotionSensitivityChange: (value: 'low' | 'medium' | 'high') => void;
   motionCameraPosition: 'front' | 'back';
   onMotionCameraPositionChange: (value: 'front' | 'back') => void;
+  motionRequireFace: boolean;
+  onMotionRequireFaceChange: (value: boolean) => void;
 
   // Proximity detection (hardware sensor wake trigger)
   proximityEnabled: boolean;
@@ -213,6 +218,8 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
   onScreensaverVideoLoopChange,
   screensaverKeepExternalApp,
   onScreensaverKeepExternalAppChange,
+  screensaverFadeSeconds,
+  onScreensaverFadeSecondsChange,
   onPickScreensaverMedia,
   pickingScreensaverMedia,
   motionEnabled,
@@ -221,6 +228,8 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
   onMotionSensitivityChange,
   motionCameraPosition,
   onMotionCameraPositionChange,
+  motionRequireFace,
+  onMotionRequireFaceChange,
   proximityEnabled,
   onProximityEnabledChange,
   availableCameras,
@@ -588,6 +597,23 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
                 </View>
               )}
 
+              {/* Fade-out: Dim style rendered by FreeKiosk (not the native overlay over an external app) */}
+              {screensaverType === 'dim' && !dimsOverExternalApp && (
+                <View style={styles.subSection}>
+                  <Text style={styles.subSectionTitle}>{t('display.screensaver.fadeTitle')}</Text>
+                  <SettingsSlider
+                    label=""
+                    hint={t('display.screensaver.fadeHint')}
+                    value={screensaverFadeSeconds}
+                    onValueChange={onScreensaverFadeSecondsChange}
+                    minimumValue={0}
+                    maximumValue={MAX_SCREENSAVER_FADE_SECONDS}
+                    step={1}
+                    formatValue={(v) => (v === 0 ? t('display.screensaver.fadeOff') : t('display.screensaver.fadeSeconds', { value: Math.round(v) }))}
+                  />
+                </View>
+              )}
+
               {/* Inactivity Delay */}
               <View style={styles.subSection}>
                 <Text style={styles.subSectionTitle}>{t('display.screensaver.inactivityDelayTitle')}</Text>
@@ -629,6 +655,13 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
                       ]}
                       value={motionSensitivity}
                       onValueChange={handleMotionSensitivityChange}
+                    />
+
+                    <SettingsSwitch
+                      label={t('display.screensaver.motionRequireFace')}
+                      hint={t('display.screensaver.motionRequireFaceHint')}
+                      value={motionRequireFace}
+                      onValueChange={onMotionRequireFaceChange}
                     />
 
                     {availableCameras.length === 0 && (

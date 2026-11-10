@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "Auf einem Fernseher erreicht FreeKiosk keine Taste, solange eine andere App im Vordergrund ist. Die Fernbedienung kann dich also nicht zu diesen Einstellungen zurückbringen. Nutze FreeKiosk Cloud, MQTT, die REST API oder adb, um sie zu ändern.",
+    "appearance": {
+      "title": "Erscheinungsbild Multi-App",
+      "background": "Hintergrundfarbe",
+      "customColor": "Eigene Farbe",
+      "invalidColor": "Gib eine Farbe im Format #RRGGBB ein, zum Beispiel #2b7fff.",
+      "colorHint": "Überschrift und App-Namen verwenden automatisch einen kontrastierenden Text.",
+      "showTitle": "Überschrift anzeigen",
+      "heading": "Text der Überschrift",
+      "showLogo": "Logo anzeigen",
+      "chooseLogo": "Logo vom Gerät wählen",
+      "defaultLogo": "Standardlogo verwenden",
+      "logoHint": "Das gewählte Bild wird auf diesem Gerät gespeichert. Sicherungen behalten die Einstellung, enthalten aber die Bilddatei nicht.",
+      "preview": "Vorschau",
+      "sampleApp": "App-Name",
+      "reset": "Erscheinungsbild zurücksetzen",
+      "logoErrorTitle": "Logo konnte nicht gewählt werden",
+      "logoError": "Bitte wähle ein anderes Bild."
+    },
     "language": {
       "title": "Sprache",
       "label": "App-Sprache"
@@ -186,7 +204,9 @@
       "reloadOnError": "Bei Fehler neu laden",
       "reloadOnErrorHint": "Die Seite bei einem Netzwerkfehler automatisch neu laden",
       "hideUrl": "URL auf dem Fehlerbildschirm ausblenden",
-      "hideUrlHint": "Zeigt nur die Fehlermeldung an, wenn eine Seite nicht lädt, nicht ihre Adresse"
+      "hideUrlHint": "Zeigt nur die Fehlermeldung an, wenn eine Seite nicht lädt, nicht ihre Adresse",
+      "alwaysNetwork": "Immer aus dem Netzwerk laden",
+      "alwaysNetworkHint": "Lädt bei jedem Laden alle Bilder, Skripte und Stylesheets neu, damit eine aktualisierte Seite nie alte Dateien zeigt. Verbraucht mehr Daten, und die Seite kann bei einem Netzausfall nicht aus dem Cache angezeigt werden."
     },
     "pdfViewer": {
       "title": "PDF-Viewer",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "Die Helligkeit des Bildschirmschoners liegt unter 10 %. Erhöhe sie (siehe Regler unten), damit der Inhalt sichtbar ist, oder wechsle zu Nur abdunkeln.",
       "brightnessTitle": "Helligkeit des Bildschirmschoners",
       "brightnessHint": "Bildschirmhelligkeit bei aktivem Bildschirmschoner",
+      "fadeTitle": "Ausblenden",
+      "fadeHint": "Sekunden, über die der Bildschirm langsam auf die Bildschirmschoner-Helligkeit abdunkelt. Aufwecken bleibt sofort.",
+      "fadeOff": "Aus",
+      "fadeSeconds": "{{value}} s",
       "blackScreen": "Schwarzer Bildschirm",
       "veryDim": "Sehr dunkel (5 %)",
       "dim": "Dunkel (10 %)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Kameraposition",
       "cameraPositionHint": "Wähle aus, welche Kamera für die Bewegungserkennung verwendet wird",
       "cameraUnavailable": "Die ausgewählte Kamera ist auf diesem Gerät nicht verfügbar",
+      "motionRequireFace": "Nur bei Gesicht aufwecken",
+      "motionRequireFaceHint": "Bewegung weckt den Bildschirm nur, wenn ein Gesicht im Kamerabild ist. Haustiere und Lichtwechsel werden so ignoriert. Am zuverlässigsten mit einem Gesicht, das in die Kamera schaut; abgewandte oder weit entfernte Gesichter werden eventuell nicht erkannt.",
       "proximityTitle": "Näherungserkennung",
       "proximityEnable": "Aufwecken durch Annäherung aktivieren",
       "proximityEnableHint": "Bildschirm aufwecken, wenn sich eine Hand oder ein Körper dem vorderen Sensor nähert",
@@ -744,6 +770,17 @@
       "medium": "Mittel",
       "large": "Groß",
       "xlarge": "Extragroß"
+    },
+    "tilePages": {
+      "title": "Kachelseiten",
+      "autoHide": "Navigationsleiste automatisch ausblenden",
+      "autoHideHint": "Auf einer Kachelseite die Navigationsleiste ausblenden, damit die Seite den Bildschirm füllt. Mit zwei Fingern nach unten wischen, um sie zu zeigen, und nach oben, um sie wieder auszublenden.",
+      "hideAfter": "Ausblenden nach (Sekunden)",
+      "hideAfterHint": "Wie lange die Leiste sichtbar bleibt, nachdem sie gezeigt oder zuletzt berührt wurde.",
+      "swipeBetweenTiles": "Zwischen Kacheln wischen",
+      "swipeBetweenTilesHint": "Auf einer Kachelseite mit zwei Fingern nach links wischen für die nächste Kachel und nach rechts für die vorherige.",
+      "keepTilesLoaded": "Kacheln geladen lassen",
+      "keepTilesLoadedHint": "Lädt deine Kacheln (bis zu 5) im Hintergrund, sobald das Dashboard startet, und hält sie aktiv: Öffnen und Wechseln geht sofort, und jede Seite behält ihren Zustand. Verbraucht mehr Speicher."
     },
     "iconColor": "Symbolfarbe",
     "colorAuto": "Auto",
@@ -1378,7 +1415,7 @@
       "noOrigins": "Keine Herkunft erlaubt",
       "noOriginsHint": "Keine Seite kann drucken, bis du eine hinzufügst",
       "printTestPage": "Testseite drucken",
-      "info": "Webseiten drucken still, indem sie window.FreeKiosk.silentPrinter.print() oder printImage() aufrufen. print() legt die Seite so aus, dass ein CSS-Pixel einem Punkt entspricht.\n\nwindow.print() ist davon nicht betroffen: Es öffnet den Android-Druckdialog, wenn der Seitendruck aktiviert ist, und tut sonst nichts.\n\nFür einen Zugriff, der Neustarts übersteht: Schließe den Drucker an, wähle dann FreeKiosk und setze ein Häkchen bei „Immer öffnen“. Die Schaltfläche oben erteilt den Zugriff nur, bis der Drucker getrennt wird, und der Lock-Task-Modus unterdrückt diesen Dialog vollständig.\n\nDrucker mit einer herstellerspezifischen USB-Schnittstelle statt der Standard-Druckerklasse drucken trotzdem, können aber den Papierstand nicht melden."
+      "info": "Webseiten drucken still, indem sie window.FreeKiosk.silentPrinter.print() oder printImage() aufrufen. print() legt die Seite so aus, dass ein CSS-Pixel einem Punkt entspricht.\n\nStandardmäßig öffnet window.print() den Android-Druckdialog, wenn der Seitendruck aktiviert ist, und tut sonst nichts. Ist „window.print() an diesen Drucker senden“ eingeschaltet, druckt es stattdessen ohne Dialog auf dem ESC/POS-Drucker.\n\nFür einen Zugriff, der Neustarts übersteht: Schließe den Drucker an, wähle dann FreeKiosk und setze ein Häkchen bei „Immer öffnen“. Die Schaltfläche oben erteilt den Zugriff nur, bis der Drucker getrennt wird, und der Lock-Task-Modus unterdrückt diesen Dialog vollständig.\n\nDrucker mit einer herstellerspezifischen USB-Schnittstelle statt der Standard-Druckerklasse drucken trotzdem, können aber den Papierstand nicht melden."
     }
   },
   "screens": {
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Fehler bei der PIN-Prüfung",
     "cloudCannotReach": "Server nicht erreichbar",
     "cloudEnrollFailed": "Registrierung fehlgeschlagen",
+    "cloudKeystoreFailed": "Dieses Gerät konnte seine Cloud-Zugangsdaten nicht im Android-Keystore speichern. Die Registrierung wurde abgebrochen.",
     "dayAbbr": {
       "0": "So",
       "1": "Mo",

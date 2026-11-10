@@ -326,6 +326,11 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start server", e)
+            // e.g. port in use: without this the dead server stayed set, every later start
+            // answered ALREADY_RUNNING, and the wake and WiFi locks were held for good
+            try { server?.stop() } catch (_: Exception) {}
+            server = null
+            releaseServerLocks()
             promise.reject("START_ERROR", e.message)
         }
     }
@@ -805,12 +810,15 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
             "autoBrightnessEnable" -> {
                 val min = params?.optInt("min", 10) ?: 10
                 val max = params?.optInt("max", 100) ?: 100
+                // The offset is optional: without it the app keeps the current one
+                val offset = if (params?.has("offset") == true) params.optInt("offset") else null
                 // Send to JS for handling
                 sendEvent("onApiCommand", Arguments.createMap().apply {
                     putString("command", "autoBrightnessEnable")
                     putString("params", JSONObject().apply {
                         put("min", min)
                         put("max", max)
+                        offset?.let { put("offset", it) }
                     }.toString())
                 })
                 return JSONObject().apply {
@@ -818,6 +826,7 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                     put("command", command)
                     put("min", min)
                     put("max", max)
+                    offset?.let { put("offset", it) }
                 }
             }
             "autoBrightnessDisable" -> {

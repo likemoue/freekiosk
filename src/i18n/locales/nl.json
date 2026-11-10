@@ -2,6 +2,24 @@
   "common": {},
   "general": {
     "externalAppTvWarning": "Op een tv komt er niets bij FreeKiosk aan zolang een andere app op de voorgrond staat, dus met de afstandsbediening kun je niet terug naar deze instellingen. Gebruik FreeKiosk Cloud, MQTT, de REST API of adb om ze te wijzigen.",
+    "appearance": {
+      "title": "Weergave multi-app",
+      "background": "Achtergrondkleur",
+      "customColor": "Eigen kleur",
+      "invalidColor": "Voer een kleur in het formaat #RRGGBB in, bijvoorbeeld #2b7fff.",
+      "colorHint": "De titel en de namen van de apps krijgen automatisch een contrasterende tekst.",
+      "showTitle": "Titel tonen",
+      "heading": "Tekst van de titel",
+      "showLogo": "Logo tonen",
+      "chooseLogo": "Logo van het apparaat kiezen",
+      "defaultLogo": "Standaardlogo gebruiken",
+      "logoHint": "De gekozen afbeelding wordt op dit apparaat opgeslagen. Back-ups bewaren de instelling, maar niet het afbeeldingsbestand.",
+      "preview": "Voorbeeld",
+      "sampleApp": "Naam van de app",
+      "reset": "Weergave terugzetten naar standaard",
+      "logoErrorTitle": "Logo kon niet worden gekozen",
+      "logoError": "Kies een andere afbeelding."
+    },
     "language": {
       "title": "Taal",
       "label": "App-taal"
@@ -186,7 +204,9 @@
       "reloadOnError": "Herladen bij fout",
       "reloadOnErrorHint": "De pagina automatisch herladen bij een netwerkfout",
       "hideUrl": "URL verbergen op het foutscherm",
-      "hideUrlHint": "Toont alleen de foutmelding als een pagina niet laadt, niet het adres"
+      "hideUrlHint": "Toont alleen de foutmelding als een pagina niet laadt, niet het adres",
+      "alwaysNetwork": "Altijd van het netwerk laden",
+      "alwaysNetworkHint": "Haalt bij elke keer laden alle afbeeldingen, scripts en stylesheets opnieuw op, zodat een bijgewerkte site nooit oude bestanden toont. Gebruikt meer data, en de pagina kan niet uit de cache worden getoond als het netwerk wegvalt."
     },
     "pdfViewer": {
       "title": "PDF-viewer",
@@ -298,6 +318,10 @@
       "lowBrightnessWarning": "De helderheid van de schermbeveiliging is lager dan 10%. Verhoog deze (zie de schuifregelaar hieronder) zodat de inhoud zichtbaar is, of schakel over naar Alleen dimmen.",
       "brightnessTitle": "Helderheid van schermbeveiliging",
       "brightnessHint": "Schermhelderheid wanneer de schermbeveiliging actief is",
+      "fadeTitle": "Uitfaden",
+      "fadeHint": "Seconden waarin het scherm langzaam dimt tot het niveau van de schermbeveiliging. Wekken blijft direct.",
+      "fadeOff": "Uit",
+      "fadeSeconds": "{{value}} s",
       "blackScreen": "Zwart scherm",
       "veryDim": "Zeer gedimd (5%)",
       "dim": "Gedimd (10%)",
@@ -320,6 +344,8 @@
       "cameraPosition": "Camerapositie",
       "cameraPositionHint": "Kies welke camera voor bewegingsdetectie wordt gebruikt",
       "cameraUnavailable": "De geselecteerde camera is niet beschikbaar op dit apparaat",
+      "motionRequireFace": "Alleen ontwaken bij een gezicht",
+      "motionRequireFaceHint": "Beweging laat het scherm alleen ontwaken als er een gezicht in het camerabeeld is, zodat huisdieren en lichtwisselingen genegeerd worden. Werkt het best met een gezicht dat naar de camera kijkt; een afgewend of ver gezicht wordt mogelijk niet herkend.",
       "proximityTitle": "Nabijheidsdetectie",
       "proximityEnable": "Ontwaken bij nabijheid inschakelen",
       "proximityEnableHint": "Het scherm laten ontwaken wanneer een hand of lichaam dicht bij de voorsensor komt",
@@ -744,6 +770,17 @@
       "medium": "Gemiddeld",
       "large": "Groot",
       "xlarge": "Extra groot"
+    },
+    "tilePages": {
+      "title": "Tegelpagina's",
+      "autoHide": "Navigatiebalk automatisch verbergen",
+      "autoHideHint": "Verbergt op een tegelpagina de navigatiebalk, zodat de pagina het hele scherm vult. Veeg met twee vingers omlaag om hem te tonen en omhoog om hem weer te verbergen.",
+      "hideAfter": "Verbergen na (seconden)",
+      "hideAfterHint": "Hoe lang de balk zichtbaar blijft nadat hij getoond of voor het laatst aangeraakt is.",
+      "swipeBetweenTiles": "Tussen tegels vegen",
+      "swipeBetweenTilesHint": "Veeg op een tegelpagina met twee vingers naar links voor de volgende tegel en naar rechts voor de vorige.",
+      "keepTilesLoaded": "Tegels geladen houden",
+      "keepTilesLoadedHint": "Laadt je tegels (maximaal 5) op de achtergrond zodra het dashboard start en houdt ze actief: openen of wisselen gaat meteen en elke pagina behoudt haar toestand. Gebruikt meer geheugen."
     },
     "iconColor": "Pictogramkleur",
     "colorAuto": "Automatisch",
@@ -1378,7 +1415,7 @@
       "noOrigins": "Geen oorsprongen toegestaan",
       "noOriginsHint": "Geen enkele pagina kan afdrukken totdat je er een toevoegt",
       "printTestPage": "Testpagina afdrukken",
-      "info": "Webpagina's drukken stil af via window.FreeKiosk.silentPrinter.print() of printImage(). print() legt de pagina zo op dat één CSS-pixel één stip is.\n\nwindow.print() wordt niet beïnvloed: het opent het Android-afdrukvenster als Window Printing is ingeschakeld, en doet anders niets.\n\nVoor toegang die een herstart overleeft: sluit de printer aan, kies FreeKiosk en vink \"Altijd openen\" aan. De knop hierboven verleent alleen toegang totdat de printer wordt losgekoppeld, en de lock task-modus onderdrukt dat venster volledig.\n\nPrinters met een leverancierspecifieke USB-interface in plaats van de standaard printerklasse drukken nog steeds af, maar kunnen het papierniveau niet melden."
+      "info": "Webpagina's drukken stil af via window.FreeKiosk.silentPrinter.print() of printImage(). print() legt de pagina zo op dat één CSS-pixel één stip is.\n\nStandaard opent window.print() het Android-afdrukvenster als Window Printing is ingeschakeld, en doet anders niets. Met \"window.print() naar deze printer sturen\" aan, print het in plaats daarvan zonder venster op de ESC/POS-printer.\n\nVoor toegang die een herstart overleeft: sluit de printer aan, kies FreeKiosk en vink \"Altijd openen\" aan. De knop hierboven verleent alleen toegang totdat de printer wordt losgekoppeld, en de lock task-modus onderdrukt dat venster volledig.\n\nPrinters met een leverancierspecifieke USB-interface in plaats van de standaard printerklasse drukken nog steeds af, maar kunnen het papierniveau niet melden."
     }
   },
   "screens": {
@@ -1577,6 +1614,7 @@
     "pinVerifyError": "Fout bij controleren van pincode",
     "cloudCannotReach": "Server niet bereikbaar",
     "cloudEnrollFailed": "Registratie mislukt",
+    "cloudKeystoreFailed": "Dit apparaat kon zijn cloudgegevens niet opslaan in de Android Keystore. De registratie is geannuleerd.",
     "dayAbbr": {
       "0": "Zo",
       "1": "Ma",

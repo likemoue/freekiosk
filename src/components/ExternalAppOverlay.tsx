@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, FlatList, useWindowDimensions } from 'react-native';
 import StatusBar from './StatusBar';
+import MultiAppHeader from './MultiAppHeader';
+import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, getMultiAppForeground } from '../types/multiAppAppearance';
 import Icon from './Icon';
 import AppLauncherModule, { AppInfo } from '../utils/AppLauncherModule';
-import { useDisplayName } from '../utils/DeviceDisplayName';
+import { PRODUCT_NAME, useDisplayName } from '../utils/DeviceDisplayName';
 import { ManagedApp } from '../types/managedApps';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +16,7 @@ interface ExternalAppOverlayProps {
   managedApps?: ManagedApp[];
   /** External app sub-mode: single (classic) or multi (grid) */
   externalAppMode?: 'single' | 'multi';
+  multiAppAppearance?: MultiAppAppearance;
   isAppLaunched: boolean;
   backButtonMode: string;
   /** Number of taps to return to settings (default 5) */
@@ -45,6 +48,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   externalAppPackage,
   managedApps = [],
   externalAppMode = 'single',
+  multiAppAppearance = DEFAULT_MULTI_APP_APPEARANCE,
   isAppLaunched,
   backButtonMode,
   returnTapCount = 5,
@@ -66,6 +70,15 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
 }) => {
   const { t } = useTranslation();
   const displayName = useDisplayName();
+  // The website's name for this tablet stands in for the product name, never for a title someone chose
+  const headerAppearance = multiAppAppearance.title === PRODUCT_NAME
+    ? { ...multiAppAppearance, title: displayName }
+    : multiAppAppearance;
+  const foregroundColor = getMultiAppForeground(multiAppAppearance.backgroundColor);
+  const fallbackIconStyle = foregroundColor === '#000000'
+    ? { backgroundColor: 'rgba(0, 0, 0, 0.08)', borderColor: 'rgba(0, 0, 0, 0.2)' }
+    : {};
+  const multiAppContainerStyle = [styles.container, { backgroundColor: multiAppAppearance.backgroundColor }];
   // Window dimensions must be reactive — `Dimensions.get('window')` is evaluated once
   // at module load, so tile widths captured in landscape stay wrong after rotation to portrait.
   const { width: windowWidth } = useWindowDimensions();
@@ -226,11 +239,11 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
             resizeMode="contain"
           />
         ) : (
-          <View style={styles.appIconCircle}>
-            <Text style={styles.appIconText}>{initials}</Text>
+          <View style={[styles.appIconCircle, fallbackIconStyle]}>
+            <Text style={[styles.appIconText, { color: foregroundColor }]}>{initials}</Text>
           </View>
         )}
-        <Text style={styles.appIconLabel} numberOfLines={2}>
+        <Text style={[styles.appIconLabel, { color: foregroundColor }]} numberOfLines={2}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -241,7 +254,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   // the grid stays, and a return this screen has not heard about never strands anyone on a blank one.
   if (isMultiAppMode) {
     return (
-      <View style={styles.container} onTouchStart={handleGridTouch}>
+      <View style={multiAppContainerStyle} onTouchStart={handleGridTouch}>
         {showStatusBar && (
           <StatusBar
             showBattery={showBattery}
@@ -252,14 +265,7 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
             theme={statusBarTheme}
           />
         )}
-        <View style={styles.multiAppHeader}>
-          <Image
-            source={require('../assets/images/logo_circle.png')}
-            style={styles.miniLogo}
-            resizeMode="contain"
-          />
-          <Text style={styles.multiAppTitle} numberOfLines={1}>{displayName}</Text>
-        </View>
+        <MultiAppHeader appearance={headerAppearance} />
         <FlatList
           data={missingApps ? homeScreenApps.filter(app => !missingApps.split(',').includes(app.packageName)) : homeScreenApps}
           renderItem={renderAppIcon}
@@ -552,23 +558,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   // Multi-app home screen styles
-  multiAppHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  miniLogo: {
-    width: 32,
-    height: 32,
-  },
-  multiAppTitle: {
-    flexShrink: 1,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   appGrid: {
     paddingHorizontal: 16,
     paddingTop: 20,

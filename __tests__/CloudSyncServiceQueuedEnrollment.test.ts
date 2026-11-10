@@ -21,7 +21,7 @@ const mockGetCloudCredentials = jest.fn();
 jest.mock('../src/utils/secureStorage', () => ({
   ...jest.requireActual('../src/utils/secureStorage'),
   getCloudCredentials: (...args: any[]) => mockGetCloudCredentials(...args),
-  saveCloudCredentials: jest.fn(() => Promise.resolve()),
+  saveCloudCredentials: jest.fn(() => Promise.resolve(true)),
   clearSecurePin: jest.fn(() => Promise.resolve()),
   clearSecureApiKey: jest.fn(() => Promise.resolve()),
   clearSecureMqttPassword: jest.fn(() => Promise.resolve()),

@@ -70,12 +70,13 @@ export type ProvisioningStatus =
 const PROVISIONING_RETRY_MS = 30_000;
 
 /**
- * What to show for an enrollment error. The two messages the app makes itself stay in English in the
+ * What to show for an enrollment error. The messages the app makes itself stay in English in the
  * code, since the retry logic compares them; anything else came from the server, in its own words.
  */
 export function cloudErrorText(error: string | undefined): string | undefined {
   if (error === 'Cannot reach server') return tr('system.cloudCannotReach', error);
   if (error === 'Enrollment failed') return tr('system.cloudEnrollFailed', error);
+  if (error === KEYSTORE_ENROLL_ERROR) return tr('system.cloudKeystoreFailed', error);
   return error;
 }
 
@@ -95,6 +96,10 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const UNENROLL_ATTEMPTS = 3;
 const UNENROLL_TIMEOUT_MS = 8_000;
 const UNENROLL_RETRY_DELAY_MS = 1_500;
+
+// #321: shown on the Cloud Management screen when the Keystore cannot hold the credentials.
+const KEYSTORE_ENROLL_ERROR =
+  'This device could not store its cloud credentials in the Android Keystore. Enrollment was cancelled.';
 
 /**
  * How long the cloud has to keep refusing this device's credentials before we believe it.
@@ -501,6 +506,21 @@ class CloudSyncServiceClass {
         return { success: false, error: data.error ?? 'Enrollment failed' };
       }
 
+      // #321: store the credentials first. If the Keystore cannot hold them, the device
+      // would look enrolled to the cloud and never come online, and the wipe below would
+      // have reset the kiosk for nothing. Tell the cloud with the key we hold in memory, so
+      // it revokes it and does not count the device, and keep the local settings as they are.
+      const creds: CloudCredentials = {
+        deviceId: data.device_id,
+        apiKey: data.api_key,
+        cloudUrl: url,
+        organizationName: data.organization_name,
+      };
+      if (!(await saveCloudCredentials(creds))) {
+        await this._tellCloudWeLeft(creds);
+        return { success: false, error: KEYSTORE_ENROLL_ERROR };
+      }
+
       // Wipe all local settings before applying cloud config
       await AsyncStorage.multiRemove(Object.values(KEYS));
       DeviceDisplayName.forget();
@@ -511,13 +531,6 @@ class CloudSyncServiceClass {
         clearSecureMqttPassword(),
         clearSecureBasicAuthPassword(),
       ]);
-
-      await saveCloudCredentials({
-        deviceId: data.device_id,
-        apiKey: data.api_key,
-        cloudUrl: url,
-        organizationName: data.organization_name,
-      });
 
       // First heartbeat — will pull cloud config if one exists
       await this.start();

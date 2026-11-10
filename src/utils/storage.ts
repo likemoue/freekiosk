@@ -9,6 +9,7 @@ import {
   parseDashboardIconSize,
 } from '../types/dashboard';
 import { ManagedApp } from '../types/managedApps';
+import { MultiAppAppearance, normalizeMultiAppAppearance, parseMultiAppAppearance } from '../types/multiAppAppearance';
 import { MediaItem, MediaFitMode } from '../types/mediaPlayer';
 import { saveSecureApiKey, getSecureApiKey, clearSecureApiKey, clearSecureMqttPassword } from './secureStorage';
 
@@ -20,6 +21,8 @@ export const KEYS = {
   AUTO_RELOAD: '@kiosk_auto_reload',
   // The WebView error screen leaves the failed URL out (#217)
   HIDE_ERROR_URL: '@kiosk_hide_error_url',
+  // #263: WebView cache mode LOAD_NO_CACHE, so an updated site never shows old files
+  ALWAYS_LOAD_FROM_NETWORK: '@kiosk_always_load_from_network',
   KIOSK_ENABLED: '@kiosk_enabled',
   AUTO_LAUNCH: '@kiosk_auto_launch',
   SCREEN_LOCK_COMPAT: '@kiosk_screen_lock_compat',
@@ -35,16 +38,19 @@ export const KEYS = {
   SCREENSAVER_MOTION_SENSITIVITY: '@screensaver_motion_sensitivity',
   SCREENSAVER_MOTION_DELAY: '@screensaver_motion_delay',
   SCREENSAVER_PROXIMITY_ENABLED: '@screensaver_proximity_enabled',
+  SCREENSAVER_MOTION_REQUIRE_FACE: '@screensaver_motion_require_face',
   SCREENSAVER_BRIGHTNESS: '@screensaver_brightness',
   SCREENSAVER_TYPE: '@screensaver_type',
   SCREENSAVER_URL: '@screensaver_url',
   SCREENSAVER_VIDEO_ITEMS: '@screensaver_video_items',
   SCREENSAVER_VIDEO_LOOP: '@screensaver_video_loop',
   SCREENSAVER_KEEP_EXTERNAL_APP: '@screensaver_keep_external_app',
+  SCREENSAVER_FADE_SECONDS: '@screensaver_fade_seconds',
   DEFAULT_BRIGHTNESS: '@default_brightness',
   DISPLAY_MODE: '@kiosk_display_mode',
   EXTERNAL_APP_PACKAGE: '@kiosk_external_app_package',
   EXTERNAL_APP_MODE: '@kiosk_external_app_mode', // 'single' | 'multi'
+  MULTI_APP_APPEARANCE: '@kiosk_multi_app_appearance',
   AUTO_RELAUNCH_APP: '@kiosk_auto_relaunch_app',
   OVERLAY_BUTTON_VISIBLE: '@kiosk_overlay_button_visible',
   OVERLAY_BUTTON_POSITION: '@kiosk_overlay_button_position',
@@ -221,6 +227,10 @@ export const KEYS = {
   DASHBOARD_MODE_ENABLED: '@kiosk_dashboard_mode_enabled',
   DASHBOARD_TILES: '@kiosk_dashboard_tiles',
   DASHBOARD_ICON_SIZE: '@kiosk_dashboard_icon_size',
+  DASHBOARD_NAV_AUTO_HIDE: '@kiosk_dashboard_nav_auto_hide',
+  DASHBOARD_NAV_AUTO_HIDE_SECONDS: '@kiosk_dashboard_nav_auto_hide_seconds',
+  DASHBOARD_SWIPE_BETWEEN_TILES: '@kiosk_dashboard_swipe_between_tiles',
+  DASHBOARD_KEEP_TILES_LOADED: '@kiosk_dashboard_keep_tiles_loaded',
   // Lock Screen Controls
   LOCKSCREEN_CONTROLS_ENABLED: '@kiosk_lockscreen_controls_enabled',
   LOCKSCREEN_WIFI_ENABLED: '@kiosk_lockscreen_wifi_enabled',
@@ -283,6 +293,15 @@ const deepMerge = (base: unknown, overlay: unknown): unknown => {
 export const toPrintOrigins = (value: unknown): string[] | null =>
   Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : null;
 
+/** Longest screensaver fade-out in seconds; the settings slider stops here too. */
+export const MAX_SCREENSAVER_FADE_SECONDS = 30;
+
+/** A cloud config or backup can carry any number: keep the fade within 0..30 s. */
+export const clampScreensaverFadeSeconds = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(Math.max(value, 0), MAX_SCREENSAVER_FADE_SECONDS)
+    : 0;
+
 export const StorageService = {
   //URL
   saveUrl: async (url: string): Promise<void> => {
@@ -337,6 +356,24 @@ export const StorageService = {
       return value ? JSON.parse(value) : false;
     } catch (error) {
       console.error('Error getting hide error URL:', error);
+      return false;
+    }
+  },
+
+  saveAlwaysLoadFromNetwork: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.ALWAYS_LOAD_FROM_NETWORK, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving always load from network:', error);
+    }
+  },
+
+  getAlwaysLoadFromNetwork: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.ALWAYS_LOAD_FROM_NETWORK);
+      return value ? JSON.parse(value) : false;
+    } catch (error) {
+      console.error('Error getting always load from network:', error);
       return false;
     }
   },
@@ -523,6 +560,7 @@ export const StorageService = {
         KEYS.PIN,
         KEYS.AUTO_RELOAD,
         KEYS.HIDE_ERROR_URL,
+        KEYS.ALWAYS_LOAD_FROM_NETWORK,
         KEYS.KIOSK_ENABLED,
         KEYS.AUTO_LAUNCH,
         KEYS.SCREENSAVER_ENABLED,
@@ -537,10 +575,12 @@ export const StorageService = {
         KEYS.SCREENSAVER_VIDEO_ITEMS,
         KEYS.SCREENSAVER_VIDEO_LOOP,
         KEYS.SCREENSAVER_KEEP_EXTERNAL_APP,
+        KEYS.SCREENSAVER_FADE_SECONDS,
         KEYS.DEFAULT_BRIGHTNESS,
         KEYS.DISPLAY_MODE,
         KEYS.EXTERNAL_APP_PACKAGE,
         KEYS.EXTERNAL_APP_MODE,
+        KEYS.MULTI_APP_APPEARANCE,
         KEYS.AUTO_RELAUNCH_APP,
         KEYS.OVERLAY_BUTTON_VISIBLE,
         KEYS.OVERLAY_BUTTON_POSITION,
@@ -584,6 +624,7 @@ export const StorageService = {
         KEYS.INTERCOM_MODE,
         KEYS.ALLOW_REMOTE_SCREENSHOT,
         KEYS.SCREENSAVER_PROXIMITY_ENABLED,
+        KEYS.SCREENSAVER_MOTION_REQUIRE_FACE,
         KEYS.CAMERA_STREAM_ENABLED,
         KEYS.CAMERA_STREAM_CAMERA,
         KEYS.CAMERA_STREAM_FPS,
@@ -702,6 +743,10 @@ export const StorageService = {
         KEYS.DASHBOARD_MODE_ENABLED,
         KEYS.DASHBOARD_TILES,
         KEYS.DASHBOARD_ICON_SIZE,
+        KEYS.DASHBOARD_NAV_AUTO_HIDE,
+        KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS,
+        KEYS.DASHBOARD_SWIPE_BETWEEN_TILES,
+        KEYS.DASHBOARD_KEEP_TILES_LOADED,
         // Lock Screen Controls
         KEYS.LOCKSCREEN_CONTROLS_ENABLED,
         KEYS.LOCKSCREEN_WIFI_ENABLED,
@@ -974,6 +1019,24 @@ export const StorageService = {
     }
   },
 
+  saveScreensaverMotionRequireFace: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.SCREENSAVER_MOTION_REQUIRE_FACE, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving screensaver motion require face:', error);
+    }
+  },
+
+  getScreensaverMotionRequireFace: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.SCREENSAVER_MOTION_REQUIRE_FACE);
+      return value === null ? false : JSON.parse(value);
+    } catch (error) {
+      console.error('Error getting screensaver motion require face:', error);
+      return false;
+    }
+  },
+
   saveScreensaverBrightness: async (value: number): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.SCREENSAVER_BRIGHTNESS, JSON.stringify(value));
@@ -1084,6 +1147,26 @@ export const StorageService = {
     }
   },
 
+  // Dim style only: seconds over which the screensaver fades to its target level.
+  // 0 = no fade, which keeps today's instant dim.
+  saveScreensaverFadeSeconds: async (value: number): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.SCREENSAVER_FADE_SECONDS, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving screensaver fade seconds:', error);
+    }
+  },
+
+  getScreensaverFadeSeconds: async (): Promise<number> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.SCREENSAVER_FADE_SECONDS);
+      return value === null ? 0 : clampScreensaverFadeSeconds(JSON.parse(value));
+    } catch (error) {
+      console.error('Error getting screensaver fade seconds:', error);
+      return 0;
+    }
+  },
+
   //DISPLAY MODE
   saveDisplayMode: async (mode: 'webview' | 'external_app' | 'media_player'): Promise<void> => {
     try {
@@ -1140,6 +1223,14 @@ export const StorageService = {
       console.error('Error getting external app mode:', error);
       return 'single';
     }
+  },
+
+  saveMultiAppAppearance: async (value: MultiAppAppearance): Promise<void> => {
+    await AsyncStorage.setItem(KEYS.MULTI_APP_APPEARANCE, JSON.stringify(normalizeMultiAppAppearance(value)));
+  },
+
+  getMultiAppAppearance: async (): Promise<MultiAppAppearance> => {
+    return parseMultiAppAppearance(await AsyncStorage.getItem(KEYS.MULTI_APP_APPEARANCE));
   },
 
   //AUTO RELAUNCH APP
@@ -3595,6 +3686,79 @@ export const StorageService = {
     }
   },
 
+  saveDashboardNavAutoHide: async (enabled: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.DASHBOARD_NAV_AUTO_HIDE, JSON.stringify(enabled));
+    } catch (error) {
+      console.error('Error saving dashboard nav auto-hide:', error);
+    }
+  },
+
+  getDashboardNavAutoHide: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.DASHBOARD_NAV_AUTO_HIDE);
+      // Off by default so the navigation bar keeps its current always-visible behaviour.
+      return value ? JSON.parse(value) : false;
+    } catch (error) {
+      console.error('Error getting dashboard nav auto-hide:', error);
+      return false;
+    }
+  },
+
+  saveDashboardNavAutoHideSeconds: async (value: number): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving dashboard nav auto-hide seconds:', error);
+    }
+  },
+
+  getDashboardNavAutoHideSeconds: async (): Promise<number> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS);
+      return value ? JSON.parse(value) : 4; // hide 4s after the last interaction by default
+    } catch (error) {
+      console.error('Error getting dashboard nav auto-hide seconds:', error);
+      return 4;
+    }
+  },
+
+  saveDashboardSwipeBetweenTiles: async (enabled: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES, JSON.stringify(enabled));
+    } catch (error) {
+      console.error('Error saving dashboard swipe between tiles:', error);
+    }
+  },
+
+  getDashboardSwipeBetweenTiles: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES);
+      return value ? JSON.parse(value) : false; // off by default
+    } catch (error) {
+      console.error('Error getting dashboard swipe between tiles:', error);
+      return false;
+    }
+  },
+
+  saveDashboardKeepTilesLoaded: async (enabled: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.DASHBOARD_KEEP_TILES_LOADED, JSON.stringify(enabled));
+    } catch (error) {
+      console.error('Error saving dashboard keep tiles loaded:', error);
+    }
+  },
+
+  getDashboardKeepTilesLoaded: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.DASHBOARD_KEEP_TILES_LOADED);
+      return value ? JSON.parse(value) : false; // off by default: uses more memory
+    } catch (error) {
+      console.error('Error getting dashboard keep tiles loaded:', error);
+      return false;
+    }
+  },
+
   saveHttpBasicAuthUsername: async (username: string): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.HTTP_BASIC_AUTH_USERNAME, username);
@@ -3774,6 +3938,7 @@ export const StorageService = {
         url: str(KEYS.URL),
         autoReload: bool(KEYS.AUTO_RELOAD),
         hideErrorUrl: bool(KEYS.HIDE_ERROR_URL),
+        alwaysLoadFromNetwork: bool(KEYS.ALWAYS_LOAD_FROM_NETWORK),
         pdfViewerEnabled: bool(KEYS.PDF_VIEWER_ENABLED),
         printEnabled: bool(KEYS.WINDOW_PRINT_ENABLED), // window.print(); name kept for existing exports
         printPaperSize: str(KEYS.PRINT_PAPER_SIZE, 'A4'),
@@ -3824,12 +3989,19 @@ export const StorageService = {
         externalApp: {
           package: str(KEYS.EXTERNAL_APP_PACKAGE),
           mode: str(KEYS.EXTERNAL_APP_MODE, 'single'),
+          appearance: normalizeMultiAppAppearance(json(KEYS.MULTI_APP_APPEARANCE)),
           testMode: bool(KEYS.EXTERNAL_APP_TEST_MODE, true),
         },
         managedApps: json(KEYS.MANAGED_APPS, []),
         dashboardMode: bool(KEYS.DASHBOARD_MODE_ENABLED),
         dashboardTiles: json(KEYS.DASHBOARD_TILES, []),
         dashboardIconSize: parseDashboardIconSize(str(KEYS.DASHBOARD_ICON_SIZE)),
+        dashboardNavAutoHide: {
+          enabled: bool(KEYS.DASHBOARD_NAV_AUTO_HIDE),
+          seconds: num(KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS, 4),
+        },
+        dashboardSwipeBetweenTiles: bool(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES),
+        dashboardKeepTilesLoaded: bool(KEYS.DASHBOARD_KEEP_TILES_LOADED),
         pauseWebMediaWhenHidden: bool(KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN, true),
         restartButton: {
           enabled: bool(KEYS.RESTART_BUTTON_ENABLED),
@@ -3879,6 +4051,7 @@ export const StorageService = {
           videoItems: json(KEYS.SCREENSAVER_VIDEO_ITEMS, []),
           videoLoop: bool(KEYS.SCREENSAVER_VIDEO_LOOP, true),
           keepExternalApp: bool(KEYS.SCREENSAVER_KEEP_EXTERNAL_APP),
+          fadeSeconds: num(KEYS.SCREENSAVER_FADE_SECONDS, 0),
         },
         motionDetection: {
           enabled: bool(KEYS.SCREENSAVER_MOTION_ENABLED),
@@ -3886,6 +4059,7 @@ export const StorageService = {
           cameraPosition: str(KEYS.MOTION_CAMERA_POSITION, 'front'),
           delay: num(KEYS.SCREENSAVER_MOTION_DELAY, 30000),
           proximityEnabled: bool(KEYS.SCREENSAVER_PROXIMITY_ENABLED),
+          requireFace: bool(KEYS.SCREENSAVER_MOTION_REQUIRE_FACE),
         },
         screenScheduler: {
           enabled: bool(KEYS.SCREEN_SCHEDULER_ENABLED),
@@ -4018,6 +4192,7 @@ export const StorageService = {
       set(KEYS.URL, g.url);
       set(KEYS.AUTO_RELOAD, g.autoReload);
       set(KEYS.HIDE_ERROR_URL, g.hideErrorUrl);
+      set(KEYS.ALWAYS_LOAD_FROM_NETWORK, g.alwaysLoadFromNetwork);
       set(KEYS.PDF_VIEWER_ENABLED, g.pdfViewerEnabled);
       set(KEYS.WINDOW_PRINT_ENABLED, g.printEnabled);
       set(KEYS.PRINT_PAPER_SIZE, g.printPaperSize);
@@ -4078,6 +4253,9 @@ export const StorageService = {
       if (ea) {
         set(KEYS.EXTERNAL_APP_PACKAGE, ea.package);
         set(KEYS.EXTERNAL_APP_MODE, ea.mode);
+        if (ea.appearance !== undefined) {
+          set(KEYS.MULTI_APP_APPEARANCE, normalizeMultiAppAppearance(ea.appearance));
+        }
         if (ea.testMode !== undefined) set(KEYS.EXTERNAL_APP_TEST_MODE, ea.testMode);
       }
       set(KEYS.MANAGED_APPS, g.managedApps);
@@ -4086,6 +4264,13 @@ export const StorageService = {
       if (g.dashboardIconSize !== undefined) {
         set(KEYS.DASHBOARD_ICON_SIZE, parseDashboardIconSize(g.dashboardIconSize));
       }
+      const dn = g.dashboardNavAutoHide as Record<string, unknown> | undefined;
+      if (dn) {
+        set(KEYS.DASHBOARD_NAV_AUTO_HIDE, dn.enabled);
+        set(KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS, dn.seconds);
+      }
+      set(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES, g.dashboardSwipeBetweenTiles);
+      set(KEYS.DASHBOARD_KEEP_TILES_LOADED, g.dashboardKeepTilesLoaded);
       set(KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN, g.pauseWebMediaWhenHidden);
       const rb = g.restartButton as Record<string, unknown> | undefined;
       if (rb) {
@@ -4141,6 +4326,7 @@ export const StorageService = {
         set(KEYS.SCREENSAVER_VIDEO_ITEMS, ss.videoItems);
         set(KEYS.SCREENSAVER_VIDEO_LOOP, ss.videoLoop);
         set(KEYS.SCREENSAVER_KEEP_EXTERNAL_APP, ss.keepExternalApp);
+        set(KEYS.SCREENSAVER_FADE_SECONDS, ss.fadeSeconds);
       }
       const md = d.motionDetection as Record<string, unknown> | undefined;
       if (md) {
@@ -4152,6 +4338,7 @@ export const StorageService = {
         set(KEYS.SCREENSAVER_MOTION_DELAY, md.delay);
         set(KEYS.MOTION_DELAY, md.delay);
         set(KEYS.SCREENSAVER_PROXIMITY_ENABLED, md.proximityEnabled);
+        set(KEYS.SCREENSAVER_MOTION_REQUIRE_FACE, md.requireFace);
       }
       const sch = d.screenScheduler as Record<string, unknown> | undefined;
       if (sch) {

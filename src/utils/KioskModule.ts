@@ -65,6 +65,10 @@ interface KioskModuleInterface {
   bringToFront(): Promise<boolean>;
   // #180 — Gate the native tap-to-settings fallback to the kiosk screen only
   setKioskScreenActive(active: boolean): Promise<boolean>;
+  /** Android TV: the screensaver is showing, so a remote key wakes it (see MainActivity.dispatchKeyEvent). */
+  setScreensaverShowing(active: boolean): Promise<boolean>;
+  // Dashboard: report two-finger swipes as 'onNavGesture' events while a tile is shown
+  setNavGestureEnabled(enabled: boolean): Promise<boolean>;
   // #135 — Dismiss the soft keyboard at the window level (works for WebView inputs too)
   hideKeyboard(): Promise<boolean>;
   // #177 — Pause/resume the content WebView's renderer (stops background audio/video).

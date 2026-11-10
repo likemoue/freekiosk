@@ -11,7 +11,15 @@ interface MotionDetectorProps {
   onMotionDetected: () => void;
   sensitivity: 'low' | 'medium' | 'high';
   cameraPosition?: 'front' | 'back';
+  /** Only trigger when a face is in the frame (checked natively, see MotionDetectionModule.kt) */
+  requireFace?: boolean;
   onStatusChange?: (status: MotionStatus) => void;
+  /**
+   * Change it when the app itself changes the scene, e.g. the screensaver dims the screen: in a
+   * dark room the camera sees that as movement. Detection takes a new reference frame and
+   * skips the warm-up frames again.
+   */
+  referenceKey?: unknown;
 }
 
 const THROTTLE_INTERVAL = 2000; // Minimum 2s entre détections
@@ -36,7 +44,9 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   onMotionDetected,
   sensitivity,
   cameraPosition = 'front',
+  requireFace = false,
   onStatusChange,
+  referenceKey,
 }) => {
   const device = useCameraDevice(cameraPosition);
   const { hasPermission } = useCameraPermission();
@@ -53,6 +63,19 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
   const captureCount = useRef<number>(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  // The parent passes a new callback on every render. Read through a ref so a new one does not
+  // restart detection (native reset + warm-up, ~4.5 s blind each time the screensaver came on).
+  const onMotionDetectedRef = useRef(onMotionDetected);
+  onMotionDetectedRef.current = onMotionDetected;
+
+  // A new referenceKey: new reference frame, warm-up again, detection keeps running
+  const referenceKeyRef = useRef(referenceKey);
+  useEffect(() => {
+    if (Object.is(referenceKeyRef.current, referenceKey)) return;
+    referenceKeyRef.current = referenceKey;
+    warmupFrames.current = 0;
+    MotionDetectionModule?.reset().catch(() => {});
+  }, [referenceKey]);
 
   // #301 — recovery after another app took the camera. CameraX closes the session and never
   // reopens it by itself; only an isActive false -> true cycle does.
@@ -222,21 +245,18 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
 
       captureCount.current += 1;
 
-      // Skip warmup frames
-      if (warmupFrames.current < WARMUP_FRAMES) {
+      // Warm-up frames only build the native reference and must not open the face window
+      const isWarmup = warmupFrames.current < WARMUP_FRAMES;
+      if (isWarmup) {
         warmupFrames.current += 1;
         console.log(`[MotionDetection] Camera2 warmup frame ${warmupFrames.current}/${WARMUP_FRAMES}`);
-        await MotionDetectionModule.compareImages(
-          photoPath,
-          SENSITIVITY_THRESHOLDS[sensitivity]
-        );
-        return;
       }
-
       const hasMotion = await MotionDetectionModule.compareImages(
         photoPath,
-        SENSITIVITY_THRESHOLDS[sensitivity]
+        SENSITIVITY_THRESHOLDS[sensitivity],
+        requireFace && !isWarmup
       );
+      if (isWarmup) return;
 
       if (captureCount.current % 10 === 0) {
         console.log(`[MotionDetection] Camera2 capture #${captureCount.current}, hasMotion=${hasMotion}`);
@@ -249,7 +269,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         const now = Date.now();
         if (now - lastMotionTime.current > THROTTLE_INTERVAL) {
           lastMotionTime.current = now;
-          onMotionDetected();
+          onMotionDetectedRef.current();
         }
       }
     } catch (error: any) {
@@ -259,7 +279,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     } finally {
       isCapturing.current = false;
     }
-  }, [enabled, sensitivity, onMotionDetected, cameraPosition]);
+  }, [enabled, sensitivity, requireFace, cameraPosition]);
 
   const captureAndCompare = useCallback(async () => {
     // Guard against multiple concurrent captures and unmounted state
@@ -294,24 +314,20 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
 
       captureCount.current += 1;
 
-      // Skip warmup frames to let camera auto-exposure adjust
-      // This is critical when screen brightness is 0 (dark environment)
-      if (warmupFrames.current < WARMUP_FRAMES) {
+      // Warm-up frames let the camera's auto-exposure adjust (critical when screen
+      // brightness is 0). They still go to native to build up the "previous" frame, but
+      // their result is ignored and they must not open the face window.
+      const isWarmup = warmupFrames.current < WARMUP_FRAMES;
+      if (isWarmup) {
         warmupFrames.current += 1;
         console.log(`[MotionDetection] Warmup frame ${warmupFrames.current}/${WARMUP_FRAMES}, skipping comparison`);
-        // Still send to native to build up the "previous" frame
-        await MotionDetectionModule.compareImages(
-          photo.path,
-          SENSITIVITY_THRESHOLDS[sensitivity]
-        );
-        return;
       }
-
-      // Use native module for pixel comparison
       const hasMotion = await MotionDetectionModule.compareImages(
         photo.path,
-        SENSITIVITY_THRESHOLDS[sensitivity]
+        SENSITIVITY_THRESHOLDS[sensitivity],
+        requireFace && !isWarmup
       );
+      if (isWarmup) return;
 
       // Log periodically (every 10 captures) to avoid log spam
       if (captureCount.current % 10 === 0) {
@@ -328,7 +344,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
         const now = Date.now();
         if (now - lastMotionTime.current > THROTTLE_INTERVAL) {
           lastMotionTime.current = now;
-          onMotionDetected();
+          onMotionDetectedRef.current();
         } else {
           console.log('[MotionDetection] Motion throttled (too soon after last detection)');
         }
@@ -342,7 +358,7 @@ const MotionDetector: React.FC<MotionDetectorProps> = ({
     } finally {
       isCapturing.current = false;
     }
-  }, [enabled, sensitivity, onMotionDetected, isCameraReady]);
+  }, [enabled, sensitivity, requireFace, isCameraReady]);
 
   // Start detection in Camera2 fallback mode
   const startCamera2Detection = useCallback(() => {
