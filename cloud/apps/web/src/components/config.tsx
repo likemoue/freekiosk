@@ -79,6 +79,8 @@ export const CONFIG_SECTIONS: Array<{ id: string; title: string; hint?: string; 
       { path: 'security.returnMode', label: 'Cách vào cài đặt', hint: 'Chỉ có tác dụng trên màn hình kiosk. Khi đang mở ứng dụng thì chạm màn hình, nút cố định và nút âm lượng đều không vào được cài đặt, trừ chế độ một ứng dụng.', type: 'select', options: [{ value: 'tap_anywhere', label: 'Chạm nhiều lần bất kỳ đâu' }, { value: 'button', label: 'Nút cố định' }] },
       { path: 'security.returnTapCount', label: 'Số lần chạm', type: 'number', min: 2, max: 20 },
       { path: 'security.pinMaxAttempts', label: 'Số lần nhập sai PIN tối đa', type: 'number', min: 1, max: 100 },
+      { path: 'security.lockscreen.enabled', label: 'Điều khiển trên màn hình khóa', hint: 'Các nút nhanh trên màn hình nhập PIN. Từng nút bật trong JSON, ở security.lockscreen.', type: 'bool' },
+      { path: 'security.lockscreen.clearData', label: 'Nút Xóa dữ liệu trên màn hình nhập PIN', hint: 'Không hỏi PIN: ai cầm máy cũng chọn được ứng dụng trên màn hình kiosk và xóa dữ liệu của nó (đăng nhập, tệp, cài đặt). Cần bật dòng trên, Device Owner và Android 9. Bản app cũ bỏ qua dòng này.', type: 'bool' },
       { path: 'security.urlFilter.enabled', label: 'Lọc URL', type: 'bool' },
       { path: 'security.urlFilter.mode', label: 'Kiểu lọc', type: 'select', options: [{ value: 'blacklist', label: 'Danh sách chặn' }, { value: 'whitelist', label: 'Danh sách cho phép' }] },
       { path: 'security.urlFilter.list', label: 'Danh sách URL', hint: 'Mỗi mẫu một dòng.', type: 'list' },

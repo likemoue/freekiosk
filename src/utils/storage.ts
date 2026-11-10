@@ -230,6 +230,7 @@ export const KEYS = {
   LOCKSCREEN_FLASHLIGHT_ENABLED: '@kiosk_lockscreen_flashlight_enabled',
   LOCKSCREEN_BRIGHTNESS_ENABLED: '@kiosk_lockscreen_brightness_enabled',
   LOCKSCREEN_ROTATION_LOCK_ENABLED: '@kiosk_lockscreen_rotation_lock_enabled',
+  LOCKSCREEN_CLEAR_DATA_ENABLED: '@kiosk_lockscreen_clear_data_enabled',
   // HTTP Basic Auth
   HTTP_BASIC_AUTH_USERNAME: '@kiosk_http_basic_auth_username',
   // Cloud sync metadata (local tracking only, never synced)
@@ -710,6 +711,7 @@ export const StorageService = {
         KEYS.LOCKSCREEN_FLASHLIGHT_ENABLED,
         KEYS.LOCKSCREEN_BRIGHTNESS_ENABLED,
         KEYS.LOCKSCREEN_ROTATION_LOCK_ENABLED,
+        KEYS.LOCKSCREEN_CLEAR_DATA_ENABLED,
         // HTTP Basic Auth
         KEYS.HTTP_BASIC_AUTH_USERNAME,
         // Managed Apps
@@ -3936,6 +3938,7 @@ export const StorageService = {
           flashlight: bool(KEYS.LOCKSCREEN_FLASHLIGHT_ENABLED),
           brightness: bool(KEYS.LOCKSCREEN_BRIGHTNESS_ENABLED),
           rotationLock: bool(KEYS.LOCKSCREEN_ROTATION_LOCK_ENABLED),
+          clearData: bool(KEYS.LOCKSCREEN_CLEAR_DATA_ENABLED),
         },
       },
       advanced: {
@@ -4206,6 +4209,7 @@ export const StorageService = {
         set(KEYS.LOCKSCREEN_FLASHLIGHT_ENABLED, ls.flashlight);
         set(KEYS.LOCKSCREEN_BRIGHTNESS_ENABLED, ls.brightness);
         set(KEYS.LOCKSCREEN_ROTATION_LOCK_ENABLED, ls.rotationLock);
+        set(KEYS.LOCKSCREEN_CLEAR_DATA_ENABLED, ls.clearData);
       }
     }
 
@@ -4416,6 +4420,25 @@ export const StorageService = {
       return value ? JSON.parse(value) : false;
     } catch (error) {
       console.error('Error getting lockscreen rotation lock enabled:', error);
+      return false;
+    }
+  },
+
+  // A button on the PIN screen that clears the data of the kiosk's apps, with no PIN: off unless chosen
+  saveLockscreenClearDataEnabled: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.LOCKSCREEN_CLEAR_DATA_ENABLED, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving lockscreen clear data enabled:', error);
+    }
+  },
+
+  getLockscreenClearDataEnabled: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.LOCKSCREEN_CLEAR_DATA_ENABLED);
+      return value ? JSON.parse(value) : false;
+    } catch (error) {
+      console.error('Error getting lockscreen clear data enabled:', error);
       return false;
     }
   },

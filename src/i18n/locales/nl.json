@@ -577,7 +577,11 @@
       "brightnessHint": "Toon een helderheidsknop op het pincodescherm. Opent een schuifregelaar.",
       "rotationLock": "Roteervergrendeling op vergrendelscherm",
       "rotationLockHintAvailable": "Toon een schakelaar voor roteervergrendeling op het pincodescherm.",
-      "rotationLockHintUnavailable": "Niet beschikbaar op dit apparaat omdat Android deze app niet toestaat de rotatie-instellingen van het systeem te wijzigen."
+      "rotationLockHintUnavailable": "Niet beschikbaar op dit apparaat omdat Android deze app niet toestaat de rotatie-instellingen van het systeem te wijzigen.",
+      "clearData": "Knop om app-gegevens te wissen",
+      "clearDataHint": "Toont een knop 'Gegevens wissen' op het pincodescherm. Iedereen bij het apparaat kan een app van het kioskscherm kiezen en de gegevens ervan (aanmeldingen, bestanden, instellingen) wissen zonder pincode. De app blijft geïnstalleerd.",
+      "clearDataHintUnavailable": "Vereist Device Owner-modus en Android 9 of hoger.",
+      "clearDataWarning": "Er wordt geen pincode gevraagd: iedereen bij het apparaat kan alle gebruikers afmelden in de kiosk-apps en wissen wat die hebben opgeslagen."
     },
     "returnInfo": {
       "tvExternal": "• Niet beschikbaar zolang een andere app op de voorgrond staat: de afstandsbediening kan je niet terugbrengen. Gebruik FreeKiosk Cloud, MQTT, de REST API of adb",
@@ -983,6 +987,7 @@
       "lightOn": "Licht aan",
       "brightness": "Helderheid",
       "rotate": "Roteren",
+      "clearData": "Gegevens wissen",
       "emergency": "Nood"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Geen selecteerbare uitvoeren gevonden",
       "unmute": "Dempen opheffen",
       "mute": "Dempen"
+    },
+    "clearAppDataDialog": {
+      "title": "App-gegevens wissen",
+      "hint": "Kies de apps die u wilt resetten. Aanmeldingen, bestanden en instellingen worden verwijderd; de apps blijven op het apparaat.",
+      "noApps": "Het kioskscherm bevat geen apps.",
+      "cancel": "Annuleren",
+      "clear": "Gegevens wissen",
+      "confirmTitle": "Gegevens wissen?",
+      "confirmMessage": "Alles wat {{apps}} heeft opgeslagen wordt verwijderd, inclusief aanmeldingen. Dit kan niet ongedaan worden gemaakt.",
+      "confirm": "Wissen",
+      "doneTitle": "Gegevens gewist",
+      "errorTitle": "Kan gegevens niet wissen",
+      "cleared": "Gewist: {{apps}}.",
+      "failed": "Niet gewist: {{apps}}.",
+      "missing": "Niet op dit apparaat: {{apps}}.",
+      "permissionsLost": "Android gaf sommige machtigingen van {{apps}} niet terug: een beheerder moet ze opnieuw verlenen.",
+      "genericError": "Er is een fout opgetreden. Probeer het opnieuw."
     },
     "qrScannerModal": {
       "cancel": "Annuleren",

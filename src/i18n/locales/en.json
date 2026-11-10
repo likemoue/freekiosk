@@ -577,7 +577,11 @@
       "brightnessHint": "Show a brightness button on the PIN entry screen. Opens a slider.",
       "rotationLock": "Rotation lock on lock screen",
       "rotationLockHintAvailable": "Show a rotation lock toggle on the PIN entry screen.",
-      "rotationLockHintUnavailable": "Unavailable on this device because Android is not allowing this app to change system rotation settings."
+      "rotationLockHintUnavailable": "Unavailable on this device because Android is not allowing this app to change system rotation settings.",
+      "clearData": "Clear app data button",
+      "clearDataHint": "Shows a Clear data button on the PIN screen. Anyone at the device can pick an app of the kiosk screen and clear its data (sign-ins, files, settings) without the PIN. The app stays installed.",
+      "clearDataHintUnavailable": "Needs Device Owner mode and Android 9 or later.",
+      "clearDataWarning": "No PIN is asked: whoever is at the device can sign every user out of the kiosk's apps and wipe what they stored."
     },
     "returnInfo": {
       "tvExternal": "• Not available while another app is in front: the remote cannot bring you back. Use FreeKiosk Cloud, MQTT, the REST API or adb",
@@ -983,6 +987,7 @@
       "lightOn": "Light On",
       "brightness": "Brightness",
       "rotate": "Rotate",
+      "clearData": "Clear data",
       "emergency": "Emergency"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "No selectable outputs found",
       "unmute": "Unmute",
       "mute": "Mute"
+    },
+    "clearAppDataDialog": {
+      "title": "Clear app data",
+      "hint": "Pick the apps to reset. Their sign-ins, files and settings are deleted; the apps stay on the device.",
+      "noApps": "The kiosk screen has no apps.",
+      "cancel": "Cancel",
+      "clear": "Clear data",
+      "confirmTitle": "Clear app data?",
+      "confirmMessage": "Everything {{apps}} has stored will be deleted, sign-ins included. This cannot be undone.",
+      "confirm": "Clear",
+      "doneTitle": "Data cleared",
+      "errorTitle": "Could not clear data",
+      "cleared": "Cleared: {{apps}}.",
+      "failed": "Not cleared: {{apps}}.",
+      "missing": "Not on this device: {{apps}}.",
+      "permissionsLost": "Android did not give back some permissions of {{apps}}: an administrator has to grant them again.",
+      "genericError": "An error occurred. Please try again."
     },
     "qrScannerModal": {
       "cancel": "Cancel",

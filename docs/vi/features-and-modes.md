@@ -107,7 +107,7 @@
 - **Ngăn chặn lớp phủ** - Chặn hộp thoại hệ thống và thông báo
 - **Dịch vụ Watchdog** - Tự động phục hồi và giám sát
 - **Bảo vệ bằng PIN** - Bảo vệ quyền truy cập cài đặt
-- **Điều khiển trên màn hình khóa** - Các nút điều khiển tùy chọn trên màn hình nhập PIN cho Wi-Fi, Bluetooth, đầu ra âm thanh, đèn pin, độ sáng, gọi khẩn cấp và khóa xoay thiết bị (nếu được hỗ trợ)
+- **Điều khiển trên màn hình khóa** - Các nút điều khiển tùy chọn trên màn hình nhập PIN cho Wi-Fi, Bluetooth, đầu ra âm thanh, đèn pin, độ sáng, gọi khẩn cấp và khóa xoay thiết bị (nếu được hỗ trợ), và nút Xóa dữ liệu: chọn ứng dụng trên màn hình kiosk rồi xóa dữ liệu của nó mà không cần PIN (Device Owner, Android 9 trở lên)
 - **Ghim màn hình** - Chính sách lock task
 
 

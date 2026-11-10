@@ -577,7 +577,11 @@
       "brightnessHint": "Zeigt eine Helligkeits-Schaltfläche auf der PIN-Eingabe an. Öffnet einen Schieberegler.",
       "rotationLock": "Drehsperre auf dem Sperrbildschirm",
       "rotationLockHintAvailable": "Zeigt einen Schalter für die Drehsperre auf der PIN-Eingabe an.",
-      "rotationLockHintUnavailable": "Auf diesem Gerät nicht verfügbar, da Android dieser App nicht erlaubt, die Systemeinstellungen für die Bildschirmdrehung zu ändern."
+      "rotationLockHintUnavailable": "Auf diesem Gerät nicht verfügbar, da Android dieser App nicht erlaubt, die Systemeinstellungen für die Bildschirmdrehung zu ändern.",
+      "clearData": "Schaltfläche „App-Daten löschen“",
+      "clearDataHint": "Zeigt auf dem PIN-Bildschirm eine Schaltfläche „Daten löschen“. Jeder am Gerät kann eine App des Kiosk-Bildschirms wählen und ihre Daten (Anmeldungen, Dateien, Einstellungen) ohne PIN löschen. Die App bleibt installiert.",
+      "clearDataHintUnavailable": "Erfordert den Device-Owner-Modus und Android 9 oder neuer.",
+      "clearDataWarning": "Es wird keine PIN abgefragt: Wer am Gerät ist, kann alle Benutzer von den Kiosk-Apps abmelden und deren gespeicherte Daten löschen."
     },
     "returnInfo": {
       "tvExternal": "• Nicht verfügbar, solange eine andere App im Vordergrund ist: Die Fernbedienung kann dich nicht zurückbringen. Verwende FreeKiosk Cloud, MQTT, die REST API oder adb",
@@ -983,6 +987,7 @@
       "lightOn": "Licht an",
       "brightness": "Helligkeit",
       "rotate": "Drehen",
+      "clearData": "Daten löschen",
       "emergency": "Notruf"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Keine auswählbaren Ausgaben gefunden",
       "unmute": "Stumm aufheben",
       "mute": "Stummschalten"
+    },
+    "clearAppDataDialog": {
+      "title": "App-Daten löschen",
+      "hint": "Wählen Sie die Apps aus, die zurückgesetzt werden sollen. Anmeldungen, Dateien und Einstellungen werden gelöscht; die Apps bleiben auf dem Gerät.",
+      "noApps": "Der Kiosk-Bildschirm enthält keine Apps.",
+      "cancel": "Abbrechen",
+      "clear": "Daten löschen",
+      "confirmTitle": "App-Daten löschen?",
+      "confirmMessage": "Alle von {{apps}} gespeicherten Daten werden gelöscht, einschließlich Anmeldungen. Dies kann nicht rückgängig gemacht werden.",
+      "confirm": "Löschen",
+      "doneTitle": "Daten gelöscht",
+      "errorTitle": "Daten konnten nicht gelöscht werden",
+      "cleared": "Gelöscht: {{apps}}.",
+      "failed": "Nicht gelöscht: {{apps}}.",
+      "missing": "Nicht auf diesem Gerät: {{apps}}.",
+      "permissionsLost": "Android hat einige Berechtigungen von {{apps}} nicht zurückgegeben: Ein Administrator muss sie erneut erteilen.",
+      "genericError": "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
     },
     "qrScannerModal": {
       "cancel": "Abbrechen",

@@ -577,7 +577,11 @@
       "brightnessHint": "Mostra un pulsante della luminosità nella schermata del PIN. Apre un cursore.",
       "rotationLock": "Blocco della rotazione nella schermata di blocco",
       "rotationLockHintAvailable": "Mostra un interruttore del blocco della rotazione nella schermata del PIN.",
-      "rotationLockHintUnavailable": "Non disponibile su questo dispositivo perché Android non consente a questa app di modificare le impostazioni di rotazione del sistema."
+      "rotationLockHintUnavailable": "Non disponibile su questo dispositivo perché Android non consente a questa app di modificare le impostazioni di rotazione del sistema.",
+      "clearData": "Pulsante per cancellare i dati delle app",
+      "clearDataHint": "Mostra un pulsante «Cancella dati» nella schermata del PIN. Chiunque davanti al dispositivo può scegliere un'app della schermata kiosk e cancellarne i dati (accessi, file, impostazioni) senza il PIN. L'app resta installata.",
+      "clearDataHintUnavailable": "Richiede la modalità Device Owner e Android 9 o successivo.",
+      "clearDataWarning": "Il PIN non viene richiesto: chiunque davanti al dispositivo può disconnettere tutti gli utenti dalle app del kiosk e cancellare ciò che hanno salvato."
     },
     "returnInfo": {
       "tvExternal": "• Non disponibile mentre un'altra app è in primo piano: il telecomando non può riportarti indietro. Usa FreeKiosk Cloud, MQTT, l'API REST o adb",
@@ -983,6 +987,7 @@
       "lightOn": "Accendi",
       "brightness": "Luminosità",
       "rotate": "Ruota",
+      "clearData": "Cancella dati",
       "emergency": "Emergenza"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Nessuna uscita selezionabile trovata",
       "unmute": "Riattiva audio",
       "mute": "Disattiva audio"
+    },
+    "clearAppDataDialog": {
+      "title": "Cancella dati delle app",
+      "hint": "Scegli le app da reimpostare. Accessi, file e impostazioni vengono eliminati; le app restano sul dispositivo.",
+      "noApps": "La schermata kiosk non contiene app.",
+      "cancel": "Annulla",
+      "clear": "Cancella dati",
+      "confirmTitle": "Cancellare i dati?",
+      "confirmMessage": "Tutto ciò che {{apps}} ha salvato verrà eliminato, accessi compresi. L'operazione non può essere annullata.",
+      "confirm": "Cancella",
+      "doneTitle": "Dati cancellati",
+      "errorTitle": "Impossibile cancellare i dati",
+      "cleared": "Cancellati: {{apps}}.",
+      "failed": "Non cancellati: {{apps}}.",
+      "missing": "Non presente su questo dispositivo: {{apps}}.",
+      "permissionsLost": "Android non ha restituito alcune autorizzazioni di {{apps}}: un amministratore deve concederle di nuovo.",
+      "genericError": "Si è verificato un errore. Riprova."
     },
     "qrScannerModal": {
       "cancel": "Annulla",
