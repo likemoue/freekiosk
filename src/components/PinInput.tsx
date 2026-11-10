@@ -6,6 +6,7 @@ import WifiDialog from './WifiDialog';
 import BluetoothDialog from './BluetoothDialog';
 import AudioOutputDialog from './AudioOutputDialog';
 import BrightnessDialog from './BrightnessDialog';
+import ClearAppDataDialog from './ClearAppDataDialog';
 import Icon from './Icon';
 import { Colors } from '../theme';
 import { useTranslation } from 'react-i18next';
@@ -34,10 +35,12 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   const [showFlashlightButton, setShowFlashlightButton] = useState(false);
   const [showBrightnessButton, setShowBrightnessButton] = useState(false);
   const [showRotationLockButton, setShowRotationLockButton] = useState(false);
+  const [showClearDataButton, setShowClearDataButton] = useState(false);
   const [wifiDialogVisible, setWifiDialogVisible] = useState(false);
   const [bluetoothDialogVisible, setBluetoothDialogVisible] = useState(false);
   const [audioDialogVisible, setAudioDialogVisible] = useState(false);
   const [brightnessDialogVisible, setBrightnessDialogVisible] = useState(false);
+  const [clearDataDialogVisible, setClearDataDialogVisible] = useState(false);
   const [flashlightAvailable, setFlashlightAvailable] = useState(false);
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [flashlightBusy, setFlashlightBusy] = useState(false);
@@ -57,7 +60,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   }, []);
 
   const loadLockscreenSettings = async (): Promise<void> => {
-    const [controlsEnabled, wifi, bluetooth, audio, emergency, flashlight, brightness, rotationLock] = await Promise.all([
+    const [controlsEnabled, wifi, bluetooth, audio, emergency, flashlight, brightness, rotationLock, clearData] = await Promise.all([
       StorageService.getLockscreenControlsEnabled(),
       StorageService.getLockscreenWifiEnabled(),
       StorageService.getLockscreenBluetoothEnabled(),
@@ -66,6 +69,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
       StorageService.getLockscreenFlashlightEnabled(),
       StorageService.getLockscreenBrightnessEnabled(),
       StorageService.getLockscreenRotationLockEnabled(),
+      StorageService.getLockscreenClearDataEnabled(),
     ]);
 
     setShowWifiButton(controlsEnabled && wifi);
@@ -76,6 +80,15 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     setShowFlashlightButton(controlsEnabled && flashlight && !Platform.isTV);
     setShowBrightnessButton(controlsEnabled && brightness && !Platform.isTV);
     setShowRotationLockButton(controlsEnabled && rotationLock && !Platform.isTV);
+
+    // Clearing another app's data takes a Device Owner and Android 9: no button that could only fail
+    if (controlsEnabled && clearData && KioskModule?.clearAppData && Number(Platform.Version) >= 28) {
+      try {
+        setShowClearDataButton(Boolean(await KioskModule.isDeviceOwner()));
+      } catch (e) {
+        console.warn('[PinInput] device owner check error:', e);
+      }
+    }
 
     if (controlsEnabled && flashlight && FlashlightModule?.isAvailable) {
       try {
@@ -264,7 +277,8 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     showEmergencyButton ||
     (showFlashlightButton && flashlightAvailable) ||
     showBrightnessButton ||
-    showRotationLockButton;
+    showRotationLockButton ||
+    showClearDataButton;
 
   return (
     <View style={styles.container}>
@@ -383,6 +397,13 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
             </TouchableOpacity>
           )}
 
+          {showClearDataButton && (
+            <TouchableOpacity style={styles.quickBtn} onPress={() => setClearDataDialogVisible(true)}>
+              <Icon name="delete-sweep" size={24} color={Colors.error} style={styles.quickBtnIcon} />
+              <Text style={styles.quickBtnLabel}>{t('components.pinInput.clearData')}</Text>
+            </TouchableOpacity>
+          )}
+
           {showEmergencyButton && (
             <TouchableOpacity style={[styles.quickBtn, styles.emergencyBtn]} onPress={handleEmergencyCall}>
               <Icon name="phone" size={24} color={Colors.error} style={styles.quickBtnIcon} />
@@ -396,6 +417,7 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
       <BluetoothDialog visible={bluetoothDialogVisible} onClose={() => setBluetoothDialogVisible(false)} />
       <AudioOutputDialog visible={audioDialogVisible} onClose={() => setAudioDialogVisible(false)} />
       <BrightnessDialog visible={brightnessDialogVisible} onClose={() => setBrightnessDialogVisible(false)} />
+      <ClearAppDataDialog visible={clearDataDialogVisible} onClose={() => setClearDataDialogVisible(false)} />
     </View>
   );
 };

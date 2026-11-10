@@ -577,7 +577,11 @@
       "brightnessHint": "Afficher un bouton de luminosité sur l'écran de saisie du PIN. Ouvre un curseur.",
       "rotationLock": "Verrouillage de rotation sur écran verrouillé",
       "rotationLockHintAvailable": "Afficher un bouton de verrouillage de rotation sur l'écran de saisie du PIN.",
-      "rotationLockHintUnavailable": "Indisponible sur cet appareil car Android n'autorise pas cette application à modifier les réglages de rotation système."
+      "rotationLockHintUnavailable": "Indisponible sur cet appareil car Android n'autorise pas cette application à modifier les réglages de rotation système.",
+      "clearData": "Bouton d'effacement des données",
+      "clearDataHint": "Affiche un bouton « Effacer les données » sur l'écran du code PIN. Toute personne devant l'appareil peut choisir une application de l'écran kiosque et effacer ses données (connexions, fichiers, réglages) sans le code PIN. L'application reste installée.",
+      "clearDataHintUnavailable": "Nécessite le mode Device Owner et Android 9 ou ultérieur.",
+      "clearDataWarning": "Aucun code PIN n'est demandé : quiconque se trouve devant l'appareil peut déconnecter tous les utilisateurs des applications du kiosque et effacer ce qu'elles ont enregistré."
     },
     "returnInfo": {
       "tvExternal": "• Indisponible quand une autre application est au premier plan : la télécommande ne peut pas vous ramener. Utilisez FreeKiosk Cloud, MQTT, l'API REST ou adb",
@@ -983,6 +987,7 @@
       "lightOn": "Allumer",
       "brightness": "Luminosité",
       "rotate": "Rotation",
+      "clearData": "Effacer données",
       "emergency": "Urgence"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Aucune sortie sélectionnable trouvée",
       "unmute": "Réactiver le son",
       "mute": "Couper le son"
+    },
+    "clearAppDataDialog": {
+      "title": "Effacer les données d'application",
+      "hint": "Choisissez les applications à réinitialiser. Leurs connexions, fichiers et réglages sont supprimés ; les applications restent sur l'appareil.",
+      "noApps": "L'écran kiosque ne contient aucune application.",
+      "cancel": "Annuler",
+      "clear": "Effacer les données",
+      "confirmTitle": "Effacer les données ?",
+      "confirmMessage": "Tout ce que {{apps}} a enregistré sera supprimé, connexions comprises. Cette action est irréversible.",
+      "confirm": "Effacer",
+      "doneTitle": "Données effacées",
+      "errorTitle": "Impossible d'effacer les données",
+      "cleared": "Effacé : {{apps}}.",
+      "failed": "Non effacé : {{apps}}.",
+      "missing": "Absent de cet appareil : {{apps}}.",
+      "permissionsLost": "Android n'a pas rendu certaines autorisations de {{apps}} : un administrateur doit les accorder à nouveau.",
+      "genericError": "Une erreur s'est produite. Veuillez réessayer."
     },
     "qrScannerModal": {
       "cancel": "Annuler",

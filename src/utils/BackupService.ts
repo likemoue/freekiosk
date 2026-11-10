@@ -164,6 +164,7 @@ const BACKUP_KEYS = [
   '@kiosk_lockscreen_audio_enabled',
   '@kiosk_lockscreen_bluetooth_enabled',
   '@kiosk_lockscreen_brightness_enabled',
+  '@kiosk_lockscreen_clear_data_enabled',
   '@kiosk_lockscreen_controls_enabled',
   '@kiosk_lockscreen_emergency_call_enabled',
   '@kiosk_lockscreen_flashlight_enabled',

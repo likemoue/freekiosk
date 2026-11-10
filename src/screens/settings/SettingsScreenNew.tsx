@@ -229,6 +229,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
   const [lockscreenBrightnessEnabled, setLockscreenBrightnessEnabled] = useState<boolean>(false);
   const [lockscreenRotationLockEnabled, setLockscreenRotationLockEnabled] = useState<boolean>(false);
   const [lockscreenRotationLockAvailable, setLockscreenRotationLockAvailable] = useState<boolean>(false);
+  const [lockscreenClearDataEnabled, setLockscreenClearDataEnabled] = useState<boolean>(false);
 
   // PDF Viewer state
   const [pdfViewerEnabled, setPdfViewerEnabled] = useState<boolean>(false);
@@ -781,6 +782,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     const savedLockscreenFlashlight = await StorageService.getLockscreenFlashlightEnabled();
     const savedLockscreenBrightness = await StorageService.getLockscreenBrightnessEnabled();
     const savedLockscreenRotationLock = await StorageService.getLockscreenRotationLockEnabled();
+    const savedLockscreenClearData = await StorageService.getLockscreenClearDataEnabled();
     let rotationLockAvailable = false;
     try {
       rotationLockAvailable = Boolean(await RotationControlModule?.isAvailable?.());
@@ -796,6 +798,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     setLockscreenFlashlightEnabled(savedLockscreenFlashlight);
     setLockscreenBrightnessEnabled(savedLockscreenBrightness);
     setLockscreenRotationLockEnabled(rotationLockAvailable && savedLockscreenRotationLock);
+    setLockscreenClearDataEnabled(savedLockscreenClearData);
 
     // PDF Viewer setting
     const savedPdfViewerEnabled = await StorageService.getPdfViewerEnabled();
@@ -1133,7 +1136,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
       !lockscreenEmergencyCallEnabled &&
       !lockscreenAudioEnabled &&
       !lockscreenFlashlightEnabled &&
-      !lockscreenBrightnessEnabled
+      !lockscreenBrightnessEnabled &&
+      !lockscreenClearDataEnabled
     ) {
       setLockscreenWifiEnabled(true);
       setLockscreenBluetoothEnabled(true);
@@ -1773,6 +1777,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
     await StorageService.saveLockscreenFlashlightEnabled(lockscreenFlashlightEnabled);
     await StorageService.saveLockscreenBrightnessEnabled(lockscreenBrightnessEnabled);
     await StorageService.saveLockscreenRotationLockEnabled(lockscreenRotationLockAvailable && lockscreenRotationLockEnabled);
+    await StorageService.saveLockscreenClearDataEnabled(lockscreenClearDataEnabled);
 
     // Save PDF Viewer setting
     await StorageService.savePdfViewerEnabled(pdfViewerEnabled);
@@ -2444,6 +2449,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
             lockscreenRotationLockEnabled={lockscreenRotationLockEnabled}
             onLockscreenRotationLockEnabledChange={handleLockscreenRotationLockEnabledChange}
             lockscreenRotationLockAvailable={lockscreenRotationLockAvailable}
+            lockscreenClearDataEnabled={lockscreenClearDataEnabled}
+            onLockscreenClearDataEnabledChange={setLockscreenClearDataEnabled}
           />
         );
       

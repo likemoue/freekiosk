@@ -577,7 +577,11 @@
       "brightnessHint": "Muestra un botón de brillo en la pantalla de ingreso del PIN. Abre un control deslizante.",
       "rotationLock": "Bloqueo de rotación en la pantalla de bloqueo",
       "rotationLockHintAvailable": "Muestra un interruptor de bloqueo de rotación en la pantalla de ingreso del PIN.",
-      "rotationLockHintUnavailable": "No disponible en este dispositivo porque Android no permite que esta app cambie la configuración de rotación del sistema."
+      "rotationLockHintUnavailable": "No disponible en este dispositivo porque Android no permite que esta app cambie la configuración de rotación del sistema.",
+      "clearData": "Botón para borrar datos de apps",
+      "clearDataHint": "Muestra un botón «Borrar datos» en la pantalla del PIN. Cualquier persona frente al dispositivo puede elegir una app de la pantalla del quiosco y borrar sus datos (inicios de sesión, archivos, ajustes) sin el PIN. La app sigue instalada.",
+      "clearDataHintUnavailable": "Requiere el modo Device Owner y Android 9 o posterior.",
+      "clearDataWarning": "No se pide el PIN: cualquiera frente al dispositivo puede cerrar la sesión de todos los usuarios en las apps del quiosco y borrar lo que hayan guardado."
     },
     "returnInfo": {
       "tvExternal": "• No disponible mientras otra app está en primer plano: el control remoto no puede traerte de vuelta. Usa FreeKiosk Cloud, MQTT, la API REST o adb",
@@ -983,6 +987,7 @@
       "lightOn": "Encender luz",
       "brightness": "Brillo",
       "rotate": "Rotar",
+      "clearData": "Borrar datos",
       "emergency": "Emergencia"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "No se encontraron salidas seleccionables",
       "unmute": "Activar sonido",
       "mute": "Silenciar"
+    },
+    "clearAppDataDialog": {
+      "title": "Borrar datos de apps",
+      "hint": "Elija las apps que desea restablecer. Se eliminan sus inicios de sesión, archivos y ajustes; las apps permanecen en el dispositivo.",
+      "noApps": "La pantalla del quiosco no tiene apps.",
+      "cancel": "Cancelar",
+      "clear": "Borrar datos",
+      "confirmTitle": "¿Borrar los datos?",
+      "confirmMessage": "Se eliminará todo lo que {{apps}} haya guardado, incluidos los inicios de sesión. No se puede deshacer.",
+      "confirm": "Borrar",
+      "doneTitle": "Datos borrados",
+      "errorTitle": "No se pudieron borrar los datos",
+      "cleared": "Borrado: {{apps}}.",
+      "failed": "No borrado: {{apps}}.",
+      "missing": "No está en este dispositivo: {{apps}}.",
+      "permissionsLost": "Android no devolvió algunos permisos de {{apps}}: un administrador debe concederlos de nuevo.",
+      "genericError": "Se produjo un error. Inténtelo de nuevo."
     },
     "qrScannerModal": {
       "cancel": "Cancelar",

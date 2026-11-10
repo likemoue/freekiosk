@@ -75,6 +75,7 @@ export type IconName =
   | 'pencil'
   | 'delete'
   | 'delete-outline'
+  | 'delete-sweep'
   | 'plus'
   | 'minus'
   | 'plus-circle'

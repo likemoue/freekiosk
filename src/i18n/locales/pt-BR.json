@@ -577,7 +577,11 @@
       "brightnessHint": "Mostrar um botão de brilho na tela de PIN. Abre um controle deslizante.",
       "rotationLock": "Bloqueio de rotação na tela de bloqueio",
       "rotationLockHintAvailable": "Mostrar um botão de bloqueio de rotação na tela de PIN.",
-      "rotationLockHintUnavailable": "Indisponível neste dispositivo porque o Android não permite que este app altere as configurações de rotação do sistema."
+      "rotationLockHintUnavailable": "Indisponível neste dispositivo porque o Android não permite que este app altere as configurações de rotação do sistema.",
+      "clearData": "Botão para limpar dados de apps",
+      "clearDataHint": "Mostra um botão \"Limpar dados\" na tela do PIN. Qualquer pessoa diante do dispositivo pode escolher um app da tela do quiosque e limpar seus dados (logins, arquivos, configurações) sem o PIN. O app continua instalado.",
+      "clearDataHintUnavailable": "Requer o modo Device Owner e Android 9 ou posterior.",
+      "clearDataWarning": "O PIN não é solicitado: qualquer pessoa diante do dispositivo pode desconectar todos os usuários dos apps do quiosque e apagar o que eles salvaram."
     },
     "returnInfo": {
       "tvExternal": "• Indisponível enquanto outro aplicativo está em primeiro plano: o controle remoto não consegue levar você de volta. Use o FreeKiosk Cloud, MQTT, a API REST ou o adb",
@@ -983,6 +987,7 @@
       "lightOn": "Acender luz",
       "brightness": "Brilho",
       "rotate": "Girar",
+      "clearData": "Limpar dados",
       "emergency": "Emergência"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Nenhuma saída selecionável encontrada",
       "unmute": "Ativar som",
       "mute": "Silenciar"
+    },
+    "clearAppDataDialog": {
+      "title": "Limpar dados de apps",
+      "hint": "Escolha os apps que deseja redefinir. Logins, arquivos e configurações são excluídos; os apps permanecem no dispositivo.",
+      "noApps": "A tela do quiosque não tem apps.",
+      "cancel": "Cancelar",
+      "clear": "Limpar dados",
+      "confirmTitle": "Limpar os dados?",
+      "confirmMessage": "Tudo o que {{apps}} salvou será excluído, incluindo logins. Isso não pode ser desfeito.",
+      "confirm": "Limpar",
+      "doneTitle": "Dados limpos",
+      "errorTitle": "Não foi possível limpar os dados",
+      "cleared": "Limpos: {{apps}}.",
+      "failed": "Não limpos: {{apps}}.",
+      "missing": "Não está neste dispositivo: {{apps}}.",
+      "permissionsLost": "O Android não devolveu algumas permissões de {{apps}}: um administrador precisa concedê-las novamente.",
+      "genericError": "Ocorreu um erro. Tente novamente."
     },
     "qrScannerModal": {
       "cancel": "Cancelar",

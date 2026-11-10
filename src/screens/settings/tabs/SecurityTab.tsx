@@ -116,6 +116,8 @@ interface SecurityTabProps {
   lockscreenRotationLockEnabled: boolean;
   onLockscreenRotationLockEnabledChange: (value: boolean) => void;
   lockscreenRotationLockAvailable: boolean;
+  lockscreenClearDataEnabled: boolean;
+  onLockscreenClearDataEnabledChange: (value: boolean) => void;
 }
 
 const SecurityTab: React.FC<SecurityTabProps> = ({
@@ -189,8 +191,12 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
   lockscreenRotationLockEnabled,
   onLockscreenRotationLockEnabledChange,
   lockscreenRotationLockAvailable,
+  lockscreenClearDataEnabled,
+  onLockscreenClearDataEnabledChange,
 }) => {
   const { t } = useTranslation();
+  // KioskModule.clearAppData: Device Owner and Android 9
+  const clearDataAvailable = isDeviceOwner && Number(Platform.Version) >= 28;
 
   return (
     <View>
@@ -771,6 +777,26 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
                 disabled={!lockscreenRotationLockAvailable}
               />
               </>
+            )}
+            <View style={styles.divider} />
+            <SettingsSwitch
+              label={t('security.lockScreenControls.clearData')}
+              icon="delete-sweep"
+              hint={
+                clearDataAvailable
+                  ? t('security.lockScreenControls.clearDataHint')
+                  : t('security.lockScreenControls.clearDataHintUnavailable')
+              }
+              value={lockscreenClearDataEnabled}
+              onValueChange={onLockscreenClearDataEnabledChange}
+              disabled={!clearDataAvailable && !lockscreenClearDataEnabled}
+            />
+            {lockscreenClearDataEnabled && (
+              <SettingsInfoBox variant="warning">
+                <Text style={styles.infoText}>
+                  {t('security.lockScreenControls.clearDataWarning')}
+                </Text>
+              </SettingsInfoBox>
             )}
           </>
         )}

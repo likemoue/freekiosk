@@ -577,7 +577,11 @@
       "brightnessHint": "Hiển thị nút độ sáng trên màn hình nhập PIN. Mở một thanh trượt.",
       "rotationLock": "Khóa xoay trên màn hình khóa",
       "rotationLockHintAvailable": "Hiển thị nút bật/tắt khóa xoay trên màn hình nhập PIN.",
-      "rotationLockHintUnavailable": "Không khả dụng trên thiết bị này vì Android không cho phép ứng dụng này thay đổi cài đặt xoay của hệ thống."
+      "rotationLockHintUnavailable": "Không khả dụng trên thiết bị này vì Android không cho phép ứng dụng này thay đổi cài đặt xoay của hệ thống.",
+      "clearData": "Nút xóa dữ liệu ứng dụng",
+      "clearDataHint": "Hiển thị nút Xóa dữ liệu trên màn hình nhập PIN. Người dùng chọn ứng dụng trên màn hình kiosk và xóa dữ liệu của nó (đăng nhập, tệp, cài đặt) mà không cần PIN. Ứng dụng vẫn được giữ lại.",
+      "clearDataHintUnavailable": "Cần chế độ Device Owner và Android 9 trở lên.",
+      "clearDataWarning": "Nút này không hỏi PIN: bất kỳ ai cầm máy cũng đăng xuất được mọi tài khoản trong các ứng dụng kiosk và xóa những gì chúng đã lưu."
     },
     "returnInfo": {
       "tvExternal": "• Không khả dụng khi ứng dụng khác đang ở tiền cảnh: không thể quay lại bằng điều khiển từ xa. Hãy dùng máy chủ quản lý, MQTT, REST API hoặc adb",
@@ -983,6 +987,7 @@
       "lightOn": "Bật đèn",
       "brightness": "Độ sáng",
       "rotate": "Xoay",
+      "clearData": "Xóa dữ liệu",
       "emergency": "Khẩn cấp"
     },
     "apiSettings": {
@@ -1309,6 +1314,23 @@
       "noOutputsFound": "Không tìm thấy đầu ra nào có thể chọn",
       "unmute": "Bật tiếng",
       "mute": "Tắt tiếng"
+    },
+    "clearAppDataDialog": {
+      "title": "Xóa dữ liệu ứng dụng",
+      "hint": "Chọn ứng dụng cần xóa dữ liệu. Thông tin đăng nhập, tệp và cài đặt của ứng dụng sẽ bị xóa; ứng dụng vẫn còn trên máy.",
+      "noApps": "Màn hình kiosk không có ứng dụng nào.",
+      "cancel": "Hủy",
+      "clear": "Xóa dữ liệu",
+      "confirmTitle": "Xóa dữ liệu ứng dụng?",
+      "confirmMessage": "Mọi dữ liệu {{apps}} đã lưu sẽ bị xóa, kể cả thông tin đăng nhập. Không thể hoàn tác.",
+      "confirm": "Xóa",
+      "doneTitle": "Đã xóa dữ liệu",
+      "errorTitle": "Không xóa được dữ liệu",
+      "cleared": "Đã xóa dữ liệu: {{apps}}.",
+      "failed": "Không xóa được: {{apps}}.",
+      "missing": "Không có trên máy: {{apps}}.",
+      "permissionsLost": "Android không cấp lại một số quyền của {{apps}}: quản trị viên cần cấp lại.",
+      "genericError": "Đã xảy ra lỗi. Vui lòng thử lại."
     },
     "qrScannerModal": {
       "cancel": "Hủy",
