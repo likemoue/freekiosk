@@ -97,6 +97,20 @@ describe('apps taken from a tablet, apps removed, and the screen live', () => {
       assert.equal(response.status, 400);
     });
 
+    it('asks for parts small enough to pass Cloudflare on a slow link, and still takes bigger ones', async () => {
+      const tablet = await enrolled();
+      await send('pull_apk', { package_name: 'vn.iclass', label: 'iCLASS' }, [tablet.deviceId]);
+      const [command] = await take(tablet);
+      const size = 20 * 1024 * 1024;
+      const started = await device(tablet, 'POST', 'apk-uploads/', { command_id: command.id, file_name: 'vn.iclass.apk', size_bytes: size });
+      const { upload_id, part_bytes } = (await started.json()) as any;
+      // 180 KB/s, as measured on two Lenovos: well under the 100 seconds after which Cloudflare answers 524
+      assert.ok(part_bytes / (180 * 1024) < 40, `${part_bytes} bytes take too long`);
+      // An app that began with the old 16 MB parts goes on with them
+      const part = await device(tablet, 'PUT', `apk-uploads/${upload_id}/part/?offset=0`, undefined, Buffer.alloc(16 * 1024 * 1024));
+      assert.equal(part.status, 200, await part.clone().text());
+    });
+
     it('takes a file only for a command this tablet was sent, and only from it', async () => {
       const [mine, other] = [await enrolled(), await enrolled()];
       const refused = await device(mine, 'POST', 'apk-uploads/', { command_id: '01a1aed6-fdfe-725a-8ad1-d381403ddc6d', file_name: 'x.apk', size_bytes: 10 });

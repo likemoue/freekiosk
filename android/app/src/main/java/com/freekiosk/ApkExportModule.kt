@@ -11,6 +11,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
+import android.os.SystemClock
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
@@ -27,7 +28,9 @@ import java.util.zip.ZipOutputStream
  * few parts; they go together, as a zip of base.apk and split_*.apk, the form the library takes from an
  * upload. The APKs of an installed app can be read by any app: no special right is needed.
  *
- * In parts, like an upload from the website: Cloudflare refuses a request over 100 MB.
+ * In parts, like an upload from the website: Cloudflare refuses a request over 100 MB, and answers 524 to one
+ * that has had no answer in 100 seconds. On a slow link (two Lenovos sent Chrome at about 180 KB/s) a part
+ * that took long, or failed, is followed by smaller ones.
  */
 class ApkExportModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -35,7 +38,14 @@ class ApkExportModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
     companion object {
         private const val TAG = "ApkExport"
-        private const val PART_ATTEMPTS = 3
+        // Each try of a part that failed goes with a smaller part, so a few more than for a broken connection
+        private const val PART_ATTEMPTS = 5
+        private const val MIN_PART_BYTES = 1L * 1024 * 1024
+        // Half of Cloudflare's 100 seconds: a part that took this long is followed by a smaller one
+        private const val SLOW_PART_MS = 50_000L
+
+        /** An answer worth another try: a gateway that gave up (Cloudflare's 524) or a server busy for a moment */
+        fun retryable(code: Int): Boolean = code == 408 || code == 429 || code in 500..599
     }
 
     private val client by lazy {
@@ -80,12 +90,26 @@ class ApkExportModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
                     JSONObject().put("command_id", commandId).put("file_name", fileName).put("size_bytes", file.length()),
                 )
                 val uploadId = started.getString("upload_id")
-                val partBytes = started.optLong("part_bytes", 16L * 1024 * 1024).coerceIn(1L * 1024 * 1024, 32L * 1024 * 1024)
+                var partBytes = started.optLong("part_bytes", 16L * 1024 * 1024).coerceIn(MIN_PART_BYTES, 32L * 1024 * 1024)
+                val partUrl = "$server/api/v1/devices/$deviceId/apk-uploads/$uploadId/part/"
 
                 var offset = 0L
+                var attempt = 1
                 while (offset < file.length()) {
                     val length = minOf(partBytes, file.length() - offset)
-                    offset = sendPart("$server/api/v1/devices/$deviceId/apk-uploads/$uploadId/part/", apiKey, file, offset, length)
+                    val began = SystemClock.elapsedRealtime()
+                    try {
+                        offset = sendPart(partUrl, apiKey, file, offset, length)
+                        attempt = 1
+                        if (SystemClock.elapsedRealtime() - began > SLOW_PART_MS) partBytes = maxOf(MIN_PART_BYTES, partBytes / 2)
+                    } catch (e: IOException) {
+                        // Where the server stands comes back with the next part, whether it took this one or not
+                        if (attempt >= PART_ATTEMPTS) throw e
+                        partBytes = maxOf(MIN_PART_BYTES, partBytes / 2)
+                        DebugLog.d(TAG, "Part at $offset failed (${e.message}), trying again with ${partBytes / 1024} KB")
+                        Thread.sleep(3_000L * attempt)
+                        attempt++
+                    }
                 }
 
                 val finished = post("$server/api/v1/devices/$deviceId/apk-uploads/$uploadId/finish/", apiKey, JSONObject())
@@ -158,43 +182,40 @@ class ApkExportModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         }
     }
 
-    /** One part, with more tries if the connection breaks: school Wi-Fi drops connections */
+    /**
+     * One part, once. An IOException is worth another try: the connection broke (school Wi-Fi drops
+     * connections), or a gateway gave up waiting, as Cloudflare does after 100 seconds with its 524.
+     */
     private fun sendPart(url: String, apiKey: String, file: File, offset: Long, length: Long): Long {
-        var attempt = 1
-        while (true) {
-            try {
-                val body = object : RequestBody() {
-                    override fun contentType() = binary
-                    override fun contentLength() = length
-                    override fun writeTo(sink: BufferedSink) {
-                        RandomAccessFile(file, "r").use { input ->
-                            input.seek(offset)
-                            val buffer = ByteArray(64 * 1024)
-                            var left = length
-                            while (left > 0) {
-                                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
-                                if (read < 0) throw IOException("File ended early")
-                                sink.write(buffer, 0, read)
-                                left -= read
-                            }
-                        }
+        val body = object : RequestBody() {
+            override fun contentType() = binary
+            override fun contentLength() = length
+            override fun writeTo(sink: BufferedSink) {
+                RandomAccessFile(file, "r").use { input ->
+                    input.seek(offset)
+                    val buffer = ByteArray(64 * 1024)
+                    var left = length
+                    while (left > 0) {
+                        val read = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                        if (read < 0) throw IOException("File ended early")
+                        sink.write(buffer, 0, read)
+                        left -= read
                     }
                 }
-                val request = Request.Builder().url("$url?offset=$offset").header("Authorization", "Bearer $apiKey").put(body).build()
-                client.newCall(request).execute().use { response ->
-                    val text = response.body?.string() ?: ""
-                    if (!response.isSuccessful) throw IllegalStateException(messageOf(text) ?: "HTTP ${response.code}")
-                    val received = JSONObject(text).optLong("received", -1L)
-                    // The server says where it stands: a part it already had, or one it lost
-                    if (received < 0) throw IllegalStateException("No position in the answer")
-                    return received
-                }
-            } catch (e: IOException) {
-                if (attempt >= PART_ATTEMPTS) throw e
-                DebugLog.d(TAG, "Part at $offset failed, trying again: ${e.message}")
-                Thread.sleep(3_000L * attempt)
-                attempt++
             }
+        }
+        val request = Request.Builder().url("$url?offset=$offset").header("Authorization", "Bearer $apiKey").put(body).build()
+        client.newCall(request).execute().use { response ->
+            val text = response.body?.string() ?: ""
+            if (!response.isSuccessful) {
+                val message = messageOf(text) ?: "HTTP ${response.code}"
+                if (retryable(response.code)) throw IOException(message)
+                throw IllegalStateException(message)
+            }
+            val received = JSONObject(text).optLong("received", -1L)
+            // The server says where it stands: a part it already had, or one it lost
+            if (received < 0) throw IllegalStateException("No position in the answer")
+            return received
         }
     }
 
