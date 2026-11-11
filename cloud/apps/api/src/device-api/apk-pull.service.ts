@@ -5,8 +5,15 @@ import { PrismaService } from '../common/prisma.service';
 import { ApkLibraryService } from '../files/apk-library.service';
 import { UploadsService } from '../files/uploads.service';
 
-/** Parts small enough for any proxy on the way, Cloudflare's 100 MB limit included */
-export const DEVICE_PART_BYTES = 16 * 1024 * 1024;
+/**
+ * Parts small enough to pass Cloudflare on a slow link: it answers 524 for a request that has had no answer
+ * in 100 seconds. Two Lenovo tablets sent Chrome at about 180 KB/s (their side of the school's two lines,
+ * 11 November), so a 16 MB part took 90 seconds and one went over; 4 MB takes 23. The app takes this size
+ * from the answer, from 1 to 32 MB, so an app already out there follows it.
+ */
+export const DEVICE_PART_BYTES = 4 * 1024 * 1024;
+/** What a tablet may still send: the app's own upper bound, for an upload started under the old size */
+const MAX_DEVICE_PART_BYTES = 32 * 1024 * 1024;
 const PURPOSE = 'device_apk';
 
 type Json = Record<string, unknown>;
@@ -41,7 +48,7 @@ export class ApkPullService {
   async part(device: Device, uploadId: string, offset: number, part: unknown) {
     await this.uploads.ofDevice(uploadId, device.id);
     if (!Buffer.isBuffer(part) || part.length === 0) throw new BadRequestException({ error: 'Cần gửi nội dung nhị phân' });
-    if (part.length > DEVICE_PART_BYTES * 2) throw new BadRequestException({ error: 'Phần gửi lên quá lớn' });
+    if (part.length > MAX_DEVICE_PART_BYTES) throw new BadRequestException({ error: 'Phần gửi lên quá lớn' });
     return this.uploads.appendPart(uploadId, offset, part);
   }
 
