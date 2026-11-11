@@ -727,7 +727,8 @@
       "m10": "10 Minuten",
       "m30": "30 Minuten",
       "never": "Nie ausschalten",
-      "failed": "Bildschirm-Timeout konnte nicht geändert werden: {{error}}"
+      "failed": "Bildschirm-Timeout konnte nicht geändert werden: {{error}}",
+      "keepScreenOnNote": "„Bildschirm eingeschaltet lassen“ ist an: Der Kiosk-Bildschirm bleibt hell, egal was hier gewählt ist. Diese Zeit wirkt, solange eine andere App geöffnet ist, oder wenn der Schalter aus ist (Tab Anzeige)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

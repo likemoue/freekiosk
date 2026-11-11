@@ -727,7 +727,8 @@
       "m10": "10 minutos",
       "m30": "30 minutos",
       "never": "No apagar nunca",
-      "failed": "No se pudo cambiar el tiempo de espera de la pantalla: {{error}}"
+      "failed": "No se pudo cambiar el tiempo de espera de la pantalla: {{error}}",
+      "keepScreenOnNote": "«Mantener pantalla encendida» está activado: la pantalla del quiosco sigue encendida elija lo que elija aquí. Este tiempo actúa mientras otra app está abierta, o cuando se desactive esa opción (pestaña Pantalla)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

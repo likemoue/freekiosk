@@ -10,6 +10,8 @@ export interface ConfigField {
   hint?: string;
   type: 'text' | 'number' | 'bool' | 'select' | 'percent' | 'list';
   options?: Array<{ value: string; label: string }>;
+  /** A select whose values are numbers in the config: stored as such, or "30" would differ from the 30 a tablet reports */
+  numeric?: boolean;
   placeholder?: string;
   min?: number;
   max?: number;
@@ -40,7 +42,23 @@ export const CONFIG_SECTIONS: Array<{ id: string; title: string; hint?: string; 
       { path: 'display.brightnessManagement', label: 'Quản lý độ sáng', type: 'bool' },
       { path: 'display.defaultBrightness', label: 'Độ sáng mặc định', type: 'percent' },
       { path: 'display.autoBrightness.enabled', label: 'Độ sáng tự động', type: 'bool' },
-      { path: 'display.keepScreenOn', label: 'Giữ màn hình luôn bật', type: 'bool' },
+      { path: 'display.keepScreenOn', label: 'Giữ màn hình luôn bật', hint: 'Khi bật, màn hình kiosk luôn sáng, bất kể thời gian tắt màn hình bên dưới.', type: 'bool' },
+      {
+        path: 'display.screenOffTimeout',
+        label: 'Thời gian tắt màn hình',
+        hint: 'Không chạm bao lâu thì Android tắt màn hình. Chỉ có tác dụng trên màn hình kiosk khi đã tắt Giữ màn hình luôn bật; khi ứng dụng khác đang mở thì luôn có tác dụng. Cần Device Owner. Máy chạy FreeKiosk trước 2.1.0-beta.21 nhận thêm lệnh Thời gian tắt màn hình khi áp hồ sơ.',
+        type: 'select',
+        numeric: true,
+        options: [
+          { value: '30', label: '30 giây' },
+          { value: '60', label: '1 phút' },
+          { value: '120', label: '2 phút' },
+          { value: '300', label: '5 phút' },
+          { value: '600', label: '10 phút' },
+          { value: '1800', label: '30 phút' },
+          { value: '-1', label: 'Không bao giờ tắt' },
+        ],
+      },
       { path: 'display.autoWakeOnScreenOff', label: 'Tự đánh thức khi màn hình tắt', type: 'bool' },
       { path: 'display.statusBar.enabled', label: 'Hiện thanh trạng thái', type: 'bool' },
       { path: 'display.zoom.level', label: 'Mức thu phóng (%)', type: 'number', min: 10, max: 400 },
@@ -162,8 +180,9 @@ function Control({ field, value, base, onChange }: { field: ConfigField; value: 
     );
   }
   if (field.type === 'select') {
+    const read = (raw: string) => (field.numeric ? Number(raw) : raw);
     return (
-      <Select className={ring} value={effective ?? ''} onChange={(e) => onChange(e.target.value === '' || e.target.value === base ? undefined : e.target.value)}>
+      <Select className={ring} value={effective === undefined || effective === null ? '' : String(effective)} onChange={(e) => onChange(e.target.value === '' || read(e.target.value) === base ? undefined : read(e.target.value))}>
         {base === undefined && <option value="">Không đổi</option>}
         {field.options?.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>

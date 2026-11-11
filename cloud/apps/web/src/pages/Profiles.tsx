@@ -100,7 +100,7 @@ export default function Profiles() {
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/api/admin/profiles/${id}`),
-    onSuccess: () => { toast.success('Đã xóa hồ sơ'); refresh(); },
+    onSuccess: (result: any) => { toast.success(result?.appliedTo ? `Đã xóa hồ sơ, ${result.appliedTo} thiết bị chuyển sang hồ sơ của nhóm` : 'Đã xóa hồ sơ'); refresh(); },
     onError: notifyError,
   });
 

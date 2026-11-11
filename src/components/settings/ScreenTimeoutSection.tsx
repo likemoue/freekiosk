@@ -1,13 +1,15 @@
 /**
  * How long the screen stays on with no touch. Android keeps the value itself, so it takes effect at
- * once, without Save, and there is nothing of it in the saved settings.
+ * once, without Save. The config reports it as display.screenOffTimeout and takes it from a profile.
  */
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import SettingsInfoBox from './SettingsInfoBox';
 import SettingsRadioGroup from './SettingsRadioGroup';
 import SettingsSection from './SettingsSection';
 import KioskModule from '../../utils/KioskModule';
+import { Typography } from '../../theme';
 
 const OPTIONS: Array<{ seconds: number; key: string }> = [
   { seconds: 30, key: 's30' },
@@ -19,7 +21,11 @@ const OPTIONS: Array<{ seconds: number; key: string }> = [
   { seconds: -1, key: 'never' },
 ];
 
-const ScreenTimeoutSection: React.FC = () => {
+interface Props {
+  keepScreenOn?: boolean;
+}
+
+const ScreenTimeoutSection: React.FC<Props> = ({ keepScreenOn }) => {
   const { t } = useTranslation();
   const [seconds, setSeconds] = useState<number | null>(null);
 
@@ -44,8 +50,22 @@ const ScreenTimeoutSection: React.FC = () => {
         value={seconds === null ? '' : String(seconds)}
         onValueChange={choose}
       />
+      {/* FLAG_KEEP_SCREEN_ON holds the kiosk's own screen on whatever this says: a timeout set here
+          and not seen to work is most often that (HTP - CS1, 11 November) */}
+      {keepScreenOn && seconds !== -1 && (
+        <SettingsInfoBox variant="warning">
+          <Text style={styles.infoText}>{t('advanced.screenTimeout.keepScreenOnNote')}</Text>
+        </SettingsInfoBox>
+      )}
     </SettingsSection>
   );
 };
+
+const styles = StyleSheet.create({
+  infoText: {
+    ...Typography.body,
+    lineHeight: 22,
+  },
+});
 
 export default ScreenTimeoutSection;

@@ -727,7 +727,8 @@
       "m10": "10 phút",
       "m30": "30 phút",
       "never": "Không tự tắt",
-      "failed": "Không đổi được thời gian sáng màn hình: {{error}}"
+      "failed": "Không đổi được thời gian sáng màn hình: {{error}}",
+      "keepScreenOnNote": "Đang bật “Giữ màn hình luôn bật”: màn hình kiosk luôn sáng dù chọn gì ở đây. Thời gian này chỉ có tác dụng khi ứng dụng khác đang mở, hoặc sau khi tắt công tắc đó (tab Hiển thị)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

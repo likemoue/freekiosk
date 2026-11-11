@@ -727,7 +727,8 @@
       "m10": "10 minuti",
       "m30": "30 minuti",
       "never": "Non spegnere mai",
-      "failed": "Impossibile modificare lo spegnimento dello schermo: {{error}}"
+      "failed": "Impossibile modificare lo spegnimento dello schermo: {{error}}",
+      "keepScreenOnNote": "«Mantieni lo schermo acceso» è attivo: lo schermo del kiosk resta acceso qualunque cosa sia scelta qui. Questo tempo vale mentre è aperta un'altra app, o dopo aver disattivato l'opzione (scheda Schermo)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

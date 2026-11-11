@@ -104,6 +104,8 @@ Khi có người xem màn hình trên trang Ảnh màn hình, câu trả lời c
 - Khi `config_version` của thiết bị nhỏ hơn, máy chủ trả `sync_action: "apply"` kèm phần chờ. Ứng dụng áp dụng rồi lưu phiên bản mới.
 - Ở lần báo cáo sau, phiên bản khớp nên máy chủ xóa phần chờ và coi cấu hình thiết bị gửi lên là mới nhất.
 - **Chỉ gửi khóa đã đổi, không gửi toàn bộ:** `StorageService.importConfig` bỏ qua khóa không có, nên cài đặt vừa đổi trên máy không bị bản cũ ghi đè.
+- **Thời gian tắt màn hình** (`display.screenOffTimeout`, giây, `-1` là không bao giờ) là cài đặt của Android, không lưu trong ứng dụng: ứng dụng báo giá trị đang có hiệu lực và đặt giá trị nhận được (cần Device Owner). Ứng dụng từ 2.1.0-beta.21 khai báo `screen_timeout_config`; máy cũ hơn chỉ báo lại đúng giá trị đã nhận, nên khi đẩy cấu hình có khóa này máy chủ gửi kèm lệnh `set_screen_timeout` cho máy có `screen_timeout` mà thiếu `screen_timeout_config`.
+- **Hồ sơ của thiết bị và của nhóm:** hồ sơ gắn riêng cho thiết bị thắng hồ sơ của nhóm. Mã đăng ký mang đúng hồ sơ của nhóm thì thiết bị theo nhóm, không giữ bản riêng; đổi hồ sơ của nhóm thì thiết bị đang giữ hồ sơ cũ của nhóm làm hồ sơ riêng chuyển sang theo nhóm; xóa hồ sơ thì thiết bị mất hồ sơ riêng nhận ngay hồ sơ của nhóm.
 
 ## Lệnh
 

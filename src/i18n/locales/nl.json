@@ -727,7 +727,8 @@
       "m10": "10 minuten",
       "m30": "30 minuten",
       "never": "Nooit uitschakelen",
-      "failed": "Schermtime-out kon niet worden gewijzigd: {{error}}"
+      "failed": "Schermtime-out kon niet worden gewijzigd: {{error}}",
+      "keepScreenOnNote": "'Scherm aan houden' staat aan: het kioskscherm blijft aan, wat hier ook gekozen is. Deze tijd werkt zolang een andere app open is, of zodra die schakelaar uit staat (tabblad Scherm)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

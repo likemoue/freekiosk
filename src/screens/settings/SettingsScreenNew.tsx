@@ -2497,6 +2497,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation, route })
           <AdvancedTab
             displayMode={displayMode}
             isDeviceOwner={isDeviceOwner}
+            keepScreenOn={keepScreenOn}
             enableSelfUpdate={ENABLE_SELF_UPDATE}
             currentVersion={currentVersion}
             checkingUpdate={checkingUpdate}
