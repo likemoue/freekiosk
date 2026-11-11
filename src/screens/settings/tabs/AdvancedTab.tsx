@@ -35,6 +35,8 @@ const { KioskModule } = NativeModules;
 interface AdvancedTabProps {
   displayMode: 'webview' | 'external_app' | 'media_player';
   isDeviceOwner: boolean;
+  // Display > Keep screen on: while it holds, the kiosk's own screen ignores the screen timeout
+  keepScreenOn?: boolean;
   
   // Play Store compliance: when false, the entire Updates section is hidden
   enableSelfUpdate: boolean;
@@ -67,6 +69,7 @@ interface AdvancedTabProps {
 const AdvancedTab: React.FC<AdvancedTabProps> = ({
   displayMode,
   isDeviceOwner,
+  keepScreenOn,
   enableSelfUpdate,
   currentVersion,
   checkingUpdate,
@@ -507,7 +510,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
       {/* Backup & Restore */}
       <BackupRestoreSection onRestoreComplete={onRestoreComplete} />
 
-      <ScreenTimeoutSection />
+      <ScreenTimeoutSection keepScreenOn={keepScreenOn} />
 
       {/* Android System Settings */}
       <SettingsSection title={t('advanced.androidSettings.title')} icon="android">

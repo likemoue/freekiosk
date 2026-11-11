@@ -12,6 +12,7 @@ import { ManagedApp } from '../types/managedApps';
 import { MultiAppAppearance, normalizeMultiAppAppearance, parseMultiAppAppearance } from '../types/multiAppAppearance';
 import { MediaItem, MediaFitMode } from '../types/mediaPlayer';
 import { saveSecureApiKey, getSecureApiKey, clearSecureApiKey, clearSecureMqttPassword } from './secureStorage';
+import KioskModule from './KioskModule';
 
 // Outside KEYS: what a settings import or an enrollment wipes is not this
 const INFLIGHT_INSTALL_KEY = '@cloud_inflight_install';
@@ -266,6 +267,25 @@ export const KEYS = {
   CLOUD_ENROLLED: '@cloud_enrolled',
   // Set once the user closes the "manage your tablets from the cloud" banner in Settings.
   CLOUD_PROMO_DISMISSED: '@cloud_promo_dismissed',
+};
+
+/**
+ * The screen timeout as a setting: seconds with no touch before Android turns the screen off, -1 for never.
+ * Android keeps it, not this app, so the config reports what is in effect and a profile taken from a tablet
+ * carries it. Anything else is no value: 15 seconds up to a day, as the server takes for its command.
+ */
+export const screenOffTimeoutOf = (value: unknown): number | null => {
+  const seconds = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (typeof seconds !== 'number' || !Number.isInteger(seconds)) return null;
+  return seconds === -1 || (seconds >= 15 && seconds <= 86_400) ? seconds : null;
+};
+
+const readScreenOffTimeout = async (): Promise<number | null> => {
+  try {
+    return screenOffTimeoutOf(await KioskModule?.getScreenOffTimeout?.());
+  } catch {
+    return null;
+  }
 };
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
@@ -4158,6 +4178,9 @@ export const StorageService = {
       },
     };
 
+    const screenOffTimeout = await readScreenOffTimeout();
+    if (screenOffTimeout !== null) (structured.display as Record<string, unknown>).screenOffTimeout = screenOffTimeout;
+
     // Preserve fields a newer app/cloud sent that this version doesn't model: overlay the
     // current (structured) config on top of the last raw config received, so unknown keys
     // survive the round-trip instead of being dropped and echoed back as a downgrade.
@@ -4449,6 +4472,17 @@ export const StorageService = {
 
     if (pairs.length > 0) {
       await AsyncStorage.multiSet(pairs);
+    }
+
+    // Not a stored setting: Android takes it at once. Needs Device Owner (or Modify system settings);
+    // where it fails the config reports the value in effect, which the website then shows as different
+    const screenOffTimeout = screenOffTimeoutOf(d?.screenOffTimeout);
+    if (screenOffTimeout !== null) {
+      try {
+        await KioskModule?.setScreenOffTimeout?.(screenOffTimeout);
+      } catch (error) {
+        console.warn('[Storage] Could not set the screen timeout from the config:', error);
+      }
     }
   },
 

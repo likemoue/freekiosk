@@ -8,6 +8,7 @@ import { CurrentUser, Roles } from '../common/http';
 import { PrismaService } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { env } from '../config/env';
+import { APPLY_PROFILE_COMMAND } from '../devices/catalog';
 import { ConfigSyncService, SensitiveValues } from '../devices/config-sync.service';
 import { CreateGroupDto, CreateTokenDto, SaveProfileDto, SensitiveDto, UpdateGroupDto } from '../devices/devices.dto';
 import { profileDifferences } from '../devices/profile-state';
@@ -63,10 +64,23 @@ export class GroupsController {
     const name = dto.name?.trim();
     if (name) await this.assertNameFree(name, id);
     const group = await this.prisma.group.update({ where: { id }, data: { ...dto, name } });
-    if (dto.profileId && dto.profileId !== before.profileId) await this.configSync.pushProfile(dto.profileId, actor);
+    let appliedTo = 0;
+    let keptOwn = 0;
+    if (dto.profileId && dto.profileId !== before.profileId) {
+      // A device holding the group's old profile as its own had it from the group, by an enrollment code
+      // say: it follows the group, or the new profile would pass it by
+      if (before.profileId) {
+        await this.prisma.device.updateMany({ where: { groupId: id, profileId: before.profileId }, data: { profileId: null } });
+      }
+      appliedTo = await this.configSync.pushProfile(dto.profileId, actor);
+      keptOwn = await this.prisma.device.count({ where: { groupId: id, unenrolledAt: null, profileId: { not: null }, NOT: { profileId: dto.profileId } } });
+    }
     if (dto.playlistId !== undefined) this.signage.invalidate();
-    await this.activity.log({ action: 'group.updated', message: `${actor.email} đã cập nhật nhóm ${group.name}`, user: actor });
-    return group;
+    const detail = dto.profileId && dto.profileId !== before.profileId
+      ? `, áp hồ sơ cho ${appliedTo} thiết bị${keptOwn ? `, ${keptOwn} thiết bị giữ hồ sơ riêng` : ''}`
+      : '';
+    await this.activity.log({ action: 'group.updated', message: `${actor.email} đã cập nhật nhóm ${group.name}${detail}`, user: actor });
+    return { ...group, appliedTo, keptOwn };
   }
 
   @Delete(':id')
@@ -212,9 +226,26 @@ export class ProfilesController {
   async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: User) {
     const profile = await this.prisma.configProfile.findUnique({ where: { id } });
     if (!profile) throw new NotFoundException('Không tìm thấy hồ sơ');
+    const orphans = await this.prisma.device.findMany({ where: { profileId: id, unenrolledAt: null }, select: { id: true, groupId: true } });
     await this.prisma.configProfile.delete({ where: { id } });
-    await this.activity.log({ action: 'profile.deleted', severity: 'warning', message: `${actor.email} đã xóa hồ sơ ${profile.name}`, user: actor });
-    return { ok: true };
+    // Those that had it as their own follow their group's from now on: sent at once, or they would sit
+    // apart from it until someone applied it again
+    let appliedTo = 0;
+    const byGroup = new Map<string, string[]>();
+    for (const device of orphans) if (device.groupId) byGroup.set(device.groupId, [...(byGroup.get(device.groupId) ?? []), device.id]);
+    for (const [groupId, deviceIds] of byGroup) {
+      const group = await this.prisma.group.findUnique({ where: { id: groupId }, include: { profile: true } });
+      if (!group?.profile) continue;
+      appliedTo += await this.configSync.pushProfileTo(
+        deviceIds,
+        group.profile.config as Record<string, unknown>,
+        this.crypto.decryptJson<SensitiveValues>(group.profile.sensitiveEnc),
+        { type: APPLY_PROFILE_COMMAND, params: { profile: group.profile.name }, actor },
+      );
+    }
+    const detail = appliedTo ? `, ${appliedTo} thiết bị chuyển sang hồ sơ của nhóm` : '';
+    await this.activity.log({ action: 'profile.deleted', severity: 'warning', message: `${actor.email} đã xóa hồ sơ ${profile.name}${detail}`, user: actor });
+    return { ok: true, appliedTo };
   }
 }
 

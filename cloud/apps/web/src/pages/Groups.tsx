@@ -29,7 +29,13 @@ export default function Groups() {
       const body = { name: form!.name, description: form!.description || null, color: form!.color, profileId: form!.profileId || null, playlistId: form!.playlistId || null };
       return form!.id ? api.patch(`/api/admin/groups/${form!.id}`, body) : api.post('/api/admin/groups', body);
     },
-    onSuccess: () => { toast.success('Đã lưu nhóm'); setForm(null); refresh(); },
+    onSuccess: (result: any) => {
+      toast.success(result?.appliedTo ? `Đã lưu nhóm, áp hồ sơ cho ${result.appliedTo} thiết bị` : 'Đã lưu nhóm');
+      // A device given a profile of its own on its page keeps it: said, so that nobody looks for it in the drift column
+      if (result?.keptOwn) toast.warning(`${result.keptOwn} thiết bị dùng hồ sơ riêng nên không đổi theo nhóm`);
+      setForm(null);
+      refresh();
+    },
     onError: notifyError,
   });
   const remove = useMutation({

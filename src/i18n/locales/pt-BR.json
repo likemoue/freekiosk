@@ -727,7 +727,8 @@
       "m10": "10 minutos",
       "m30": "30 minutos",
       "never": "Nunca desligar",
-      "failed": "Não foi possível alterar o tempo limite da tela: {{error}}"
+      "failed": "Não foi possível alterar o tempo limite da tela: {{error}}",
+      "keepScreenOnNote": "“Manter a tela ligada” está ativado: a tela do quiosque fica acesa seja qual for a escolha aqui. Este tempo vale enquanto outro app está aberto, ou depois de desativar essa opção (aba Tela)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

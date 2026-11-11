@@ -727,7 +727,8 @@
       "m10": "10 minutes",
       "m30": "30 minutes",
       "never": "Never turn off",
-      "failed": "Could not change the screen timeout: {{error}}"
+      "failed": "Could not change the screen timeout: {{error}}",
+      "keepScreenOnNote": "“Keep Screen On” is on: the kiosk screen stays lit whatever is chosen here. This timeout works while another app is open, or once that switch is off (Display tab)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

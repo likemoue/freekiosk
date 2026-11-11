@@ -4,7 +4,7 @@ import { Prisma } from '../generated/prisma/client';
 import { CryptoService, deepMerge } from '../common/crypto.service';
 import { DeviceWakeService } from '../common/device-wake.service';
 import { PrismaService } from '../common/prisma.service';
-import { APPLY_PROFILE_COMMAND, THROUGH_CONFIG_DAYS } from './catalog';
+import { APPLY_PROFILE_COMMAND, COMMANDS, THROUGH_CONFIG_DAYS } from './catalog';
 import { withoutDisplayMode } from './profile-state';
 
 export interface SensitiveValues {
@@ -12,6 +12,16 @@ export interface SensitiveValues {
   mqttPassword?: string;
   restApiKey?: string;
   httpBasicAuthPassword?: string;
+}
+
+/** display.screenOffTimeout of a config, as the screen timeout command takes it, or null for none */
+export function screenOffTimeoutIn(config: Record<string, unknown>): number | null {
+  const display = config.display;
+  if (typeof display !== 'object' || display === null) return null;
+  const value = (display as Record<string, unknown>).screenOffTimeout;
+  if (value === undefined || value === null || value === '') return null;
+  const seconds = Number(value);
+  return COMMANDS.set_screen_timeout.validate?.({ seconds }) ? null : seconds;
 }
 
 /** The line a push leaves in the history of commands, for the heartbeat that confirms it to close */
@@ -57,9 +67,13 @@ export class ConfigSyncService {
 
     const devices = await this.prisma.device.findMany({
       where: { id: { in: deviceIds } },
-      select: { id: true, pendingConfig: true, pendingSensitiveEnc: true },
+      select: { id: true, pendingConfig: true, pendingSensitiveEnc: true, capabilities: true },
     });
     const now = new Date();
+    // Android keeps the screen timeout, not the app's settings, and an app older than 2.1.0-beta.21 does
+    // not take it from its config (it only reports back what it was sent): the command it knows does it
+    const seconds = screenOffTimeoutIn(config);
+    const older = seconds === null ? [] : devices.filter((d) => d.capabilities.includes('screen_timeout') && !d.capabilities.includes('screen_timeout_config'));
     await this.prisma.$transaction([
       ...devices.map((device) => {
         const pendingSecret = { ...this.crypto.decryptJson<SensitiveValues>(device.pendingSensitiveEnc), ...secret };
@@ -91,8 +105,25 @@ export class ConfigSyncService {
             }),
           ]
         : []),
+      ...(older.length
+        ? [
+            this.prisma.command.createMany({
+              data: older.map((device) => ({
+                deviceId: device.id,
+                type: 'set_screen_timeout',
+                params: { seconds: String(seconds) } as Prisma.InputJsonValue,
+                batchId: record?.batchId,
+                source: 'config',
+                createdById: record?.actor?.id,
+                createdBy: record?.actor?.email,
+                expiresAt: new Date(now.getTime() + (COMMANDS.set_screen_timeout.ttlMinutes ?? 60) * 60_000),
+              })),
+            }),
+          ]
+        : []),
     ]);
     this.wake.notify(devices.map((device) => device.id), 'config');
+    if (older.length) this.wake.notify(older.map((device) => device.id), 'commands');
     return devices.length;
   }
 

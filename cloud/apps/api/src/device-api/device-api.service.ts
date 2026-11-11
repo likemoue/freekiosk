@@ -135,7 +135,9 @@ export class DeviceApiService {
         name: await this.deviceName(info),
         apiKeyHash: sha256(apiKey),
         groupId: row.groupId,
-        profileId: row.profileId,
+        // The group's own profile is the group's to change: kept as the device's, a new profile on the
+        // group would pass it by (44 tablets of HTP - CS1 on 11 November)
+        profileId: row.profileId && row.profileId !== row.group?.profileId ? row.profileId : null,
         enrollmentTokenId: row.id,
         model: str(info.model, 120),
         manufacturer: str(info.manufacturer, 120),

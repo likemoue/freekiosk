@@ -727,7 +727,8 @@
       "m10": "10 minutes",
       "m30": "30 minutes",
       "never": "Ne jamais éteindre",
-      "failed": "Impossible de modifier la mise en veille de l'écran : {{error}}"
+      "failed": "Impossible de modifier la mise en veille de l'écran : {{error}}",
+      "keepScreenOnNote": "« Garder l'écran allumé » est activé : l'écran du kiosque reste allumé quel que soit le choix ici. Ce délai s'applique quand une autre application est ouverte, ou une fois cette option désactivée (onglet Affichage)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },

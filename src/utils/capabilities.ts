@@ -37,6 +37,8 @@ export type Capability =
   | 'signage_youtube'
   // Tells a tablet that can from one that needs updating. The tablet says so itself if it lacks the right to.
   | 'screen_timeout'
+  // Takes the screen timeout from its config (display.screenOffTimeout): an older app is sent the command
+  | 'screen_timeout_config'
   | 'set_volume'
   // Plays a cloud playlist in step with the other screens
   | 'signage_sync'
@@ -83,6 +85,7 @@ const BASELINE: Capability[] = [
   'signage_web',
   'signage_youtube',
   'screen_timeout',
+  'screen_timeout_config',
   'set_volume',
   'signage_sync',
 ];

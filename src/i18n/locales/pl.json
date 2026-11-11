@@ -727,7 +727,8 @@
       "m10": "10 minut",
       "m30": "30 minut",
       "never": "Nigdy nie wyłączaj",
-      "failed": "Nie udało się zmienić czasu wygaszania ekranu: {{error}}"
+      "failed": "Nie udało się zmienić czasu wygaszania ekranu: {{error}}",
+      "keepScreenOnNote": "„Nie wyłączaj ekranu” jest włączone: ekran kiosku pozostaje włączony bez względu na wybór tutaj. Ten czas działa, gdy otwarta jest inna aplikacja, lub po wyłączeniu tej opcji (karta Wyświetlanie)."
     },
     "versionFooter": "FreeKiosk v{{version}}"
   },
