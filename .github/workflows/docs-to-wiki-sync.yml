@@ -21,8 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Pinned to a commit SHA (a tag can be moved, a SHA cannot). v7 runs on Node 24;
+      # v4 still runs on Node 20, which GitHub has retired for actions.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate docs source
         run: |
