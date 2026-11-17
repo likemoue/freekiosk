@@ -1,0 +1,9 @@
+# gitleaks (CI job Security): the default rules, minus the placeholder key of the curl examples in docs/.
+# Another finding that is not a secret: a `gitleaks:allow` comment on a new line, or its fingerprint in .gitleaksignore.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Placeholder key of the REST API examples (docs/rest-api.md, docs/REST_API.md, docs/vi/rest-api.md)"
+regexTarget = "match"
+regexes = ['''your-api-key''']
