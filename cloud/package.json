@@ -20,6 +20,9 @@
     "openapi": "npm run openapi --workspace @freekiosk-manager/api"
   },
   "devDependencies": {
-    "concurrently": "9.2.4"
+    "concurrently": "9.2.5"
+  },
+  "overrides": {
+    "debug@>=4.0.0 <4.3.1": "^4.4.3"
   }
 }
