@@ -1,0 +1,6 @@
+# gitleaks findings checked by hand and not secrets (fingerprint <commit>:<file>:<rule>:<line>).
+# Passwords the API tests give users they create, only ever used against the throwaway test database.
+45c6b8886daca87691bfd0c3926042edc60580c7:cloud/apps/api/test/location.test.ts:generic-api-key:139
+45c6b8886daca87691bfd0c3926042edc60580c7:cloud/apps/api/test/usb-tool.test.ts:generic-api-key:106
+a6153652204cf7c809d3125f145337bed4eb50fd:cloud/apps/api/test/config-commands.test.ts:generic-api-key:136
+3735f700a335a59f0d3d822f77216e8f9e524102:cloud/apps/api/test/home-apps.test.ts:generic-api-key:351

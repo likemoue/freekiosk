@@ -216,12 +216,159 @@
         ]
       }
     },
+    "/api/v1/commands/{commandId}/progress": {
+      "post": {
+        "operationId": "DeviceApiController_progress",
+        "parameters": [
+          {
+            "name": "commandId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
     "/api/v1/devices/{deviceId}/screenshot": {
       "post": {
         "operationId": "DeviceApiController_screenshot",
         "parameters": [],
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/apk-uploads": {
+      "post": {
+        "operationId": "DeviceApiController_startApkUpload",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/apk-uploads/{uploadId}/part": {
+      "put": {
+        "operationId": "DeviceApiController_apkUploadPart",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/apk-uploads/{uploadId}/finish": {
+      "post": {
+        "operationId": "DeviceApiController_finishApkUpload",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "API thiết bị"
+        ]
+      }
+    },
+    "/api/v1/devices/{deviceId}/live/frame": {
+      "post": {
+        "operationId": "DeviceApiController_liveFrame",
+        "parameters": [
+          {
+            "name": "w",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "h",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -871,6 +1018,146 @@
         },
         "tags": [
           "Ứng dụng trên màn hình"
+        ]
+      }
+    },
+    "/api/admin/locations/settings": {
+      "get": {
+        "operationId": "LocationsController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Bản đồ"
+        ]
+      },
+      "patch": {
+        "operationId": "LocationsController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Bản đồ"
+        ]
+      }
+    },
+    "/api/admin/live/watch": {
+      "post": {
+        "operationId": "LiveController_watch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Màn hình trực tiếp"
+        ]
+      }
+    },
+    "/api/admin/live/unwatch": {
+      "post": {
+        "operationId": "LiveController_unwatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnwatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Màn hình trực tiếp"
+        ]
+      }
+    },
+    "/api/admin/live/{deviceId}/frame": {
+      "get": {
+        "operationId": "LiveController_frame",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Màn hình trực tiếp"
+        ]
+      }
+    },
+    "/api/admin/live/{deviceId}/input": {
+      "post": {
+        "operationId": "LiveController_input",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Màn hình trực tiếp"
         ]
       }
     },
@@ -1544,6 +1831,43 @@
         },
         "tags": [
           "Phân phối APK"
+        ]
+      }
+    },
+    "/api/admin/usb-tool": {
+      "get": {
+        "operationId": "UsbToolController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Công cụ cài USB"
+        ]
+      }
+    },
+    "/api/admin/usb-tool/finish/{uploadId}": {
+      "post": {
+        "operationId": "UsbToolController_finish",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Công cụ cài USB"
         ]
       }
     },
@@ -2582,6 +2906,103 @@
           "target"
         ]
       },
+      "LocationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Tablet báo vị trí cho bản đồ"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "WatchDto": {
+        "type": "object",
+        "properties": {
+          "viewer": {
+            "type": "string",
+            "description": "Mã ngẫu nhiên của trang đang xem"
+          },
+          "deviceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "grid",
+              "detail"
+            ]
+          }
+        },
+        "required": [
+          "viewer",
+          "deviceIds",
+          "mode"
+        ]
+      },
+      "UnwatchDto": {
+        "type": "object",
+        "properties": {
+          "viewer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewer"
+        ]
+      },
+      "LiveInputDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "tap",
+              "long_press",
+              "swipe",
+              "key",
+              "text"
+            ]
+          },
+          "x": {
+            "type": "number",
+            "description": "Vị trí theo tỉ lệ ảnh, từ 0 đến 1"
+          },
+          "y": {
+            "type": "number"
+          },
+          "x2": {
+            "type": "number"
+          },
+          "y2": {
+            "type": "number"
+          },
+          "ms": {
+            "type": "number"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "back",
+              "home",
+              "recents",
+              "enter",
+              "backspace"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
       "CreateGroupDto": {
         "type": "object",
         "properties": {
@@ -2689,7 +3110,8 @@
             "type": "string",
             "enum": [
               "media",
-              "apk"
+              "apk",
+              "usb_tool"
             ]
           }
         },

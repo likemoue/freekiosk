@@ -24,11 +24,14 @@ const BluetoothDialog = require('../src/components/BluetoothDialog').default;
 const setTv = (value: boolean) =>
   Object.defineProperty(Platform, 'isTV', { configurable: true, get: () => value });
 
+let mounted: ReactTestRenderer.ReactTestRenderer | null = null;
+
 const render = async () => {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(<BluetoothDialog visible onClose={() => {}} />);
   });
+  mounted = renderer;
   return renderer;
 };
 const toggle = async (r: ReactTestRenderer.ReactTestRenderer) => {
@@ -42,11 +45,19 @@ describe('BluetoothDialog toggle', () => {
   let alertSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // Toggling polls the Bluetooth state on a timer for seconds after a test is over. On real
+    // timers that poll re-renders once Jest has torn this file down, and the error then fails
+    // whichever suite the worker is running by that time.
+    jest.useFakeTimers();
     mockSetEnabled.mockReset();
     mockSetEnabled.mockResolvedValue({ success: true });
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
   afterEach(() => {
+    act(() => { mounted?.unmount(); });
+    mounted = null;
+    jest.clearAllTimers();
+    jest.useRealTimers();
     alertSpy.mockRestore();
     Object.defineProperty(Platform, 'isTV', { configurable: true, get: () => original });
   });
