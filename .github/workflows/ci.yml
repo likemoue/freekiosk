@@ -1,0 +1,154 @@
+# Checks every pull request and every push to main, in four jobs that run side by side:
+#   App       typecheck, Jest and the Android JS bundle (Metro + Babel, as a release build runs them)
+#   Android   assembleRelease, so the Kotlin modules, the patches and autolinking are built for real
+#   Website   cloud/: typecheck, build, docs/openapi.json in step with the code, the API tests on PostgreSQL
+#   Security  osv-scanner on both lockfiles, gitleaks over the whole history, actionlint
+# Actions are pinned to a commit SHA and run node24; the tools run from images pinned by digest.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  app:
+    name: App
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: package-lock.json
+      # postinstall applies patches/: a patch that no longer applies fails here
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npx jest --ci
+      - name: JS bundle (Android)
+        run: >-
+          npx react-native bundle --platform android --dev false --entry-file index.js
+          --bundle-output "$RUNNER_TEMP/index.android.bundle" --assets-dest "$RUNNER_TEMP/res"
+
+  android:
+    name: Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - run: npm ci --no-audit --no-fund
+      # Not committed, since the signing passwords go there: without them a release build is signed
+      # with the debug key, which is all a check needs
+      - run: cp android/gradle.properties.example android/gradle.properties
+      # The APK of the USB tool, for the architecture of the tablets only, to save time
+      - name: assembleRelease (arm64-v8a)
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon --stacktrace
+
+  website:
+    name: Website
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: cloud
+    services:
+      postgres:
+        # The major version of compose.yaml
+        image: postgres:17-alpine@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7
+        env:
+          POSTGRES_USER: kiosk
+          POSTGRES_PASSWORD: kiosk_test_only
+          POSTGRES_DB: kiosk_test
+        ports:
+          - 5448:5432
+        options: >-
+          --health-cmd "pg_isready -U kiosk -d kiosk_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      # The address in .env.test.example
+      DATABASE_URL: postgresql://kiosk:kiosk_test_only@127.0.0.1:5448/kiosk_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # What deploy/Dockerfile runs on the server (node:24-alpine)
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cloud/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: docs/openapi.json matches the code
+        run: |
+          npm run openapi
+          if ! git diff --quiet -- docs/openapi.json; then
+            echo "::error file=cloud/docs/openapi.json::Out of date: run npm run build --workspace @freekiosk-manager/api && npm run openapi, in cloud/"
+            git diff --stat -- docs/openapi.json
+            exit 1
+          fi
+      - name: API tests (PostgreSQL)
+        run: |
+          cp .env.test.example .env.test
+          npm run db:migrate
+          npm test
+
+  security:
+    name: Security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # gitleaks reads every commit of HEAD (for a pull request, its merge commit with main)
+          fetch-depth: 0
+          persist-credentials: false
+      # Exceptions, each with a reason and an expiry date: osv-scanner.toml
+      - name: osv-scanner (package-lock.json, cloud/package-lock.json)
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro"
+          ghcr.io/google/osv-scanner:v2.7.1@sha256:a70ffffc2bfd33482953e5d6b64c6fcdb30239717a07b0f0d3ab2859ce3e4cde
+          scan source --config /repo/osv-scanner.toml
+          --lockfile /repo/package-lock.json --lockfile /repo/cloud/package-lock.json
+      # The history of HEAD, not --all (gitleaks' default): checkout fetched every branch, and one that is
+      # not going into main would turn every pull request red. Exceptions: .gitleaks.toml, .gitleaksignore
+      - name: gitleaks (whole history of HEAD)
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro"
+          -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*'
+          ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git /repo --config /repo/.gitleaks.toml --gitleaks-ignore-path /repo/.gitleaksignore
+          --redact --no-banner --exit-code 1 "--log-opts=--full-history HEAD"
+      - name: actionlint
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color
