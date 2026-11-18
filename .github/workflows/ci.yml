@@ -131,11 +131,13 @@ jobs:
           # gitleaks reads every commit of HEAD (for a pull request, its merge commit with main)
           fetch-depth: 0
           persist-credentials: false
+      # Exceptions, each with a reason and an expiry date: osv-scanner.toml
       - name: osv-scanner (package-lock.json, cloud/package-lock.json)
         run: >-
           docker run --rm -v "$PWD:/repo:ro"
           ghcr.io/google/osv-scanner:v2.7.1@sha256:a70ffffc2bfd33482953e5d6b64c6fcdb30239717a07b0f0d3ab2859ce3e4cde
-          scan source --lockfile /repo/package-lock.json --lockfile /repo/cloud/package-lock.json
+          scan source --config /repo/osv-scanner.toml
+          --lockfile /repo/package-lock.json --lockfile /repo/cloud/package-lock.json
       # The history of HEAD, not --all (gitleaks' default): checkout fetched every branch, and one that is
       # not going into main would turn every pull request red. Exceptions: .gitleaks.toml, .gitleaksignore
       - name: gitleaks (whole history of HEAD)

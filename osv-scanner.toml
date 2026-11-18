@@ -1,0 +1,8 @@
+# Exceptions of osv-scanner (the Security job of CI). Each one has an id, a reason with the day it was
+# written, and an `effectiveUntil`: from that day CI fails again, so it gets looked at once more.
+# Nothing that runs on a tablet or on the server goes here: that gets upgraded.
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+effectiveUntil = 2026-12-31T00:00:00Z
+reason = "picomatch up to 4.0.7: ReDoS when the caller passes a crafted glob pattern, no fixed version yet (last_affected 4.0.7). Only in build tools: Metro and Jest through react-native (package-lock.json), vite and other dev dependencies (cloud/package-lock.json). None of the 979 source files of the Android JS bundle comes from picomatch, micromatch or anymatch, the API image prunes dev dependencies, and our code never calls it, so the patterns are our own. When a fix is out, force it with `overrides`. Written 18/11/2026."
