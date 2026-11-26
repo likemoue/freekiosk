@@ -102,6 +102,8 @@ Khi bản gốc thêm chuỗi mới, kiểm thử `LocalesParity` sẽ báo khó
 
 MIT. Xem [LICENSE](LICENSE). Giữ nguyên ghi nhận tác giả gốc khi phân phối lại.
 
+The app also contains third-party software and assets under their own licenses (Apache-2.0, MIT, BSD, and a few Google components under Google's terms): see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which also travels inside the APK.
+
 <div align="center">
   <p>Dựa trên <a href="https://github.com/RushB-fr/freekiosk">FreeKiosk</a> của <a href="https://rushb.fr">Rushb</a></p>
 </div>

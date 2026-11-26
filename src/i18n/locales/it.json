@@ -104,6 +104,8 @@
       "dashboardActive": "La modalità Dashboard è attiva. Configura i tuoi riquadri nella scheda Dashboard.",
       "placeholder": "https://example.com",
       "hint": "Esempio: https://www.freekiosk.app",
+      "pickLocalFile": "Scegli un file HTML locale",
+      "pickLocalFileHint": "Il file viene letto dove si trova, quindi una pagina riscritta da un'altra app viene mostrata aggiornata. Le immagini e gli script accanto non si caricano: usa un file autonomo o scrivi un indirizzo file:// per una cartella.",
       "httpWarning": "SICUREZZA: questo URL usa HTTP (non cifrato).\nI tuoi dati possono essere intercettati. Usa HTTPS."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Bordi della pagina",
       "disable": "Disattiva effetto overscroll",
-      "disableHint": "Rimuove l'effetto elastico mostrato trascinando oltre la parte superiore o inferiore di una pagina, anche nelle pagine che non scorrono."
+      "disableHint": "Rimuove l'effetto elastico mostrato trascinando oltre la parte superiore o inferiore di una pagina, anche nelle pagine che non scorrono.",
+      "pullToRefresh": "Trascina per aggiornare",
+      "pullToRefreshHint": "Trascinare verso il basso dalla parte superiore della pagina la ricarica, come in un browser. Non ha effetto se la pagina o l'elenco sotto il dito è scorso."
     },
     "userAgent": {
       "title": "User-Agent",
@@ -443,6 +447,8 @@
       "title": "Contenuti multimediali web",
       "pauseHidden": "Metti in pausa audio/video quando nascosti",
       "pauseHiddenHint": "Mette in pausa audio e video della pagina web quando compare il salvaschermo, lo schermo si spegne o l'app va in background, altrimenti una web radio o un video potrebbero continuare a suonare in background senza poterli raggiungere. Disattiva per mantenere l'audio web sempre in riproduzione.",
+      "pausePage": "Metti in pausa la pagina a schermo spento",
+      "pausePageHint": "Ferma l'attività propria della pagina (timer, caricamento di immagini) mentre lo schermo è davvero spento (comando di spegnimento, blocco, tasto di accensione, pianificazione), così una presentazione non continua a scaricare. Riprende all'accensione. Disattivato per impostazione predefinita: una dashboard che deve restare aggiornata deve lasciarlo disattivato.",
       "intercom": "Modalità audio bidirezionale (citofono)",
       "intercomHint": "Attiva per l'audio bidirezionale WebRTC / talk-back (ad es. una card citofono Home Assistant / go2rtc). Mentre la pagina web usa attivamente il microfono, FreeKiosk porta il dispositivo in modalità audio di comunicazione affinché il canale di ritorno del microfono trasmetta, poi ripristina l'audio normale quando smetti di parlare. Lascia disattivato per la normale navigazione: si attiva solo mentre il microfono è in uso."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "Tocca N volte nella stessa area (i tocchi devono essere ravvicinati)",
       "fixedButton": "Pulsante fisso",
       "fixedButtonHint": "Tocca N volte un pulsante in un angolo",
+      "cornerSequence": "Tocchi negli angoli",
+      "cornerSequenceHint": "Tocca due volte l'angolo in alto a sinistra, poi due volte quello in basso a destra, entro 3 secondi. Non viene mostrato nulla e una tastiera a schermo non può attivarlo",
       "numTaps": "Numero di tocchi (2-20)",
       "numTapsHintButton": "Tocca questo numero di volte per accedere alle Impostazioni",
       "numTapsHintAnywhere": "Tocca rapidamente questo numero di volte in qualsiasi punto dello schermo per accedere alle Impostazioni",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Consenti anche di premere più volte il tasto Volume su/giù per accedere alle Impostazioni",
       "infoButtonMode": "Tocca il pulsante di ritorno ({{position}}) {{count}} volte per accedere alle Impostazioni",
       "infoAnywhereMode": "Tocca {{count}} volte in qualsiasi punto dello schermo entro {{timeout}} per accedere alle Impostazioni",
+      "infoCornerMode": "Tocca due volte l'angolo in alto a sinistra, poi due volte quello in basso a destra, entro 3 secondi per accedere alle impostazioni",
       "pinRequired": " (PIN richiesto)",
       "kioskScreenOnly": "Funziona solo nella schermata del chiosco. Con un'app aperta, né i tocchi, né il pulsante, né i tasti del volume portano alle impostazioni: torna prima alla schermata del chiosco."
     },
@@ -615,6 +624,7 @@
       "title": "Ritorno alle Impostazioni",
       "buttonLine": "• Tocca il pulsante di ritorno ({{position}}) {{count}} volte{{invisible}}",
       "anywhereLine": "• Tocca {{count}} volte in qualsiasi punto dello schermo entro {{timeout}}{{visual}}",
+      "cornerLine": "• Tocca due volte l'angolo in alto a sinistra, poi due volte quello in basso a destra, entro 3 secondi",
       "invisible": " (invisibile)",
       "visualIndicator": " (indicatore visivo visibile)",
       "recentApps": "• Oppure usa il selettore delle app recenti",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "In una pagina di riquadro, scorri verso sinistra con due dita per il riquadro successivo e verso destra per il precedente.",
       "keepTilesLoaded": "Mantieni i riquadri caricati",
       "keepTilesLoadedHint": "Carica i tuoi riquadri (fino a 5) in background appena si avvia la dashboard e li mantiene attivi: aprire o cambiare riquadro è immediato e ogni pagina conserva il suo stato. Usa più memoria."
+    },
+    "startOn": {
+      "title": "Avvia su",
+      "hint": "Cosa mostra il kiosk all'avvio o al ritorno dalle Impostazioni: la griglia dei riquadri o uno dei tuoi riquadri.",
+      "grid": "Griglia dei riquadri"
     },
     "iconColor": "Colore icona",
     "colorAuto": "Auto",
@@ -1322,6 +1337,9 @@
       "loadingError": "Errore di caricamento",
       "loading": "Caricamento...",
       "urlLabel": "URL: {{url}}",
+      "errorReason": "Causa: {{reason}}",
+      "blockedByFilter": "Bloccato dal filtro URL",
+      "blockedByFilterHost": "Bloccato dal filtro URL: {{host}}",
       "autoReloadText": "Ricaricamento automatico tra 5 secondi...",
       "reloadNow": "Ricarica ora",
       "fallbackSettingsHint": "Tocca 5× il pulsante delle impostazioni per tornare alle impostazioni",
@@ -1568,6 +1586,12 @@
       "reloadConfig": "Ricarica",
       "fileAccessOffTitle": "Accesso ai file disattivato",
       "fileAccessOffMessage": "Per aprire un file locale, attiva prima Generale > Visualizzatore PDF > Visualizzatore PDF integrato. È questa impostazione che dà al browser l'accesso ai file del dispositivo.",
+      "allFilesNeededTitle": "Serve l'accesso a tutti i file",
+      "allFilesNeededMessage": "Questo file è fuori dalla cartella di FreeKiosk. Nella schermata successiva consenti a FreeKiosk di accedere a tutti i file, poi torna indietro e salva di nuovo.",
+      "allFilesOpenSettings": "Apri impostazioni",
+      "allFilesCancel": "Annulla",
+      "allFilesUnavailableTitle": "File fuori dalla cartella di FreeKiosk",
+      "allFilesUnavailableMessage": "Questa versione di FreeKiosk non può leggere file fuori dalla propria cartella. Copia il file in Android/data/com.freekiosk/files/ sul dispositivo, oppure scegli il file con «Scegli un file HTML locale».",
       "passwordNotSavedTitle": "Password non salvata",
       "basicAuthNotSavedMessage": "Non è stato possibile scrivere la password HTTP Basic Auth nell'archivio sicuro di questo dispositivo. Tutte le altre impostazioni di questa schermata sono state salvate. Succede su firmware con Android Keystore difettoso.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

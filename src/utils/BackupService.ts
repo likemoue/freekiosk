@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import RNFS from 'react-native-fs';
+import UpdateModule from './UpdateModule';
 import { hasSecurePin, getSecureApiKey, saveSecureApiKey, getSecureMqttPassword, saveSecureMqttPassword } from './secureStorage';
 import { tr } from '../i18n/tr';
 
@@ -160,6 +161,7 @@ const BACKUP_KEYS = [
   '@kiosk_dashboard_tiles',
   '@kiosk_default_launcher',
   '@kiosk_disable_overscroll',
+  '@kiosk_pull_to_refresh',
   '@kiosk_disable_user_zoom',
   '@kiosk_http_basic_auth_username',
   '@kiosk_intercom_mode',
@@ -187,6 +189,7 @@ const BACKUP_KEYS = [
   '@kiosk_media_player_transition',
   '@kiosk_media_player_transition_duration',
   '@kiosk_pause_web_media_when_hidden',
+  '@kiosk_pause_page_screen_off',
   '@kiosk_print_enabled',
   '@kiosk_print_paper_size',
   '@kiosk_silent_print_enabled',
@@ -216,6 +219,7 @@ const BACKUP_KEYS = [
   '@kiosk_dashboard_nav_auto_hide_seconds',
   '@kiosk_dashboard_swipe_between_tiles',
   '@kiosk_dashboard_keep_tiles_loaded',
+  '@kiosk_dashboard_start_tile',
   '@kiosk_status_bar_theme',
 ];
 
@@ -228,7 +232,6 @@ export interface BackupData {
 }
 
 const BACKUP_VERSION = '1.0';
-const APP_VERSION = '1.3.0';
 
 /**
  * Request storage permissions on Android
@@ -332,10 +335,18 @@ export async function buildBackupJson(): Promise<{ success: boolean; json?: stri
 
     const hasPinConfigured = await hasSecurePin();
 
+    // The version of the app that writes the file (#363); 'unknown' if the native side cannot say
+    let appVersion = 'unknown';
+    try {
+      appVersion = (await UpdateModule.getCurrentVersion()).versionName || appVersion;
+    } catch (e) {
+      console.warn('Failed to read the app version for the backup:', e);
+    }
+
     const backupData: BackupData = {
       version: BACKUP_VERSION,
       exportDate: new Date().toISOString(),
-      appVersion: APP_VERSION,
+      appVersion,
       settings,
       hasPinConfigured,
     };

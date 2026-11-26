@@ -104,6 +104,8 @@
       "dashboardActive": "Le mode Tableau de bord est actif. Configurez vos tuiles dans l'onglet Tableau de bord.",
       "placeholder": "https://exemple.com",
       "hint": "Exemple : https://www.freekiosk.app",
+      "pickLocalFile": "Choisir un fichier HTML local",
+      "pickLocalFileHint": "Le fichier est lu là où il se trouve : une page qu'une autre appli réécrit s'affiche à jour. Les images et scripts à côté ne se chargent pas : utilisez un fichier autonome, ou saisissez une adresse file:// pour un dossier.",
       "httpWarning": "SÉCURITÉ : Cette URL utilise HTTP (non chiffré).\nVos données peuvent être interceptées. Utilisez HTTPS à la place."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Bords de la page",
       "disable": "Désactiver l'effet d'étirement",
-      "disableHint": "Supprime l'effet élastique affiché quand on tire au-delà du haut ou du bas d'une page, même si elle ne défile pas."
+      "disableHint": "Supprime l'effet élastique affiché quand on tire au-delà du haut ou du bas d'une page, même si elle ne défile pas.",
+      "pullToRefresh": "Tirer pour actualiser",
+      "pullToRefreshHint": "Tirer vers le bas depuis le haut de la page la recharge, comme dans un navigateur. Sans effet quand la page ou la liste sous le doigt est défilée."
     },
     "userAgent": {
       "title": "User-Agent",
@@ -443,6 +447,8 @@
       "title": "Média web",
       "pauseHidden": "Mettre en pause audio/vidéo quand masqué",
       "pauseHiddenHint": "Mettre en pause l'audio et la vidéo de la page web quand l'économiseur d'écran s'affiche, que l'écran s'éteint, ou que l'application passe en arrière-plan — sinon une radio ou vidéo web pourrait continuer à jouer, inaccessible, en arrière-plan. Désactiver pour laisser l'audio web jouer en continu.",
+      "pausePage": "Mettre la page en pause écran éteint",
+      "pausePageHint": "Arrête l'activité propre de la page (minuteries, chargement d'images) quand l'écran est réellement éteint (commande d'extinction, verrouillage, bouton marche, planification), pour qu'un diaporama ne continue pas à télécharger. Elle reprend à l'allumage. Désactivé par défaut : un tableau de bord qui doit rester à jour doit le laisser désactivé.",
       "intercom": "Mode audio bidirectionnel (interphone)",
       "intercomHint": "À activer pour l'audio bidirectionnel WebRTC / talkie-walkie (ex. une carte interphone de sonnette Home Assistant / go2rtc). Pendant que la page web utilise activement le microphone, FreeKiosk bascule l'appareil en mode audio de communication pour que le canal retour du micro transmette, puis restaure l'audio normal quand vous arrêtez de parler. Laisser désactivé pour une navigation normale — ça ne s'active que quand le micro est utilisé."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "Toucher N fois dans la même zone (les appuis doivent être groupés)",
       "fixedButton": "Bouton fixe",
       "fixedButtonHint": "Toucher N fois un bouton dans un coin",
+      "cornerSequence": "Taps dans les coins",
+      "cornerSequenceHint": "Touchez deux fois le coin supérieur gauche, puis deux fois le coin inférieur droit, en moins de 3 secondes. Rien n'est affiché et un clavier à l'écran ne peut pas le déclencher",
       "numTaps": "Nombre d'appuis (2-20)",
       "numTapsHintButton": "Toucher ce nombre de fois pour accéder aux réglages",
       "numTapsHintAnywhere": "Toucher n'importe où sur l'écran ce nombre de fois rapidement pour accéder aux réglages",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Autoriser aussi l'appui multiple sur le bouton Volume haut/bas pour accéder aux réglages",
       "infoButtonMode": "Touchez le bouton retour ({{position}}) {{count}} fois pour accéder aux réglages",
       "infoAnywhereMode": "Touchez n'importe où sur l'écran {{count}} fois en {{timeout}} pour accéder aux réglages",
+      "infoCornerMode": "Touchez deux fois le coin supérieur gauche, puis deux fois le coin inférieur droit, en moins de 3 secondes pour accéder aux réglages",
       "pinRequired": " (PIN requis)",
       "kioskScreenOnly": "Fonctionne uniquement sur l'écran du kiosque. Lorsqu'une application est ouverte, les touchers, le bouton et les touches de volume ne mènent pas aux paramètres : revenez d'abord à l'écran du kiosque."
     },
@@ -615,6 +624,7 @@
       "title": "Retour aux réglages",
       "buttonLine": "• Touchez le bouton retour ({{position}}) {{count}} fois{{invisible}}",
       "anywhereLine": "• Touchez {{count}} fois n'importe où sur l'écran en {{timeout}}{{visual}}",
+      "cornerLine": "• Touchez deux fois le coin supérieur gauche, puis deux fois le coin inférieur droit, en moins de 3 secondes",
       "invisible": " (invisible)",
       "visualIndicator": " (indicateur visuel visible)",
       "recentApps": "• Ou utilisez le sélecteur d'applications récentes",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "Sur une page de tuile, balayez vers la gauche avec deux doigts pour la tuile suivante et vers la droite pour la précédente.",
       "keepTilesLoaded": "Garder les tuiles chargées",
       "keepTilesLoadedHint": "Charge vos tuiles (jusqu'à 5) en arrière-plan dès le démarrage du tableau de bord et les garde actives : ouvrir ou changer de tuile est instantané et chaque page garde son état. Utilise plus de mémoire."
+    },
+    "startOn": {
+      "title": "Démarrer sur",
+      "hint": "Ce que le kiosque affiche au démarrage ou au retour des Paramètres : la grille des tuiles, ou l'une de vos tuiles.",
+      "grid": "Grille des tuiles"
     },
     "iconColor": "Couleur de l'icône",
     "colorAuto": "Auto",
@@ -1322,6 +1337,9 @@
       "loadingError": "Erreur de chargement",
       "loading": "Chargement...",
       "urlLabel": "URL : {{url}}",
+      "errorReason": "Cause : {{reason}}",
+      "blockedByFilter": "Bloqué par le filtre d'URL",
+      "blockedByFilterHost": "Bloqué par le filtre d'URL : {{host}}",
       "autoReloadText": "Rechargement automatique dans 5 secondes...",
       "reloadNow": "Recharger maintenant",
       "fallbackSettingsHint": "Appuyez 5× sur le bouton réglages pour revenir aux réglages",
@@ -1567,6 +1585,12 @@
       "reloadConfig": "Recharger",
       "fileAccessOffTitle": "Accès aux fichiers désactivé",
       "fileAccessOffMessage": "Pour ouvrir un fichier local, activez d'abord Général > Lecteur PDF > Lecteur PDF intégré. C'est ce réglage qui donne au navigateur l'accès aux fichiers de l'appareil.",
+      "allFilesNeededTitle": "L'accès à tous les fichiers est nécessaire",
+      "allFilesNeededMessage": "Ce fichier est en dehors du dossier de FreeKiosk. Sur l'écran suivant, autorisez FreeKiosk à accéder à tous les fichiers, puis revenez et enregistrez à nouveau.",
+      "allFilesOpenSettings": "Ouvrir les réglages",
+      "allFilesCancel": "Annuler",
+      "allFilesUnavailableTitle": "Fichier hors du dossier de FreeKiosk",
+      "allFilesUnavailableMessage": "Cette version de FreeKiosk ne peut pas lire de fichiers hors de son propre dossier. Copiez le fichier dans Android/data/com.freekiosk/files/ sur l'appareil, ou choisissez-le avec « Choisir un fichier HTML local ».",
       "passwordNotSavedTitle": "Mot de passe non enregistré",
       "basicAuthNotSavedMessage": "Le mot de passe HTTP Basic Auth n'a pas pu être écrit dans le stockage sécurisé de cet appareil. Tous les autres réglages de cet écran ont été enregistrés. Cela arrive sur les firmwares dont le Keystore Android est défaillant.",
       "downloadProgress": "{{percent}} % ({{done}} / {{total}} Mo)",

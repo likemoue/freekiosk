@@ -104,6 +104,8 @@
       "dashboardActive": "仪表板模式已启用。请在“仪表板”选项卡中配置磁贴。",
       "placeholder": "https://example.com",
       "hint": "示例：https://www.freekiosk.app",
+      "pickLocalFile": "选择本地 HTML 文件",
+      "pickLocalFileHint": "文件在原位置读取，因此被其他应用重写的页面会显示最新内容。其旁边的图片和脚本不会加载：请使用单个独立文件，或为文件夹输入 file:// 地址。",
       "httpWarning": "安全提示：此 URL 使用 HTTP（未加密）。\n数据可能被截获。请改用 HTTPS。"
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "页面边缘",
       "disable": "禁用过度滚动效果",
-      "disableHint": "移除拖动超过页面顶部或底部时出现的弹性拉伸效果，即使页面无法滚动也是如此。"
+      "disableHint": "移除拖动超过页面顶部或底部时出现的弹性拉伸效果，即使页面无法滚动也是如此。",
+      "pullToRefresh": "下拉刷新",
+      "pullToRefreshHint": "从页面顶部向下拖动即可重新加载页面，与浏览器相同。页面或手指下的列表已滚动时无效。"
     },
     "userAgent": {
       "title": "User Agent",
@@ -443,6 +447,8 @@
       "title": "网页媒体",
       "pauseHidden": "隐藏时暂停音频/视频",
       "pauseHiddenHint": "在显示屏幕保护程序、屏幕关闭或应用转入后台时暂停网页的音频和视频，否则网络电台或视频可能会在后台持续播放且无法控制。关闭此选项可让网页音频持续播放。",
+      "pausePage": "屏幕关闭时暂停页面",
+      "pausePageHint": "当屏幕真正关闭时（关屏命令、锁屏、电源键、计划任务），停止页面自身的活动（定时器、图片加载），避免幻灯片继续下载。屏幕亮起后恢复运行。默认关闭：需要持续更新的仪表板应保持关闭。",
       "intercom": "双向音频（对讲）模式",
       "intercomHint": "启用后可使用 WebRTC 双向音频/对讲（例如 Home Assistant / go2rtc 门铃对讲卡片）。网页正在使用麦克风时，FreeKiosk 会将设备切换到通话音频模式，以便麦克风回传通道能够发送声音，停止讲话后再恢复正常音频。正常浏览时请保持关闭，它仅在麦克风使用期间生效。"
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "在同一区域点按 N 次（点按必须集中）",
       "fixedButton": "固定按钮",
       "fixedButtonHint": "在角落按钮上点按 N 次",
+      "cornerSequence": "角落点击",
+      "cornerSequenceHint": "3 秒内先点击左上角两次，再点击右下角两次。屏幕上不显示任何内容，屏幕键盘也无法误触发",
       "numTaps": "点按次数（2-20）",
       "numTapsHintButton": "点按此次数即可进入设置",
       "numTapsHintAnywhere": "在屏幕任意位置快速点按此次数即可进入设置",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "也允许多次按音量加/减键进入设置",
       "infoButtonMode": "点按返回按钮（{{position}}）{{count}} 次即可进入设置",
       "infoAnywhereMode": "在 {{timeout}} 内点按屏幕任意位置 {{count}} 次即可进入设置",
+      "infoCornerMode": "3 秒内先点击左上角两次，再点击右下角两次，即可进入设置",
       "pinRequired": "（需要 PIN）",
       "kioskScreenOnly": "仅在自助终端界面上有效。打开应用时，触摸、按钮和音量键都不会进入设置：请先返回自助终端界面。"
     },
@@ -615,6 +624,7 @@
       "title": "返回设置",
       "buttonLine": "• 点按返回按钮（{{position}}）{{count}} 次{{invisible}}",
       "anywhereLine": "• 在 {{timeout}} 内点按屏幕任意位置 {{count}} 次{{visual}}",
+      "cornerLine": "• 3 秒内先点击左上角两次，再点击右下角两次",
       "invisible": "（不可见）",
       "visualIndicator": "（显示可见指示）",
       "recentApps": "• 或使用最近应用选择器",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "在磁贴页面上，用两根手指向左滑动切换到下一个磁贴，向右滑动切换到上一个磁贴。",
       "keepTilesLoaded": "保持磁贴加载",
       "keepTilesLoadedHint": "仪表板启动后立即在后台加载磁贴（最多 5 个）并保持运行，使打开或切换磁贴即时完成，且每个页面都保留其状态。会占用更多内存。"
+    },
+    "startOn": {
+      "title": "启动时显示",
+      "hint": "自助终端启动或从设置返回时显示的内容：磁贴网格，或您的某个磁贴。",
+      "grid": "磁贴网格"
     },
     "iconColor": "图标颜色",
     "colorAuto": "自动",
@@ -1322,6 +1337,9 @@
       "loadingError": "加载错误",
       "loading": "正在加载...",
       "urlLabel": "URL：{{url}}",
+      "errorReason": "原因：{{reason}}",
+      "blockedByFilter": "已被 URL 过滤器拦截",
+      "blockedByFilterHost": "已被 URL 过滤器拦截：{{host}}",
       "autoReloadText": "5 秒后自动重新加载...",
       "reloadNow": "立即重新加载",
       "fallbackSettingsHint": "点按设置按钮 5 次即可返回设置",
@@ -1567,6 +1585,12 @@
       "reloadConfig": "重新加载",
       "fileAccessOffTitle": "文件访问已关闭",
       "fileAccessOffMessage": "要打开本地文件，请先开启“常规 > PDF 查看器 > 内嵌 PDF 查看器”。正是该设置让浏览器能够访问设备上的文件。",
+      "allFilesNeededTitle": "需要访问所有文件的权限",
+      "allFilesNeededMessage": "此文件位于 FreeKiosk 自己的文件夹之外。在下一个界面中允许 FreeKiosk 访问所有文件，然后返回并再次保存。",
+      "allFilesOpenSettings": "打开设置",
+      "allFilesCancel": "取消",
+      "allFilesUnavailableTitle": "文件位于 FreeKiosk 文件夹之外",
+      "allFilesUnavailableMessage": "此版本的 FreeKiosk 无法读取自己文件夹之外的文件。请将文件复制到设备上的 Android/data/com.freekiosk/files/，或使用“选择本地 HTML 文件”选择它。",
       "passwordNotSavedTitle": "密码未保存",
       "basicAuthNotSavedMessage": "无法将 HTTP Basic Auth 密码写入此设备的安全存储。此界面上的其他设置均已保存。这种情况出现在 Android Keystore 损坏的固件上。",
       "downloadProgress": "{{percent}}%（{{done}} / {{total}} MB）",

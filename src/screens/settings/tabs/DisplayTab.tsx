@@ -83,12 +83,16 @@ interface DisplayTabProps {
   onDisableUserZoomChange: (value: boolean) => void;
   disableOverscroll: boolean;
   onDisableOverscrollChange: (value: boolean) => void;
+  pullToRefresh: boolean;
+  onPullToRefreshChange: (value: boolean) => void;
   
   // Custom User Agent
   customUserAgent: string;
   onCustomUserAgentChange: (value: string) => void;
   pauseWebMediaWhenHidden: boolean;
   onPauseWebMediaWhenHiddenChange: (value: boolean) => void;
+  pausePageWhenScreenOff: boolean;
+  onPausePageWhenScreenOffChange: (value: boolean) => void;
   intercomModeEnabled: boolean;
   onIntercomModeChange: (value: boolean) => void;
 
@@ -196,10 +200,14 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
   onDisableUserZoomChange,
   disableOverscroll,
   onDisableOverscrollChange,
+  pullToRefresh,
+  onPullToRefreshChange,
   customUserAgent,
   onCustomUserAgentChange,
   pauseWebMediaWhenHidden,
   onPauseWebMediaWhenHiddenChange,
+  pausePageWhenScreenOff,
+  onPausePageWhenScreenOffChange,
   intercomModeEnabled,
   onIntercomModeChange,
   screensaverEnabled,
@@ -1041,6 +1049,12 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
             value={disableOverscroll}
             onValueChange={onDisableOverscrollChange}
           />
+          <SettingsSwitch
+            label={t('display.overscroll.pullToRefresh')}
+            hint={t('display.overscroll.pullToRefreshHint')}
+            value={pullToRefresh}
+            onValueChange={onPullToRefreshChange}
+          />
         </SettingsSection>
       )}
 
@@ -1074,6 +1088,12 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
             hint={t('display.webMedia.pauseHiddenHint')}
             value={pauseWebMediaWhenHidden}
             onValueChange={onPauseWebMediaWhenHiddenChange}
+          />
+          <SettingsSwitch
+            label={t('display.webMedia.pausePage')}
+            hint={t('display.webMedia.pausePageHint')}
+            value={pausePageWhenScreenOff}
+            onValueChange={onPausePageWhenScreenOffChange}
           />
           <SettingsSwitch
             label={t('display.webMedia.intercom')}

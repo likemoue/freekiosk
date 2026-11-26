@@ -90,6 +90,9 @@ def enableSelfUpdate = !project.hasProperty('playstore')
 def enableAccessibilityService = !project.hasProperty('playstore') && !project.hasProperty('cloudprovi')
 // Camera-type foreground service for the remote camera behind another app: Play reviews that type.
 def enableCameraForegroundService = !project.hasProperty('playstore')
+// All files access (MANAGE_EXTERNAL_STORAGE) lets a file:// URL reach shared storage. Play restricts
+// it to a few app categories, so a Play Store build has neither the permission nor the setting (#385).
+def enableAllFilesAccess = !project.hasProperty('playstore')
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -125,6 +128,7 @@ android {
         // Expose self-update flag to both Kotlin (BuildConfig) and JS (via UpdateModule constants)
         buildConfigField "boolean", "ENABLE_SELF_UPDATE", "${enableSelfUpdate}"
         buildConfigField "boolean", "ENABLE_CAMERA_FGS", "${enableCameraForegroundService}"
+        buildConfigField "boolean", "ENABLE_ALL_FILES_ACCESS", "${enableAllFilesAccess}"
 
         // Play Store compliance: when -Pplaystore is set, replace REQUEST_INSTALL_PACKAGES
         // with INTERNET (already declared → deduplicated by manifest merger → effectively removed)
@@ -182,6 +186,9 @@ android {
         // and compresses the download itself, and uncompressed libs install smaller there.
         jniLibs {
             useLegacyPackaging = !project.hasProperty('playstore')
+            // LiteRT (BlazeFace face check) only for ARM: the x86 libraries would be carried
+            // for BlissOS boxes and emulators, where the face check falls back to FaceDetector
+            excludes += ['lib/x86/libtensorflowlite_jni.so', 'lib/x86_64/libtensorflowlite_jni.so']
         }
     }
 
@@ -243,6 +250,17 @@ tasks.whenTaskAdded { task ->
 project.ext.vectoricons = [iconFontNames: ['MaterialCommunityIcons.ttf']]
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
+// The third-party notices travel with the APK, as the Apache-2.0 and BSD-3-Clause licenses of what it
+// carries (PDF.js, the icon font, NanoHTTPD, HiveMQ...) ask for their texts to be passed on. One source:
+// THIRD-PARTY-NOTICES.md at the root of the repository, copied into the assets at build time.
+def thirdPartyNoticesDir = layout.buildDirectory.dir('generated/third-party-notices')
+def copyThirdPartyNotices = tasks.register('copyThirdPartyNotices', Copy) {
+    from rootProject.file('../THIRD-PARTY-NOTICES.md')
+    into thirdPartyNoticesDir
+}
+android.sourceSets.main.assets.srcDir(thirdPartyNoticesDir)
+tasks.named('preBuild') { dependsOn(copyThirdPartyNotices) }
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
@@ -253,6 +271,10 @@ dependencies {
 
     // HiveMQ MQTT Client for Home Assistant integration
     implementation("com.hivemq:hivemq-mqtt-client:1.3.12")
+
+    // LiteRT (TensorFlow Lite) runs BlazeFace for the motion detector's face check.
+    // ARM only, see packaging.jniLibs above.
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

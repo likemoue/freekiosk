@@ -36,6 +36,16 @@ import androidx.core.content.ContextCompat
 class MainActivity : ReactActivity() {
 
   companion object {
+    /**
+     * The activity that is alive, for a receiver declared in the manifest (the Screen Scheduler
+     * alarms), which cannot be handed one the way ScreenStateReceiver is. Reaching it through
+     * ReactNativeHost throws under the New Architecture (#364).
+     */
+    @Volatile
+    private var liveActivity: java.lang.ref.WeakReference<MainActivity>? = null
+
+    fun current(): MainActivity? = liveActivity?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+
     /** #280: delay before the alarm relaunches the app after an ADB config restart. */
     private const val ADB_RESTART_DELAY_MS = 1500L
 
@@ -119,6 +129,7 @@ class MainActivity : ReactActivity() {
       "auto_relaunch" to "@kiosk_auto_relaunch_app",
       "auto_relaunch_app" to "@kiosk_auto_relaunch_app",
       "keep_screen_on" to "@kiosk_keep_screen_on",
+      "auto_wake_on_screen_off" to "@kiosk_auto_wake_on_screen_off",
       "keyboard_mode" to "@kiosk_keyboard_mode",
       "screen_orientation" to "@kiosk_screen_orientation",
       "pin_max_attempts" to "@kiosk_pin_max_attempts",
@@ -135,6 +146,7 @@ class MainActivity : ReactActivity() {
       "return_tap_count" to "@kiosk_return_tap_count",
       "return_tap_timeout" to "@kiosk_return_tap_timeout",
       "volume_up_5tap_enabled" to "@kiosk_volume_up_5tap_enabled",
+      "pause_page_screen_off" to "@kiosk_pause_page_screen_off",
       "webview_back_button_enabled" to "@kiosk_webview_back_button_enabled",
       "allow_power_button" to "@kiosk_allow_power_button",
       "allow_notifications" to "@kiosk_allow_notifications",
@@ -166,6 +178,7 @@ class MainActivity : ReactActivity() {
       "webview_zoom_mode" to "@kiosk_webview_zoom_mode",
       "disable_user_zoom" to "@kiosk_disable_user_zoom",
       "disable_overscroll" to "@kiosk_disable_overscroll",
+      "pull_to_refresh" to "@kiosk_pull_to_refresh",
       "session_reset_button_enabled" to "@kiosk_session_reset_button_enabled",
       "screensaver_enabled" to "@screensaver_enabled",
       "screensaver_delay" to "@screensaver_inactivity_delay",
@@ -272,9 +285,11 @@ class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)
+    liveActivity = java.lang.ref.WeakReference(this)
     hasStarted = true  // #222: tells BootLockActivity the hand-off really happened
 
     installTvFocusRing()
+    installTvAlertFocus()
 
     // Keep screen always on
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -859,6 +874,10 @@ class MainActivity : ReactActivity() {
 
   override fun onResume() {
     super.onResume()
+    // #215: never leave the page frozen if the screen-on broadcast was missed.
+    if (pageTimersPaused) setPageTimersPaused(false)
+    // A wake interrupted by a restart never cancelled its notification.
+    ScreenController.cancelWakeNotification(this)
     // The lock screen comes back after the screen was off; a swipe-only one is dismissed again.
     KeyguardHelper.dismissIfInsecure(this)
 
@@ -1273,6 +1292,30 @@ class MainActivity : ReactActivity() {
     }
   }
 
+  // ===== Android TV: an alert opens with its button focused (#365) =====
+  // React Native's Alert is a native dialog, and the system leaves its buttons unfocused. With a
+  // remote, OK then does nothing until DOWN has moved the focus onto a button, so a message such
+  // as "Invalid URL" looked stuck. This puts the focus on a button as the dialog starts: the
+  // negative one when there is one (Stay, Cancel), so a press of OK never confirms a destructive
+  // choice such as "Leave without saving" by accident, otherwise the only button.
+  private fun installTvAlertFocus() {
+    if (!isTelevision) return
+    supportFragmentManager.registerFragmentLifecycleCallbacks(
+      object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+        override fun onFragmentStarted(fm: androidx.fragment.app.FragmentManager, f: androidx.fragment.app.Fragment) {
+          val decor = (f as? androidx.fragment.app.DialogFragment)?.dialog?.window?.decorView ?: return
+          decor.post {
+            listOf(android.R.id.button2, android.R.id.button1, android.R.id.button3)
+              .mapNotNull { decor.findViewById<View>(it) }
+              .firstOrNull { it.visibility == View.VISIBLE && it.isFocusable }
+              ?.requestFocus()
+          }
+        }
+      },
+      false,
+    )
+  }
+
   // ===== Android TV: Back x5 opens the PIN screen =====
   // On a TV there is no touch, and the volume keys never reach the app (the system handles
   // them), so neither the tap escape nor Volume Up x5 exists. Back is on every remote and is
@@ -1420,7 +1463,8 @@ class MainActivity : ReactActivity() {
   // the existing Volume-Up x5 escape hatch.
   //
   // To revert this feature entirely: delete this whole block (fields + methods +
-  // the dispatchTouchEvent override below). Nothing else references it.
+  // the dispatchTouchEvent override below), but keep the corner_sequence return
+  // mode's lines (cornerSequence*): that mode has no other path to the settings.
   // Disable at runtime: set AsyncStorage `@kiosk_tap_to_settings_native_enabled`
   // to "false".
   // ============================================================================
@@ -1446,6 +1490,11 @@ class MainActivity : ReactActivity() {
   private var tapSettingsEnabled = false
   private var tapSettingsRequiredTaps = 5
   private var tapSettingsTimeoutMs = 1500L
+  // "corner_sequence" return mode: handled only here, the page script has no part in it
+  private var cornerSequenceEnabled = false
+  private val cornerSequenceDetector by lazy {
+    CornerSequenceDetector(CornerSequenceDetector.CORNER_DP * resources.displayMetrics.density)
+  }
 
   private fun refreshTapSettingsConfig() {
     val now = System.currentTimeMillis()
@@ -1455,15 +1504,17 @@ class MainActivity : ReactActivity() {
       val featureEnabled = getAsyncStorageValue("@kiosk_tap_to_settings_native_enabled", "true") == "true"
       val displayMode = getAsyncStorageValue("@kiosk_display_mode", "webview")
       val returnMode = getAsyncStorageValue("@kiosk_return_mode", "tap_anywhere")
+      val pageMode = displayMode == "webview" || displayMode == "media_player"
       // Only active where the JS path is the sole escape: WebView/media + tap_anywhere.
       // (button mode has its own RN return button; external_app uses OverlayService.)
-      tapSettingsEnabled = featureEnabled &&
-        (displayMode == "webview" || displayMode == "media_player") &&
-        returnMode == "tap_anywhere"
+      tapSettingsEnabled = featureEnabled && pageMode && returnMode == "tap_anywhere"
+      // Not behind the #180 switch: this is the corner mode's only path
+      cornerSequenceEnabled = pageMode && returnMode == "corner_sequence"
       tapSettingsRequiredTaps = getAsyncStorageValue("@kiosk_return_tap_count", "5").toIntOrNull()?.coerceIn(2, 20) ?: 5
       tapSettingsTimeoutMs = getAsyncStorageValue("@kiosk_return_tap_timeout", "1500").toLongOrNull()?.coerceIn(500L, 5000L) ?: 1500L
     } catch (e: Exception) {
       tapSettingsEnabled = false
+      cornerSequenceEnabled = false
     }
   }
 
@@ -1510,38 +1561,67 @@ class MainActivity : ReactActivity() {
       if (tapSettingsEnabled) {
         handleTapForSettings(ev.rawX, ev.rawY)
       }
+      val decor = window.decorView
+      if (cornerSequenceEnabled &&
+        cornerSequenceDetector.onTap(ev.x, ev.y, decor.width, decor.height, ev.eventTime)) {
+        android.util.Log.d("MainActivity", "Corner sequence detected - navigating to PIN")
+        blockAutoRelaunch = true
+        Handler(Looper.getMainLooper()).postDelayed({ sendNavigateToPinEvent() }, 100)
+      }
     }
     // Dashboard tile navigation (not part of #180; keep if #180 is reverted).
-    val swipe = if (ev != null && navGestureEnabled) feedNavGesture(ev) else null
+    val navGesture = if (ev != null && navGestureEnabled) feedNavGesture(ev) else null
     val handled = super.dispatchTouchEvent(ev)
     // After super, so the page has already had the final ACTION_UP when the tile switches.
-    if (swipe != null) KioskModule.sendEventFromNative("onNavGesture", swipe.jsName)
+    if (navGesture != null) sendNavGesture(navGesture)
     return handled
   }
   // ===== END #180 native tap-to-settings fallback =====
 
   // ===== Dashboard tile navigation =====
-  // Two-finger swipes, observed here so nothing is injected into
-  // the page and they work whatever state it is in. KioskScreen turns this on only while a
-  // tile is on screen. See TwoFingerSwipeDetector.
+  // Two-finger gestures, observed here so nothing is injected into the page and they work
+  // whatever state it is in. KioskScreen turns this on only while a tile is on screen. Up/down
+  // arrive in JS as "onNavGesture" ("up"/"down"); a sideways drag slides the tiles natively
+  // (TileSlider, in step with the fingers) and reports "left"/"right" once the slide is done.
+  // See TwoFingerSwipeDetector.
   @Volatile var navGestureEnabled = false
+  private val navGestureDensity by lazy { resources.displayMetrics.density }
   private val navGestureDetector by lazy {
-    val density = resources.displayMetrics.density
     TwoFingerSwipeDetector(
-      TwoFingerSwipeDetector.MIN_DRAG_DP * density,
-      TwoFingerSwipeDetector.MAX_GAP_CHANGE_DP * density,
+      TwoFingerSwipeDetector.MIN_DRAG_DP * navGestureDensity,
+      TwoFingerSwipeDetector.MAX_GAP_CHANGE_DP * navGestureDensity,
+      TwoFingerSwipeDetector.DRAG_SLOP_DP * navGestureDensity,
     )
   }
+  val tileSlider by lazy { TileSlider(this) }
   private val navGestureXs = FloatArray(2)
   private val navGestureYs = FloatArray(2)
 
-  private fun feedNavGesture(ev: android.view.MotionEvent): TwoFingerSwipeDetector.Direction? {
+  private fun feedNavGesture(ev: android.view.MotionEvent): TwoFingerSwipeDetector.Event? {
     val count = minOf(ev.pointerCount, 2)
     for (i in 0 until count) {
       navGestureXs[i] = ev.getX(i)
       navGestureYs[i] = ev.getY(i)
     }
-    return navGestureDetector.onTouch(ev.actionMasked, ev.pointerCount, navGestureXs, navGestureYs)
+    val event = navGestureDetector.onTouch(ev.actionMasked, ev.pointerCount, navGestureXs, navGestureYs, ev.eventTime)
+    val over = ev.actionMasked == android.view.MotionEvent.ACTION_UP ||
+      ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
+    if (over && event !is TwoFingerSwipeDetector.Event.DragEnd && event !is TwoFingerSwipeDetector.Event.DragCancel) {
+      tileSlider.idle()
+    }
+    return event
+  }
+
+  private fun sendNavGesture(event: TwoFingerSwipeDetector.Event) {
+    val toJs = { direction: String -> KioskModule.sendEventFromNative("onNavGesture", direction) }
+    when (event) {
+      is TwoFingerSwipeDetector.Event.Begin -> tileSlider.begin()
+      is TwoFingerSwipeDetector.Event.Swipe -> toJs(event.direction.jsName)
+      is TwoFingerSwipeDetector.Event.Drag -> tileSlider.drag(event.dxPx)
+      is TwoFingerSwipeDetector.Event.DragEnd ->
+        tileSlider.end(event.dxPx, event.velocityPxPerSec, resources.displayMetrics.widthPixels, toJs)
+      is TwoFingerSwipeDetector.Event.DragCancel -> tileSlider.cancel()
+    }
   }
   // ===== END Dashboard tile navigation =====
 
@@ -1580,6 +1660,29 @@ class MainActivity : ReactActivity() {
    * Read a value from AsyncStorage (React Native SQLite database)
    * Uses database "RKStorage" with table "catalystLocalStorage"
    */
+  // ===== #215: pause the page while the screen is off =====
+  // WebView.onPause() does not stop a page's timers: a slideshow kept fetching its images with the
+  // screen off (checked with a page that sends a request every second, 10 in 10 s on and off).
+  // pauseTimers() does. It is global to the process's WebViews, so it is lifted as soon as the screen
+  // is on, when the activity resumes, and never applied unless the option is on.
+  private var pageTimersPaused = false
+
+  /** Called by ScreenStateReceiver on every screen on/off. */
+  fun onScreenStateChanged(screenOn: Boolean) {
+    val enabled = getAsyncStorageValue("@kiosk_pause_page_screen_off", "false") == "true"
+    setPageTimersPaused(!screenOn && enabled)
+  }
+
+  private fun setPageTimersPaused(paused: Boolean) {
+    runOnUiThread {
+      val webView = KioskModule.findWebView(window.decorView)
+      if (webView != null) {
+        if (paused) webView.pauseTimers() else webView.resumeTimers()
+      }
+      pageTimersPaused = paused && webView != null
+    }
+  }
+
   private fun getAsyncStorageValue(key: String, defaultValue: String): String {
     return try {
       val dbPath = getDatabasePath("RKStorage").absolutePath
@@ -2469,6 +2572,9 @@ class MainActivity : ReactActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
+    if (liveActivity?.get() === this) {
+      liveActivity = null
+    }
     pinningValveRunnable?.let { Handler(Looper.getMainLooper()).removeCallbacks(it) }
     pinningValveRunnable = null
 

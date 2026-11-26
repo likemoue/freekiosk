@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, FlatList, useWindowDimensions } from 'react-native';
 import StatusBar from './StatusBar';
 import MultiAppHeader from './MultiAppHeader';
@@ -43,6 +43,17 @@ interface ExternalAppOverlayProps {
   /** Any touch on this screen, for the inactivity countdown */
   onUserActivity?: () => void;
 }
+
+/** Where the return button sits (same positions in WebView, media player and OverlayService) */
+export const returnButtonPositionStyle = (position: string) => {
+  switch (position) {
+    case 'top-left': return { top: 20, left: 20 };
+    case 'top-right': return { top: 20, right: 20 };
+    case 'bottom-left': return { bottom: 20, left: 20 };
+    case 'bottom-right':
+    default: return { bottom: 20, right: 20 };
+  }
+};
 
 const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   externalAppPackage,
@@ -99,10 +110,11 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
   const firstTapYRef = useRef<number>(0);
   const TAP_PROXIMITY_RADIUS = 80;
 
-  // tap_anywhere mode: N-tap with spatial proximity check (identical to WebView)
+  // tap_anywhere mode: N-tap with spatial proximity check (identical to WebView).
+  // corner_sequence is WebView/media only: here it falls back to N taps, never to no way back.
   const handleGridTouch = useCallback((event: any) => {
     onUserActivity?.();
-    if (returnMode !== 'tap_anywhere') return;
+    if (returnMode === 'button') return;
 
     const tapX = event.nativeEvent.pageX ?? 0;
     const tapY = event.nativeEvent.pageY ?? 0;
@@ -156,17 +168,8 @@ const ExternalAppOverlay: React.FC<ExternalAppOverlayProps> = ({
     }, returnTapTimeout);
   }, [returnTapCount, returnTapTimeout, onGoToSettings]);
 
-  // Button position style (same positions as WebView / OverlayService)
-  const buttonPositionStyle = useMemo(() => {
-    switch (returnButtonPosition) {
-      case 'top-left': return { top: 20, left: 20 };
-      case 'top-right': return { top: 20, right: 20 };
-      case 'bottom-left': return { bottom: 20, left: 20 };
-      case 'bottom-right':
-      default: return { bottom: 20, right: 20 };
-    }
-  }, [returnButtonPosition]);
-  
+  const buttonPositionStyle = returnButtonPositionStyle(returnButtonPosition);
+
   // Only show multi-app grid when explicitly in multi mode
   const homeScreenApps = externalAppMode === 'multi' ? managedApps.filter(app => app.showOnHomeScreen) : [];
   // With no apps too: the grid is still home, and the single-app screen would wait for an app forever

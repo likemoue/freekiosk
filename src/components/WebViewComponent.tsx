@@ -10,7 +10,6 @@ import {
   ScrollView,
   Linking,
   NativeModules,
-  findNodeHandle,
   DeviceEventEmitter,
   Platform,
   useColorScheme,
@@ -18,12 +17,13 @@ import {
 
 const { HttpServerModule } = NativeModules;
 
-import KioskModule from '../utils/KioskModule';
 import UpdateModule from '../utils/UpdateModule';
 import { useDisplayName } from '../utils/DeviceDisplayName';
 import Icon, { IconName } from './Icon';
 import RNFS from 'react-native-fs';
 import { WebView } from 'react-native-webview';
+import { pullToRefreshScript } from '../utils/pullToRefreshScript';
+import { MEDIA_GUARD_JS, MEDIA_PAUSE_JS, MEDIA_RESUME_JS } from '../utils/mediaGuard';
 // From src/, not lib/: Metro resolves react-native-webview to its src/ entry, and loading lib/ as
 // well registers the native view twice ("Tried to register two views with the same name RNCWebView").
 import NativeRNCWebView, { Commands as NativeWebViewCommands } from 'react-native-webview/src/RNCWebViewNativeComponent';
@@ -73,10 +73,13 @@ interface WebViewComponentProps {
   zoomMode?: string; // 'standard' (CSS zoom) | 'fit' (viewport reflow, #188)
   disableUserZoom?: boolean; // Prevent pinch-to-zoom and double-tap zoom
   disableOverscroll?: boolean; // Remove the elastic stretch at the edges of the page (#233)
+  pullToRefresh?: boolean; // Drag down from the top of the page reloads it, as in a browser
   customUserAgent?: string; // Custom User-Agent string (empty = default modern Chrome UA)
   basicAuthCredential?: { username: string; password: string };
   onRenderProcessGone?: (didCrash: boolean) => void; // #198 — renderer process died, ask parent to remount
   inactive?: boolean; // Kept loaded but hidden (dashboard): no speech, no print
+  initialMediaPaused?: boolean; // #177: mounted while media is paused (behind the screensaver)
+  mediaGuard?: boolean; // #177: install the media guard in the page (only when "Pause audio/video when hidden" is on)
 }
 
 export interface WebViewComponentRef {
@@ -88,11 +91,6 @@ export interface WebViewComponentRef {
   pauseMedia: () => void;
   resumeMedia: () => void;
 }
-
-// #177 — Pause any HTML5 media playing in the page. Injected on pause as a reliable
-// complement to the native WebView.onPause() (which alone doesn't stop <audio> on every
-// OEM WebView). Ends with `true;` to silence react-native-webview's injection warning.
-const MEDIA_PAUSE_JS = `(function(){try{document.querySelectorAll('audio,video').forEach(function(m){try{m.pause();}catch(e){}});}catch(e){}})();true;`;
 
 // Page messages ignored from a dashboard tile kept loaded in the background.
 const HIDDEN_TILE_IGNORED_MESSAGES = ['SPEECH_SYNTH_SPEAK', 'SPEECH_SYNTH_CANCEL', 'PRINT_REQUEST'];
@@ -109,6 +107,20 @@ const makePrinterNonce = (): string =>
 export function defaultUserAgent(): string {
   const mobile = Platform.isTV ? '' : ' Mobile';
   return `Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0${mobile} Safari/537.36`;
+}
+
+/**
+ * Why the page failed to load, for the error screen (#143): the description Android gives, such
+ * as "net::ERR_NAME_NOT_RESOLVED" or "SSL error: The host name does not match the certificate".
+ * Before, every failure read the same "Loading Error", and the cause stayed in the logs.
+ * It carries no address, so it is safe next to "Hide the URL on the error screen".
+ */
+export function loadErrorReason(nativeEvent: { description?: unknown } | null | undefined): string | null {
+  const description = typeof nativeEvent?.description === 'string' ? nativeEvent.description.trim() : '';
+  if (!description) {
+    return null;
+  }
+  return description.length > 200 ? description.slice(0, 200) + '…' : description;
 }
 
 const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(({ 
@@ -141,22 +153,24 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   zoomMode = 'standard',
   disableUserZoom = false,
   disableOverscroll = false,
+  pullToRefresh = false,
   customUserAgent = '',
   basicAuthCredential,
   onRenderProcessGone,
   inactive = false,
+  initialMediaPaused = false,
+  mediaGuard = false,
 }, ref) => {
   const { t } = useTranslation();
   const displayName = useDisplayName();
   const navigation = useNavigation<NavigationProp>();
   const webViewRef = useRef<WebView>(null);
-  // #190 — Host-view ref for pauseMedia/resumeMedia. react-native-webview's ref is a
-  // methods-only imperative handle, NOT a ReactComponent: passing it to findNodeHandle
-  // throws and crashes the app (JavascriptException on screensaver activation). The
-  // native pauseWebView() walks the subtree for the WebView, so the container's tag works.
-  const containerViewRef = useRef<View>(null);
+  // #177 — Set by pauseMedia/resumeMedia; picks the media guard's document-start script, so a page
+  // loaded while paused starts paused.
+  const [mediaPaused, setMediaPaused] = useState<boolean>(initialMediaPaused);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
+  const [errorReason, setErrorReason] = useState<string | null>(null);
   // The loading overlay follows the device's dark theme, so a dark dashboard is not
   // preceded by a white flash on every load.
   const darkLoading = useColorScheme() === 'dark';
@@ -191,10 +205,18 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   // Last top-frame (main document) URL requested — used to distinguish a fatal
   // main-page HTTP error from a harmless sub-resource error (favicon, analytics…).
   const lastTopFrameUrlRef = useRef<string | null>(null);
+  // #366: what the WebView shows. A navigation the URL filter blocks while no page is shown (the
+  // address redirects outside the whitelist) leaves a blank view; `blockedCandidateUrlRef` holds
+  // that address until the load that follows says whether the blank view is the result.
+  const pageShownRef = useRef<boolean>(false);
+  const blockedCandidateUrlRef = useRef<string | null>(null);
   // Every frame can postMessage, and all of them arrive under the main frame's URL. Only the main
   // frame is injected, so only it knows this nonce. Checks read the ref, so rotation bites at once.
   const [printerNonce, setPrinterNonce] = useState<string>(makePrinterNonce);
   const printerNonceRef = useRef<string>(printerNonce);
+  // Same reasoning: only the main frame's pull to refresh script knows it, so an iframe cannot
+  // post a reload.
+  const [pullRefreshToken] = useState<string>(makePrinterNonce);
 
   // Pre-compile URL filter patterns into RegExp for performance
   const compiledFilterPatterns = useMemo(() => {
@@ -274,6 +296,26 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     blockedUrlTimerRef.current = setTimeout(() => setBlockedUrlMessage(null), 2000);
   }, [urlFilterShowFeedback]);
 
+  // #366: the main page was blocked by the URL filter and nothing is shown. Say so on the error
+  // screen instead of leaving a blank view, and retry like any other failure.
+  const showBlockedPage = (blockedUrl: string): void => {
+    const hostMatch = blockedUrl.match(/^https?:\/\/([^/?#]+)/i);
+    setErrorReason(
+      hideErrorUrl || !hostMatch
+        ? t('components.webView.blockedByFilter')
+        : t('components.webView.blockedByFilterHost', { host: hostMatch[1] }),
+    );
+    setError(true);
+    setLoading(false);
+    if (autoReload) {
+      setTimeout(() => {
+        setError(false);
+        setLoading(true);
+        setPageLoaded(false);
+      }, 5000);
+    }
+  };
+
   // Expose goBack, scrollToTop, and clearCache methods to parent via ref
   useImperativeHandle(ref, () => ({
     goBack: () => {
@@ -302,32 +344,16 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         console.log('[WebView] Cache cleared via ref');
       }
     },
-    // #177 — Stop background audio/video when the page is hidden (screensaver / screen off
-    // / app backgrounded). JS-level pause of <audio>/<video> + native renderer suspend.
+    // #177 — Stop audio/video when the page is hidden (screensaver / screen off / app
+    // backgrounded) without hiding the page: timers, animations and connections keep running.
     pauseMedia: () => {
-      const wv = webViewRef.current;
-      if (!wv) return;
-      wv.injectJavaScript(MEDIA_PAUSE_JS);
-      // #190 — resolve the tag from the container host view, never from the WebView ref
-      // (a methods-only imperative handle that makes findNodeHandle throw → app crash)
-      try {
-        const node = findNodeHandle(containerViewRef.current);
-        if (node != null) {
-          KioskModule.pauseWebView?.(node).catch(() => {});
-        }
-      } catch {}
+      setMediaPaused(true);
+      webViewRef.current?.injectJavaScript(MEDIA_PAUSE_JS);
     },
-    // Resume only re-enables the WebView renderer; media is intentionally left paused so
-    // audio doesn't auto-restart on its own (the page/user decides).
+    // Media stays paused (the page/user decides); AudioContexts and camera/microphone come back.
     resumeMedia: () => {
-      const wv = webViewRef.current;
-      if (!wv) return;
-      try {
-        const node = findNodeHandle(containerViewRef.current);
-        if (node != null) {
-          KioskModule.resumeWebView?.(node).catch(() => {});
-        }
-      } catch {}
+      setMediaPaused(false);
+      webViewRef.current?.injectJavaScript(MEDIA_RESUME_JS);
     }
   }));
 
@@ -446,7 +472,29 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
       }
 
-      if (ZOOM !== 1) {
+      if (ZOOM < 1) {
+        // Zoom out (#382): CSS zoom shrinks the boxes but not the viewport units, so a page laid
+        // out with height:100vh stayed at ZOOM x the screen height with white below it. A mobile
+        // viewport that is 1/ZOOM times larger makes the page lay itself out on the whole screen.
+        var applyViewport = function() {
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (!vp) {
+            vp = document.createElement('meta');
+            vp.setAttribute('name', 'viewport');
+            (document.head || document.documentElement).appendChild(vp);
+          }
+          var content = 'width=' + Math.round(screen.width / ZOOM) +
+            ', initial-scale=' + ZOOM + ', minimum-scale=' + ZOOM +
+            (DISABLE_USER_ZOOM ? ', maximum-scale=' + ZOOM + ', user-scalable=no' : '');
+          if (vp.getAttribute('content') !== content) { vp.setAttribute('content', content); }
+        };
+        applyViewport();
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', applyViewport);
+        }
+        // screen.width changes with the orientation.
+        window.addEventListener('orientationchange', function() { setTimeout(applyViewport, 300); });
+      } else if (ZOOM !== 1) {
         var applyZoom = function() {
           if (FIT) {
             if (document.body) { document.body.style.zoom = String(ZOOM); }
@@ -723,6 +771,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     })();
     ` : ''}
 
+    ${pullToRefresh ? pullToRefreshScript(pullRefreshToken) : ''}
+
     // Touch events avec throttling (for screensaver only, not for tap counting)
     document.addEventListener('touchstart', sendInteraction, true);
     document.addEventListener('touchmove', sendInteraction, true);
@@ -895,6 +945,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               try { fn(new Event('voiceschanged')); } catch(e) {}
             } else {
               _fkVoicesChangedCbs.push(fn);
+              _fkLoadVoices();
             }
           }
         },
@@ -910,6 +961,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           _fkVoicesChangedCbs = fn ? [fn] : [];
           if (fn && _fkVoicesLoaded) {
             try { fn(new Event('voiceschanged')); } catch(e) {}
+          } else if (fn) {
+            _fkLoadVoices();
           }
         }
       });
@@ -917,8 +970,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         get: function() { return synth; },
         configurable: true
       });
-      // Start loading voices immediately
-      _fkLoadVoices();
+      // Voices load on first use (getVoices, a voiceschanged listener, speak). Loading them
+      // here bound the native TTS engine for every page, including the ones that never speak.
     })();
 
     // PDF link interception: prevent <a download href="...pdf"> from triggering
@@ -1258,6 +1311,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     
     if (message === 'page-touch') {
       onPageTouch?.();
+    } else if (pullToRefresh && message === `pull-refresh:${pullRefreshToken}`) {
+      webViewRef.current?.reload();
     } else if (message === 'user-interaction' && onUserInteraction) {
       onUserInteraction();
     } else if (message.startsWith('{')) {
@@ -1328,6 +1383,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
   const handleError = (event: WebViewErrorEvent): void => {
     console.error('[FreeKiosk] WebView error:', event.nativeEvent);
+    setErrorReason(loadErrorReason(event.nativeEvent));
     setError(true);
     setLoading(false);
     
@@ -1365,6 +1421,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     // Show the error overlay (with the fallback settings button) for any other
     // main-page HTTP error code, regardless of autoReload — otherwise the user is stranded
     // with no way back to settings when the page can't load (#180).
+    setErrorReason('HTTP ' + statusCode);
     setError(true);
     setLoading(false);
     webViewRef.current?.injectJavaScript('window.location.href = "about:blank"; true;');
@@ -1402,6 +1459,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     setError(false);
     setLoading(true);
     setPageLoaded(false);
+    pageShownRef.current = false;
+    blockedCandidateUrlRef.current = null;
   };
 
   const handleNavigateToSettings = (): void => {
@@ -1541,7 +1600,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   }
 
   return (
-    <View style={styles.container} ref={containerViewRef}>
+    <View style={styles.container}>
       <WebView
         ref={webViewRef}
         nativeConfig={{ component: NativeWebViewWithRef as any }}
@@ -1552,7 +1611,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         // Custom UA takes precedence if set, otherwise use a recent Chrome stable UA
         userAgent={customUserAgent?.trim() || defaultUserAgent()}
         
-        originWhitelist={pdfViewerEnabled ? ['http://*', 'https://*', 'file://*'] : ['http://*', 'https://*']}
+        originWhitelist={pdfViewerEnabled ? ['http://*', 'https://*', 'file://*', 'content://*'] : ['http://*', 'https://*']}
         mixedContentMode="always"
         // Left undefined when off, so the library default ('always') applies as before.
         overScrollMode={disableOverscroll ? 'never' : undefined}
@@ -1588,6 +1647,17 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             }, 10000);
           }
         }}
+        onLoad={(event) => {
+          const loadedUrl = event.nativeEvent.url;
+          if (error || loadedUrl === 'about:blank') return;
+          if (!pageShownRef.current && loadedUrl === blockedCandidateUrlRef.current) {
+            blockedCandidateUrlRef.current = null;
+            showBlockedPage(loadedUrl);
+          } else {
+            pageShownRef.current = true;
+            blockedCandidateUrlRef.current = null;
+          }
+        }}
         onLoadEnd={() => {
           // Don't mark as loaded when loading about:blank during error state
           if (!error) {
@@ -1620,6 +1690,12 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         javaScriptEnabled={true}
         domStorageEnabled={true}
         injectedJavaScript={combinedInjectedJavaScript}
+        // #177: the media guard as a document-start script in every frame, cross-origin iframes
+        // too (our react-native-webview patch); main frame only without DOCUMENT_START_SCRIPT.
+        // Only with the option on: the guard wraps play(), Audio, AudioContext and getUserMedia, which
+        // a page should not see changed when nobody asked to pause its media.
+        injectedJavaScriptBeforeContentLoaded={mediaGuard ? (mediaPaused ? MEDIA_PAUSE_JS : MEDIA_GUARD_JS) : undefined}
+        injectedJavaScriptBeforeContentLoadedForMainFrameOnly={false}
         // Android ignores this (injection runs from onPageFinished), but the nonce rests on it.
         injectedJavaScriptForMainFrameOnly={true}
 
@@ -1636,7 +1712,10 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
             return true;
           }
           
+          // content:// (#385) is the page picked with "Choose a local HTML file": a page may not
+          // navigate to one, as it may not to file://.
           if (urlLower.startsWith('file://') ||
+              urlLower.startsWith('content://') ||
               urlLower.startsWith('javascript:')) {
             console.warn('[FreeKiosk] Blocked dangerous URL scheme:', request.url);
             return false;
@@ -1702,6 +1781,12 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           // URL Filtering (blacklist/whitelist)
           if (isUrlBlocked(request.url)) {
             showBlockedFeedback(request.url);
+            // Android sends no isTopFrame, so only an explicit false rules a frame out. Whether the
+            // main page was meant is settled by onLoad, which Android fires with this very address
+            // when it cancels the main-frame load, and with the page's own address otherwise.
+            if (request.isTopFrame !== false && !pageShownRef.current) {
+              blockedCandidateUrlRef.current = request.url;
+            }
             return false;
           }
 
@@ -1833,6 +1918,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           <Text style={styles.errorText}>{t('components.webView.loadingError')}</Text>
           {!hideErrorUrl && (
             <Text style={styles.errorSubtext}>{t('components.webView.urlLabel', { url })}</Text>
+          )}
+          {errorReason !== null && (
+            <Text style={styles.errorSubtext}>{t('components.webView.errorReason', { reason: errorReason })}</Text>
           )}
           {autoReload && (
             <Text style={styles.helpText}>

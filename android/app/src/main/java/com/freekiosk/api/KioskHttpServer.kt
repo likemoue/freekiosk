@@ -21,6 +21,7 @@ class KioskHttpServer(
     private val screenshotProvider: (() -> java.io.InputStream?)? = null,
     private val screenshotErrorProvider: (() -> String?)? = null,
     private val cameraPhotoProvider: ((camera: String, quality: Int, rotation: Int) -> java.io.InputStream?)? = null,
+    private val cameraPhotoErrorProvider: (() -> String?)? = null,
     private val cameraStreamProvider: ((params: CameraStreamManager.StreamParams) -> CameraStreamManager.StreamResult)? = null,
     private val cameraStreamDefaults: (() -> CameraStreamManager.StreamParams)? = null
 ) : NanoHTTPD(port) {
@@ -139,6 +140,7 @@ class KioskHttpServer(
                 isGetOrPost && uri == "/api/clearCache" -> handleClearCache()
                 isGetOrPost && uri == "/api/lock" -> handleLockDevice()
                 isGetOrPost && uri == "/api/restart-ui" -> handleRestartUi()
+                isGetOrPost && uri == "/api/open-settings" -> handleOpenSettings()
                 isGetOrPost && uri == "/api/audio/stop" -> handleAudioStop()
                 isGetOrPost && uri == "/api/audio/beep" -> handleAudioBeep()
 
@@ -234,6 +236,7 @@ class KioskHttpServer(
                     put("/api/clearCache - Clear WebView cache, cookies and storage")
                     put("/api/lock - Lock device (Device Owner)")
                     put("/api/restart-ui - Restart the app UI")
+                    put("/api/open-settings - Open the settings PIN screen")
                     put("/api/audio/stop - Stop audio playback")
                     put("/api/audio/beep - Play beep sound")
                     put("/api/rotation/start - Start URL rotation")
@@ -570,6 +573,12 @@ class KioskHttpServer(
         return jsonSuccess(result)
     }
 
+    private fun handleOpenSettings(): Response {
+        checkControlAllowed()?.let { return it }
+        val result = commandHandler("openSettings", null)
+        return jsonSuccess(result)
+    }
+
     private fun handleLockDevice(): Response {
         checkControlAllowed()?.let { return it }
         val result = commandHandler("lockDevice", null)
@@ -585,6 +594,9 @@ class KioskHttpServer(
     private fun handleRemoteKey(key: String): Response {
         checkControlAllowed()?.let { return it }
         val result = commandHandler("remoteKey", JSONObject().put("key", key))
+        if (!result.optBoolean("executed", true)) {
+            return jsonError(Response.Status.BAD_REQUEST, result.optString("error", "Key not sent"))
+        }
         return jsonSuccess(result)
     }
 
@@ -703,7 +715,10 @@ class KioskHttpServer(
                 java.io.ByteArrayInputStream(bytes), bytes.size.toLong()
             )
         } else {
-            jsonError(Response.Status.SERVICE_UNAVAILABLE, "Camera not available. Check camera permission and hardware.")
+            jsonError(
+                Response.Status.SERVICE_UNAVAILABLE,
+                cameraPhotoErrorProvider?.invoke() ?: "Camera not available. Check camera permission and hardware.",
+            )
         }
     }
 
