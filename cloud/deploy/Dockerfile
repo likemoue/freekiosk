@@ -39,10 +39,14 @@ FROM dependencies AS web-build
 COPY apps/web apps/web
 RUN npm run build --workspace @freekiosk-manager/web
 
-# 1.28 gets no more builds since 1.30 became the stable line
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS web
-USER root
-RUN apk upgrade --no-cache
+# The official image, run unprivileged the way nginxinc/nginx-unprivileged does it: that image has had no
+# build since 1.30.6 (19/10/2026), whose nginx has 4 CRITICAL CVEs fixed in 1.30.7
+FROM nginx:1.30.8-alpine@sha256:8eb04fe3b385090e9aa02961f77398ad09b6bf33ab07f6669a5bb7acce22c0d3 AS web
+# (no user directive, the pid file in /tmp, the temp paths of /var/cache/nginx writable by nginx, uid 101)
+RUN apk upgrade --no-cache \
+ && sed -i -e '/^user /d' -e 's,^pid .*,pid /tmp/nginx.pid;,' /etc/nginx/nginx.conf \
+ && chown -R 101:0 /var/cache/nginx \
+ && chmod -R g+w /var/cache/nginx
 USER 101
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=web-build /workspace/apps/web/dist /usr/share/nginx/html
