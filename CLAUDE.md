@@ -173,6 +173,9 @@ Current patches:
 - `package.json`, `minimatch@>=7.0.0 <11.0.1` (GHSA-g3hv-75wg-m249): `@typescript-eslint/typescript-estree` asks for minimatch 9 or 10 until 8.73. Lint only.
 - `package.json`, `fast-xml-parser@<5.12.0` (GHSA-gh4j-gqv2-49f6, GHSA-474x-hrwr-fgx4): `@react-native-community/cli` 20.0 asks for 4.x, 20.1 and later for 5. Autolinking reads `AndroidManifest.xml` with it, and `npx react-native config` gave the same output with 5.12.
 - `cloud/package.json`, `debug@>=4.0.0 <4.3.1` (GHSA-gxpj-cx7g-858c): `adbkit-apkreader` 3.2.0 asks for `~4.1.1`, on the server.
+- `cloud/package.json`, `effect@<3.22.1` (CVE-2026-121707, ReDoS): `@prisma/config` 7.10.1 pins 3.20.0, and the `prisma` CLI it comes with stays in the API image as a peer of `@prisma/client`.
+
+The API image (`cloud/deploy/Dockerfile`, stage `api`) drops the npm, corepack and yarn of the Node image: the server runs `node` alone, and npm bundles an undici and a brace-expansion of its own that Trivy flags.
 
 ### CI
 

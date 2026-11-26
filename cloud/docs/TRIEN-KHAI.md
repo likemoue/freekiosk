@@ -255,11 +255,19 @@ có dịch vụ trợ năng. Cài xong hãy tắt **Gỡ lỗi USB**.
 ## Cập nhật phiên bản
 
 ```bash
-cd /opt/freekiosk && git pull
-cd cloud && docker compose up -d --build
+cd /opt/freekiosk/cloud && sh deploy/update.sh
 ```
 
-Migration chạy tự động trước khi API khởi động. Tablet không bị ảnh hưởng trong lúc cập nhật: chúng tiếp tục
+Script kéo `main`, build image gắn tag theo commit (`freekiosk-manager-api:<commit>`, cũng gắn `latest`) rồi khởi động
+lại. Ảnh nền ghim theo phiên bản và digest trong `deploy/Dockerfile` và `compose.yaml`; Dependabot mở PR nâng hằng tuần.
+Quay lui về bản trước, khi image của nó còn trên máy (`docker images freekiosk-manager-api`):
+
+```bash
+cd /opt/freekiosk/cloud && IMAGE_TAG=<commit cũ> docker compose up -d --no-build
+```
+
+Quay lui không hoàn lại migration đã chạy: bản cũ phải đọc được cơ sở dữ liệu mới, nếu không thì khôi phục bản sao lưu
+(mục dưới). Migration chạy tự động trước khi API khởi động. Tablet không bị ảnh hưởng trong lúc cập nhật: chúng tiếp tục
 chạy, và báo cáo lại khi máy chủ lên.
 
 **Cập nhật ứng dụng trên tablet:** tăng `versionCode` trong `android/app/build.gradle`, build bản `assembleRelease` rồi tải
