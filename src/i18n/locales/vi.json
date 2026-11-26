@@ -104,6 +104,8 @@
       "dashboardActive": "Chế độ bảng điều khiển đang bật. Cấu hình các ô trong tab Bảng điều khiển.",
       "placeholder": "https://example.com",
       "hint": "Ví dụ: https://www.freekiosk.app",
+      "pickLocalFile": "Chọn tệp HTML trên máy",
+      "pickLocalFileHint": "Tệp được đọc ngay tại chỗ, nên trang mà ứng dụng khác ghi lại sẽ luôn hiện bản mới. Ảnh và script nằm cạnh tệp không tải được: hãy dùng một tệp tự chứa đủ, hoặc gõ địa chỉ file:// trỏ tới thư mục.",
       "httpWarning": "BẢO MẬT: URL này dùng HTTP (không mã hóa).\nDữ liệu có thể bị chặn bắt. Hãy dùng HTTPS thay thế."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Mép trang",
       "disable": "Tắt hiệu ứng cuộn quá giới hạn",
-      "disableHint": "Loại bỏ hiệu ứng giãn đàn hồi hiện ra khi kéo vượt quá đầu hoặc cuối trang, kể cả với các trang không cuộn được."
+      "disableHint": "Loại bỏ hiệu ứng giãn đàn hồi hiện ra khi kéo vượt quá đầu hoặc cuối trang, kể cả với các trang không cuộn được.",
+      "pullToRefresh": "Kéo xuống để tải lại",
+      "pullToRefreshHint": "Kéo từ đầu trang xuống để tải lại trang, như trên trình duyệt. Không có tác dụng khi trang hoặc danh sách dưới ngón tay đang được cuộn."
     },
     "userAgent": {
       "title": "User-Agent",
@@ -443,6 +447,8 @@
       "title": "Đa phương tiện web",
       "pauseHidden": "Tạm dừng âm thanh/video khi bị ẩn",
       "pauseHiddenHint": "Tạm dừng âm thanh và video của trang web khi bảo vệ màn hình hiện lên, màn hình tắt hoặc ứng dụng chuyển sang chạy nền — nếu không, radio web hoặc video có thể vẫn tiếp tục phát ở nền mà không điều khiển được. Tắt tùy chọn này để âm thanh web phát liên tục.",
+      "pausePage": "Tạm dừng trang khi tắt màn hình",
+      "pausePageHint": "Dừng hoạt động riêng của trang (bộ hẹn giờ, tải ảnh) khi màn hình thật sự tắt (lệnh tắt màn hình, khoá, nút nguồn, lịch), để trình chiếu ảnh không tải tiếp. Trang chạy lại khi màn hình bật. Mặc định tắt: bảng điều khiển cần cập nhật liên tục thì nên để tắt.",
       "intercom": "Chế độ âm thanh 2 chiều (intercom)",
       "intercomHint": "Bật cho âm thanh 2 chiều / phản hồi bằng giọng nói qua WebRTC (ví dụ thẻ intercom chuông cửa của Home Assistant / go2rtc). Khi trang web đang dùng micrô, FreeKiosk chuyển thiết bị sang chế độ âm thanh giao tiếp để kênh micrô truyền ngược hoạt động, rồi khôi phục âm thanh bình thường khi ngừng nói. Nên tắt khi duyệt web thông thường — chế độ này chỉ kích hoạt khi micrô đang được dùng."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "Chạm N lần trong cùng một vùng (các lần chạm phải gần nhau)",
       "fixedButton": "Nút cố định",
       "fixedButtonHint": "Chạm N lần vào nút ở góc",
+      "cornerSequence": "Chạm góc",
+      "cornerSequenceHint": "Chạm góc trên trái hai lần, rồi góc dưới phải hai lần, trong vòng 3 giây. Không hiện gì trên màn hình và bàn phím ảo không thể vô tình kích hoạt",
       "numTaps": "Số lần chạm (2-20)",
       "numTapsHintButton": "Chạm số lần này để vào cài đặt",
       "numTapsHintAnywhere": "Chạm nhanh số lần này ở bất kỳ đâu trên màn hình để vào cài đặt",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Cho phép thêm việc nhấn nút Tăng/Giảm âm lượng nhiều lần để vào cài đặt",
       "infoButtonMode": "Chạm nút quay lại ({{position}}) {{count}} lần để vào cài đặt",
       "infoAnywhereMode": "Chạm bất kỳ đâu trên màn hình {{count}} lần trong vòng {{timeout}} để vào cài đặt",
+      "infoCornerMode": "Chạm góc trên trái hai lần, rồi góc dưới phải hai lần, trong vòng 3 giây để vào cài đặt",
       "pinRequired": " (cần mã PIN)",
       "kioskScreenOnly": "Chỉ có tác dụng trên màn hình kiosk. Khi đang mở một ứng dụng, chạm màn hình, nút cố định và nút âm lượng đều không vào được cài đặt: hãy quay về màn hình kiosk trước."
     },
@@ -615,6 +624,7 @@
       "title": "Quay lại cài đặt",
       "buttonLine": "• Chạm nút quay lại ({{position}}) {{count}} lần{{invisible}}",
       "anywhereLine": "• Chạm {{count}} lần ở bất kỳ đâu trên màn hình trong vòng {{timeout}}{{visual}}",
+      "cornerLine": "• Chạm góc trên trái hai lần, rồi góc dưới phải hai lần, trong vòng 3 giây",
       "invisible": " (ẩn)",
       "visualIndicator": " (chỉ báo trực quan đang hiển thị)",
       "recentApps": "• Hoặc dùng bộ chọn ứng dụng gần đây",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "Trên trang ô, vuốt sang trái bằng hai ngón để sang ô tiếp theo, sang phải để về ô trước.",
       "keepTilesLoaded": "Giữ các ô luôn tải sẵn",
       "keepTilesLoadedHint": "Tải các ô (tối đa 5) ở chế độ nền ngay khi bảng điều khiển khởi động và giữ chúng chạy, để mở hay chuyển ô là tức thì và mỗi trang giữ nguyên trạng thái. Tốn nhiều bộ nhớ hơn."
+    },
+    "startOn": {
+      "title": "Mở đầu bằng",
+      "hint": "Kiosk hiện gì khi khởi động hoặc khi bạn thoát Cài đặt: lưới ô, hoặc một ô của bạn.",
+      "grid": "Lưới ô"
     },
     "iconColor": "Màu biểu tượng",
     "colorAuto": "Tự động",
@@ -1322,6 +1337,9 @@
       "loadingError": "Lỗi tải trang",
       "loading": "Đang tải...",
       "urlLabel": "URL: {{url}}",
+      "errorReason": "Lý do: {{reason}}",
+      "blockedByFilter": "Bị bộ lọc URL chặn",
+      "blockedByFilterHost": "Bị bộ lọc URL chặn: {{host}}",
       "autoReloadText": "Tự động tải lại sau 5 giây...",
       "reloadNow": "Tải lại ngay",
       "fallbackSettingsHint": "Chạm nút cài đặt 5 lần để quay lại cài đặt",
@@ -1567,6 +1585,12 @@
       "reloadConfig": "Tải lại",
       "fileAccessOffTitle": "Truy cập tệp đang tắt",
       "fileAccessOffMessage": "Để mở tệp cục bộ, trước tiên hãy bật Chung > Trình xem PDF > Trình xem PDF tích hợp. Cài đặt đó cho phép trình duyệt truy cập các tệp trên thiết bị.",
+      "allFilesNeededTitle": "Cần quyền truy cập mọi tệp",
+      "allFilesNeededMessage": "Tệp này nằm ngoài thư mục riêng của FreeKiosk. Ở màn hình tiếp theo, hãy cho phép FreeKiosk truy cập mọi tệp, rồi quay lại và lưu lần nữa.",
+      "allFilesOpenSettings": "Mở cài đặt",
+      "allFilesCancel": "Huỷ",
+      "allFilesUnavailableTitle": "Tệp nằm ngoài thư mục của FreeKiosk",
+      "allFilesUnavailableMessage": "Phiên bản FreeKiosk này không đọc được tệp ngoài thư mục riêng. Hãy chép tệp vào Android/data/com.freekiosk/files/ trên thiết bị, hoặc chọn bằng \"Chọn tệp HTML trên máy\".",
       "passwordNotSavedTitle": "Chưa lưu mật khẩu",
       "basicAuthNotSavedMessage": "Không thể ghi mật khẩu HTTP Basic Auth vào bộ nhớ bảo mật trên thiết bị này. Mọi cài đặt khác trên màn hình này đã được lưu. Lỗi này xảy ra trên các firmware có Android Keystore bị hỏng.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

@@ -107,7 +107,7 @@ export const KEYS = {
   // Return to Settings
   RETURN_TAP_COUNT: '@kiosk_return_tap_count',
   RETURN_TAP_TIMEOUT: '@kiosk_return_tap_timeout',
-  RETURN_MODE: '@kiosk_return_mode', // 'tap_anywhere' | 'button'
+  RETURN_MODE: '@kiosk_return_mode', // 'tap_anywhere' | 'button' | 'corner_sequence'
   RETURN_BUTTON_POSITION: '@kiosk_return_button_position', // 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   VOLUME_UP_5TAP_ENABLED: '@kiosk_volume_up_5tap_enabled',
   // Blocking Overlays
@@ -124,6 +124,8 @@ export const KEYS = {
   RESTART_BUTTON_LONG_PRESS_SECONDS: '@kiosk_restart_button_long_press_seconds',
   // WebView elastic stretch at the edges of the page (#233)
   DISABLE_OVERSCROLL: '@kiosk_disable_overscroll',
+  // Drag down from the top of the page to reload it, as in a browser
+  PULL_TO_REFRESH: '@kiosk_pull_to_refresh',
   // Floating "Reset session" button: wipes cookies and web storage, back to the start URL (#156)
   SESSION_RESET_BUTTON_ENABLED: '@kiosk_session_reset_button_enabled',
   // Auto-Brightness
@@ -178,6 +180,7 @@ export const KEYS = {
   CUSTOM_USER_AGENT: '@kiosk_custom_user_agent',
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   PAUSE_WEB_MEDIA_WHEN_HIDDEN: '@kiosk_pause_web_media_when_hidden',
+  PAUSE_PAGE_WHEN_SCREEN_OFF: '@kiosk_pause_page_screen_off', // #215
   // MQTT (Home Assistant integration)
   MQTT_ENABLED: '@kiosk_mqtt_enabled',
   MQTT_BROKER_URL: '@kiosk_mqtt_broker_url',
@@ -232,6 +235,8 @@ export const KEYS = {
   DASHBOARD_NAV_AUTO_HIDE_SECONDS: '@kiosk_dashboard_nav_auto_hide_seconds',
   DASHBOARD_SWIPE_BETWEEN_TILES: '@kiosk_dashboard_swipe_between_tiles',
   DASHBOARD_KEEP_TILES_LOADED: '@kiosk_dashboard_keep_tiles_loaded',
+  // Tile the kiosk opens on instead of the grid ('' = the grid)
+  DASHBOARD_START_TILE: '@kiosk_dashboard_start_tile',
   // Lock Screen Controls
   LOCKSCREEN_CONTROLS_ENABLED: '@kiosk_lockscreen_controls_enabled',
   LOCKSCREEN_WIFI_ENABLED: '@kiosk_lockscreen_wifi_enabled',
@@ -654,6 +659,7 @@ export const StorageService = {
         KEYS.PRINT_PAPER_SIZE,
         KEYS.DISABLE_USER_ZOOM,
         KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN,
+        KEYS.PAUSE_PAGE_WHEN_SCREEN_OFF,
         KEYS.BETA_UPDATES_ENABLED,
         KEYS.MEDIA_PLAYER_ITEMS,
         KEYS.MEDIA_PLAYER_AUTOPLAY,
@@ -693,6 +699,7 @@ export const StorageService = {
         KEYS.RESTART_BUTTON_ENABLED,
         KEYS.RESTART_BUTTON_LONG_PRESS_SECONDS,
         KEYS.DISABLE_OVERSCROLL,
+        KEYS.PULL_TO_REFRESH,
         KEYS.SESSION_RESET_BUTTON_ENABLED,
         // Auto-Brightness
         KEYS.AUTO_BRIGHTNESS_ENABLED,
@@ -767,6 +774,7 @@ export const StorageService = {
         KEYS.DASHBOARD_NAV_AUTO_HIDE_SECONDS,
         KEYS.DASHBOARD_SWIPE_BETWEEN_TILES,
         KEYS.DASHBOARD_KEEP_TILES_LOADED,
+        KEYS.DASHBOARD_START_TILE,
         // Lock Screen Controls
         KEYS.LOCKSCREEN_CONTROLS_ENABLED,
         KEYS.LOCKSCREEN_WIFI_ENABLED,
@@ -2337,6 +2345,25 @@ export const StorageService = {
     }
   },
 
+  // Pull to refresh. Off by default: in a kiosk a reload should not happen by accident.
+  savePullToRefresh: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.PULL_TO_REFRESH, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving pull to refresh:', error);
+    }
+  },
+
+  getPullToRefresh: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.PULL_TO_REFRESH);
+      return value ? JSON.parse(value) : false;
+    } catch (error) {
+      console.error('Error getting pull to refresh:', error);
+      return false;
+    }
+  },
+
   // Session reset button (#156). Opt-in: it draws a control over the page and lets anyone
   // in front of the screen wipe the web session, so it is off by default.
   saveSessionResetButtonEnabled: async (value: boolean): Promise<void> => {
@@ -3017,6 +3044,27 @@ export const StorageService = {
     } catch (error) {
       console.error('Error getting pause web media when hidden:', error);
       return true;
+    }
+  },
+
+  // ============ Pause the page while the screen is off (#215) ============
+
+  savePausePageWhenScreenOff: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.PAUSE_PAGE_WHEN_SCREEN_OFF, value.toString());
+    } catch (error) {
+      console.error('Error saving pause page when screen off:', error);
+    }
+  },
+
+  getPausePageWhenScreenOff: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.PAUSE_PAGE_WHEN_SCREEN_OFF);
+      // Default OFF: a dashboard or a page with sound is meant to keep running
+      return value === 'true';
+    } catch (error) {
+      console.error('Error getting pause page when screen off:', error);
+      return false;
     }
   },
 
@@ -3779,6 +3827,23 @@ export const StorageService = {
     }
   },
 
+  saveDashboardStartTile: async (tileId: string): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(KEYS.DASHBOARD_START_TILE, tileId);
+    } catch (error) {
+      console.error('Error saving dashboard start tile:', error);
+    }
+  },
+
+  getDashboardStartTile: async (): Promise<string> => {
+    try {
+      return (await AsyncStorage.getItem(KEYS.DASHBOARD_START_TILE)) || ''; // '' = the grid
+    } catch (error) {
+      console.error('Error getting dashboard start tile:', error);
+      return '';
+    }
+  },
+
   saveHttpBasicAuthUsername: async (username: string): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.HTTP_BASIC_AUTH_USERNAME, username);
@@ -4022,7 +4087,9 @@ export const StorageService = {
         },
         dashboardSwipeBetweenTiles: bool(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES),
         dashboardKeepTilesLoaded: bool(KEYS.DASHBOARD_KEEP_TILES_LOADED),
+        dashboardStartTile: str(KEYS.DASHBOARD_START_TILE, ''),
         pauseWebMediaWhenHidden: bool(KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN, true),
+        pausePageWhenScreenOff: bool(KEYS.PAUSE_PAGE_WHEN_SCREEN_OFF, false), // #215
         restartButton: {
           enabled: bool(KEYS.RESTART_BUTTON_ENABLED),
           longPressSeconds: num(KEYS.RESTART_BUTTON_LONG_PRESS_SECONDS, 5),
@@ -4059,6 +4126,7 @@ export const StorageService = {
           disableUserZoom: bool(KEYS.DISABLE_USER_ZOOM),
         },
         disableOverscroll: bool(KEYS.DISABLE_OVERSCROLL),
+        pullToRefresh: bool(KEYS.PULL_TO_REFRESH),
         customUserAgent: str(KEYS.CUSTOM_USER_AGENT),
         screensaver: {
           enabled: bool(KEYS.SCREENSAVER_ENABLED),
@@ -4294,7 +4362,9 @@ export const StorageService = {
       }
       set(KEYS.DASHBOARD_SWIPE_BETWEEN_TILES, g.dashboardSwipeBetweenTiles);
       set(KEYS.DASHBOARD_KEEP_TILES_LOADED, g.dashboardKeepTilesLoaded);
+      set(KEYS.DASHBOARD_START_TILE, g.dashboardStartTile);
       set(KEYS.PAUSE_WEB_MEDIA_WHEN_HIDDEN, g.pauseWebMediaWhenHidden);
+      set(KEYS.PAUSE_PAGE_WHEN_SCREEN_OFF, g.pausePageWhenScreenOff);
       const rb = g.restartButton as Record<string, unknown> | undefined;
       if (rb) {
         set(KEYS.RESTART_BUTTON_ENABLED, rb.enabled);
@@ -4336,6 +4406,7 @@ export const StorageService = {
         set(KEYS.DISABLE_USER_ZOOM, z.disableUserZoom);
       }
       set(KEYS.DISABLE_OVERSCROLL, d.disableOverscroll);
+      set(KEYS.PULL_TO_REFRESH, d.pullToRefresh);
       set(KEYS.CUSTOM_USER_AGENT, d.customUserAgent);
       const ss = d.screensaver as Record<string, unknown> | undefined;
       if (ss) {

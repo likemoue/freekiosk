@@ -104,6 +104,8 @@
       "dashboardActive": "De dashboardmodus is actief. Stel je tegels in op het tabblad Dashboard.",
       "placeholder": "https://example.com",
       "hint": "Voorbeeld: https://www.freekiosk.app",
+      "pickLocalFile": "Kies een lokaal HTML-bestand",
+      "pickLocalFileHint": "Het bestand wordt gelezen waar het staat, dus een pagina die een andere app herschrijft wordt actueel getoond. Afbeeldingen en scripts ernaast worden niet geladen: gebruik één zelfstandig bestand of typ een file://-adres voor een map.",
       "httpWarning": "BEVEILIGING: deze URL gebruikt HTTP (niet versleuteld).\nJe gegevens kunnen worden onderschept. Gebruik in plaats daarvan HTTPS."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Paginaranden",
       "disable": "Overscroll-effect uitschakelen",
-      "disableHint": "Verwijdert het elastische rekeffect dat verschijnt bij slepen voorbij de boven- of onderkant van een pagina, ook op pagina's die niet scrollen."
+      "disableHint": "Verwijdert het elastische rekeffect dat verschijnt bij slepen voorbij de boven- of onderkant van een pagina, ook op pagina's die niet scrollen.",
+      "pullToRefresh": "Omlaag trekken om te vernieuwen",
+      "pullToRefreshHint": "Vanaf de bovenkant van de pagina omlaag trekken laadt de pagina opnieuw, zoals in een browser. Doet niets als de pagina of de lijst onder je vinger gescrold is."
     },
     "userAgent": {
       "title": "User-Agent",
@@ -443,6 +447,8 @@
       "title": "Webmedia",
       "pauseHidden": "Audio/video pauzeren wanneer verborgen",
       "pauseHiddenHint": "Audio en video van de webpagina pauzeren wanneer de schermbeveiliging verschijnt, het scherm uitgaat of de app naar de achtergrond gaat. Anders kan een webradio of video onbereikbaar op de achtergrond blijven spelen. Schakel uit om webaudio continu te laten spelen.",
+      "pausePage": "Pagina pauzeren terwijl het scherm uit is",
+      "pausePageHint": "Stopt de eigen activiteit van de pagina (timers, afbeeldingen ophalen) zolang het scherm echt uit is (uitschakelcommando, vergrendeling, aan/uit-knop, schema), zodat een diavoorstelling niet blijft downloaden. Bij het inschakelen gaat ze weer verder. Standaard uit: een dashboard dat actueel moet blijven, laat dit uit.",
       "intercom": "Modus voor tweeweg-audio (intercom)",
       "intercomHint": "Inschakelen voor WebRTC tweeweg-audio / terugspreken (bijv. een Home Assistant / go2rtc-deurbelintercomkaart). Zolang de webpagina actief de microfoon gebruikt, zet FreeKiosk het apparaat in de communicatie-audiomodus zodat het terugkanaal van de microfoon verzendt, en herstelt daarna de normale audio zodra je stopt met praten. Laat uitgeschakeld voor normaal browsen: het wordt alleen actief terwijl de microfoon in gebruik is."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "Tik N keer in hetzelfde gebied (de tikken moeten gegroepeerd zijn)",
       "fixedButton": "Vaste knop",
       "fixedButtonHint": "Tik N keer op een knop in een hoek",
+      "cornerSequence": "Hoektikken",
+      "cornerSequenceHint": "Tik twee keer in de linkerbovenhoek en daarna twee keer in de rechteronderhoek, binnen 3 seconden. Er wordt niets getoond en een schermtoetsenbord kan het niet activeren",
       "numTaps": "Aantal tikken (2-20)",
       "numTapsHintButton": "Tik zo vaak om de instellingen te openen",
       "numTapsHintAnywhere": "Tik zo vaak snel achter elkaar ergens op het scherm om de instellingen te openen",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Sta ook toe dat je de instellingen opent door meerdere keren op de knop Volume omhoog/omlaag te drukken",
       "infoButtonMode": "Tik {{count}} keer op de terugknop ({{position}}) om de instellingen te openen",
       "infoAnywhereMode": "Tik {{count}} keer ergens op het scherm binnen {{timeout}} om de instellingen te openen",
+      "infoCornerMode": "Tik twee keer in de linkerbovenhoek en daarna twee keer in de rechteronderhoek, binnen 3 seconden, om de instellingen te openen",
       "pinRequired": " (pincode vereist)",
       "kioskScreenOnly": "Werkt alleen op het kioskscherm. Als er een app geopend is, leiden aanrakingen, de knop en de volumetoetsen niet naar de instellingen: ga eerst terug naar het kioskscherm."
     },
@@ -615,6 +624,7 @@
       "title": "Terug naar instellingen",
       "buttonLine": "• Tik {{count}} keer op de terugknop ({{position}}){{invisible}}",
       "anywhereLine": "• Tik {{count}} keer ergens op het scherm binnen {{timeout}}{{visual}}",
+      "cornerLine": "• Tik twee keer in de linkerbovenhoek en daarna twee keer in de rechteronderhoek, binnen 3 seconden",
       "invisible": " (onzichtbaar)",
       "visualIndicator": " (visuele indicator zichtbaar)",
       "recentApps": "• Of gebruik de selector voor recente apps",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "Veeg op een tegelpagina met twee vingers naar links voor de volgende tegel en naar rechts voor de vorige.",
       "keepTilesLoaded": "Tegels geladen houden",
       "keepTilesLoadedHint": "Laadt je tegels (maximaal 5) op de achtergrond zodra het dashboard start en houdt ze actief: openen of wisselen gaat meteen en elke pagina behoudt haar toestand. Gebruikt meer geheugen."
+    },
+    "startOn": {
+      "title": "Starten op",
+      "hint": "Wat de kiosk toont bij het starten of na terugkeer uit Instellingen: het tegelraster of een van je tegels.",
+      "grid": "Tegelraster"
     },
     "iconColor": "Pictogramkleur",
     "colorAuto": "Automatisch",
@@ -1322,6 +1337,9 @@
       "loadingError": "Laadfout",
       "loading": "Laden...",
       "urlLabel": "URL: {{url}}",
+      "errorReason": "Oorzaak: {{reason}}",
+      "blockedByFilter": "Geblokkeerd door het URL-filter",
+      "blockedByFilterHost": "Geblokkeerd door het URL-filter: {{host}}",
       "autoReloadText": "Automatisch opnieuw laden over 5 seconden...",
       "reloadNow": "Nu opnieuw laden",
       "fallbackSettingsHint": "Tik 5× op de instellingenknop om terug te keren naar de instellingen",
@@ -1567,6 +1585,12 @@
       "reloadConfig": "Opnieuw laden",
       "fileAccessOffTitle": "Bestandstoegang is uit",
       "fileAccessOffMessage": "Om een lokaal bestand te openen, schakel je eerst Algemeen > PDF-viewer > Inline PDF-viewer in. Die instelling geeft de browser toegang tot bestanden op het apparaat.",
+      "allFilesNeededTitle": "Toegang tot alle bestanden is nodig",
+      "allFilesNeededMessage": "Dit bestand staat buiten de map van FreeKiosk. Sta op het volgende scherm toe dat FreeKiosk alle bestanden mag openen, ga terug en sla opnieuw op.",
+      "allFilesOpenSettings": "Instellingen openen",
+      "allFilesCancel": "Annuleren",
+      "allFilesUnavailableTitle": "Bestand buiten de map van FreeKiosk",
+      "allFilesUnavailableMessage": "Deze versie van FreeKiosk kan geen bestanden buiten zijn eigen map lezen. Kopieer het bestand naar Android/data/com.freekiosk/files/ op het apparaat of kies het met 'Kies een lokaal HTML-bestand'.",
       "passwordNotSavedTitle": "Wachtwoord niet opgeslagen",
       "basicAuthNotSavedMessage": "Het HTTP Basic Auth-wachtwoord kon niet worden opgeslagen in de beveiligde opslag van dit apparaat. Alle andere instellingen op dit scherm zijn opgeslagen. Dit gebeurt op firmware waarvan de Android Keystore defect is.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

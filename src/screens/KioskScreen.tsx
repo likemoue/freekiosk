@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, NativeEventEmitter, NativeModules, AppState, DeviceEventEmitter, Dimensions, Pressable, BackHandler, Keyboard, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, NativeEventEmitter, NativeModules, AppState, DeviceEventEmitter, Dimensions, Pressable, BackHandler, Keyboard, Animated, findNodeHandle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNBrightness from '../utils/BrightnessModule';
 import { rampBrightness, cancelBrightnessRamp } from '../utils/brightnessRamp';
@@ -13,7 +13,7 @@ import { SignagePlaylist } from '../utils/SignagePlaylist';
 import StatusBar from '../components/StatusBar';
 import MotionDetector from '../components/MotionDetector';
 import ProximityDetectionModule, { onProximityNear as onProximityNearEvent } from '../utils/ProximityDetectionModule';
-import ExternalAppOverlay from '../components/ExternalAppOverlay';
+import ExternalAppOverlay, { returnButtonPositionStyle } from '../components/ExternalAppOverlay';
 import { DEFAULT_MULTI_APP_APPEARANCE, MultiAppAppearance, parseMultiAppAppearance } from '../types/multiAppAppearance';
 import { StorageService, toPrintOrigins, clampScreensaverFadeSeconds } from '../utils/storage';
 import { saveSecurePin, saveSecureMqttPassword, saveSecureApiKey, getSecureBasicAuthPassword } from '../utils/secureStorage';
@@ -63,6 +63,9 @@ let bootAppsLaunched = false;
 // NOTE: fixed settle time for the camera's auto-exposure after the fade (about two
 // Camera2 frames); make it depend on the capture interval if 4 s proves too short.
 const FADE_MOTION_SETTLE_MS = 4000;
+
+// Delay of the second brightness read after a screensaver change (see the read-back effect).
+const BRIGHTNESS_READ_BACK_SETTLE_MS = 800;
 
 /** Every direct brightness write goes through here: it supersedes a running screensaver fade. */
 const setBrightnessLevel = (level: number) => {
@@ -307,6 +310,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [keptTileIds, setKeptTileIds] = useState<string[]>([]); // least recently opened first
   const [activeTileId, setActiveTileId] = useState<string | null>(null);
   const tileWebViewRefs = useRef<Record<string, WebViewComponentRef | null>>({});
+  const tileWrapperRefs = useRef<Record<string, View | null>>({}); // what TileSlider moves
   const tileNavStatesRef = useRef<Record<string, { canGoBack: boolean; canGoForward: boolean; title: string }>>({});
   const keptTileHandlersRef = useRef<Record<string, KeptTileHandlers>>({});
   const [navState, setNavState] = useState<{ canGoBack: boolean; canGoForward: boolean; title: string }>({ canGoBack: false, canGoForward: false, title: '' });
@@ -325,6 +329,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [zoomMode, setZoomMode] = useState<string>('standard');
   const [disableUserZoom, setDisableUserZoom] = useState<boolean>(false);
   const [disableOverscroll, setDisableOverscroll] = useState<boolean>(false);
+  const [pullToRefresh, setPullToRefresh] = useState<boolean>(false);
   const [sessionResetButtonEnabled, setSessionResetButtonEnabled] = useState<boolean>(false);
   const [customUserAgent, setCustomUserAgent] = useState<string>('');
   const [basicAuthUsername, setBasicAuthUsername] = useState<string>('');
@@ -665,13 +670,17 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // #177 — Pause WebView audio/video while the screensaver overlay is shown (the page keeps
   // running underneath, so a web radio would otherwise stay audible and uncontrollable), and
   // resume the renderer when it's dismissed. Opt-in (default on); WebView mode only.
+  // webMediaPausedRef: the last call, handed to a WebView remounted meanwhile (webViewKey:
+  // reload, REST/MQTT setUrl, URL planner) so its first page already starts paused.
+  const webMediaPausedRef = useRef(false);
+  const setWebMediaPaused = (paused: boolean) => {
+    webMediaPausedRef.current = paused;
+    if (paused) webViewRef.current?.pauseMedia();
+    else webViewRef.current?.resumeMedia();
+  };
   useEffect(() => {
     if (!pauseWebMediaWhenHidden || displayMode !== 'webview') return;
-    if (isScreensaverActive) {
-      webViewRef.current?.pauseMedia();
-    } else {
-      webViewRef.current?.resumeMedia();
-    }
+    setWebMediaPaused(isScreensaverActive);
   }, [isScreensaverActive, pauseWebMediaWhenHidden, displayMode]);
 
   // #177 — Pause WebView audio/video when the whole app is backgrounded (e.g. system screen
@@ -681,9 +690,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     if (!pauseWebMediaWhenHidden || displayMode !== 'webview') return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'background') {
-        webViewRef.current?.pauseMedia();
+        setWebMediaPaused(true);
       } else if (state === 'active' && !isScreensaverActiveRef.current) {
-        webViewRef.current?.resumeMedia();
+        setWebMediaPaused(false);
       }
     });
     return () => sub.remove();
@@ -730,6 +739,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   // API Service initialization - connect REST API to app controls
   useEffect(() => {
+    ApiService.retain();
     const initApiService = async () => {
       await ApiService.initialize({
         onSetBrightness: async (value: number) => {
@@ -888,6 +898,21 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           }
           setWebViewKey(prev => prev + 1);
           console.log('[API] Cache cleared (native + WebView remount)');
+        },
+        onOpenSettings: () => {
+          // Already on the PIN or settings screen: navigate() would pull a person in the
+          // settings back to the PIN
+          if (!navigation.isFocused()) return;
+          console.log('[API] Open settings');
+          // Same steps as the native navigateToPin event (5 taps over an external app)
+          isNavigatingToPinRef.current = true;
+          if (appLaunchTimeoutRef.current) {
+            clearTimeout(appLaunchTimeoutRef.current);
+            appLaunchTimeoutRef.current = null;
+          }
+          setIsScreensaverActive(false);
+          OverlayServiceModule.stopOverlayService().catch(() => {});
+          navigation.navigate('Pin');
         },
         onRemoteKey: async (key: string) => {
           try {
@@ -1095,8 +1120,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
     return () => {
       mqttAppStateSubscription.remove();
-      ApiService.stopMqtt();
-      ApiService.destroy();
+      ApiService.release();
     };
   }, []);
 
@@ -1210,9 +1234,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // made outside FreeKiosk between two of these transitions is still not picked up. A
   // poll would cost a wake-up every few seconds on a battery-powered kiosk for a value
   // that only moves when something asks it to.
+  //
+  // Read twice. When the screensaver goes off, the effect that restores the default
+  // brightness runs at the same moment as this one, so the first read can still see the
+  // screensaver's dim level: on a tablet /api/brightness answered 1 while the display was
+  // back at 80 %. The second read, once the restore has landed, reports the real level.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const readBack = async () => {
       try {
         const actual = await RNBrightness.getBrightnessLevel();
         if (!cancelled) {
@@ -1227,9 +1256,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           setEffectiveBrightness(defaultBrightness);
         }
       }
-    })();
+    };
+    readBack();
+    const settled = setTimeout(readBack, BRIGHTNESS_READ_BACK_SETTLE_MS);
     return () => {
       cancelled = true;
+      clearTimeout(settled);
     };
   }, [defaultBrightness, isScreensaverActive]);
 
@@ -2150,9 +2182,26 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setDashboardNavAutoHide(bool(K.DASHBOARD_NAV_AUTO_HIDE, false));
       setDashboardNavAutoHideSeconds(navAutoHideSeconds(num(K.DASHBOARD_NAV_AUTO_HIDE_SECONDS, 4)));
       setDashboardSwipeBetweenTiles(bool(K.DASHBOARD_SWIPE_BETWEEN_TILES, false));
-      setDashboardKeepTilesLoaded(bool(K.DASHBOARD_KEEP_TILES_LOADED, false));
+      const savedKeepTilesLoaded = bool(K.DASHBOARD_KEEP_TILES_LOADED, false);
+      setDashboardKeepTilesLoaded(savedKeepTilesLoaded);
       if (savedDashboardMode) {
-        setDashboardShowGrid(true);
+        // Open on the start tile when one is set (and still exists), else on the grid. Same as
+        // openDashboardTile, which can't be used here: it reads state this load is still setting.
+        const ordered = [...savedDashboardTiles].sort((a, b) => a.order - b.order);
+        const startId = str(K.DASHBOARD_START_TILE);
+        const startIndex = startId ? ordered.findIndex(tile => tile.id === startId) : -1;
+        if (startIndex >= 0) {
+          const startTile = ordered[startIndex];
+          dashboardTileIndexRef.current = startIndex;
+          setActiveTileId(startTile.id);
+          if (savedKeepTilesLoaded) {
+            setKeptTileIds(prev => [...prev.filter(id => id !== startTile.id), startTile.id].slice(-MAX_KEPT_TILES));
+          }
+          setUrl(startTile.url);
+          setDashboardShowGrid(false);
+        } else {
+          setDashboardShowGrid(true);
+        }
       }
 
       // Store base URL for when planner/rotation is not active
@@ -2267,6 +2316,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedDisableUserZoom = bool(K.DISABLE_USER_ZOOM, false);
       setDisableUserZoom(savedDisableUserZoom);
       setDisableOverscroll(bool(K.DISABLE_OVERSCROLL, false));
+      setPullToRefresh(bool(K.PULL_TO_REFRESH, false));
       setSessionResetButtonEnabled(bool(K.SESSION_RESET_BUTTON_ENABLED, false));
 
       // Load Custom User Agent
@@ -3302,8 +3352,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   shownTileIdRef.current = shownTileId;
   const previousShownTileIdRef = useRef<string | null>(null);
 
-  // Point webViewRef at the tile on screen; pause the one just hidden, resume the one shown.
-  // Tiles loading in the background pause themselves once mounted (see getKeptTileHandlers).
+  // Point webViewRef at the tile on screen and make sure it is running (the screensaver or the
+  // app going to the background may have paused it). Hidden tiles are not paused: a paused page
+  // stops its live updates (WebSocket, timers), so a scoreboard or control page shown again was
+  // stale and replayed everything it missed.
   useEffect(() => {
     if (!keepTilesActive) {
       previousShownTileIdRef.current = null;
@@ -3318,7 +3370,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     }
     const previous = previousShownTileIdRef.current;
     if (previous !== shownTileId) {
-      if (previous) tileWebViewRefs.current[previous]?.pauseMedia();
       if (shownTileId) tileWebViewRefs.current[shownTileId]?.resumeMedia();
       previousShownTileIdRef.current = shownTileId;
     }
@@ -3335,7 +3386,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // Forget the refs and handlers of tiles that are no longer kept.
   useEffect(() => {
     const kept = new Set(keptTileIds);
-    for (const store of [tileWebViewRefs.current, tileNavStatesRef.current, keptTileHandlersRef.current]) {
+    for (const store of [tileWebViewRefs.current, tileWrapperRefs.current, tileNavStatesRef.current, keptTileHandlersRef.current]) {
       Object.keys(store).forEach(id => {
         if (!kept.has(id)) delete store[id];
       });
@@ -3380,6 +3431,24 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     KioskModule.setNavGestureEnabled?.(navGestureActive).catch(() => {});
   }, [navGestureActive]);
   useEffect(() => () => { KioskModule.setNavGestureEnabled?.(false).catch(() => {}); }, []);
+
+  // A sideways drag slides the tiles natively (TileSlider, in MainActivity), in step with the
+  // fingers; tell it which views are the tile on screen and the ones a drag brings in. Without
+  // kept tiles there is nothing to slide and the switch is instant, on release.
+  useEffect(() => {
+    if (!navGestureActive || !dashboardSwipeBetweenTiles) return;
+    const tag = (id: string | undefined) => {
+      const view = id ? tileWrapperRefs.current[id] : null;
+      return (view && findNodeHandle(view)) || -2; // -2: there is a tile, not mounted
+    };
+    const current = dashboardTileIndexRef.current;
+    const neighbour = (direction: 'left' | 'right') => {
+      const index = nextTileIndex(current, orderedDashboardTiles.length, direction);
+      return index === current ? -1 : tag(orderedDashboardTiles[index]?.id);
+    };
+    const tiles = shownTileId ? [tag(shownTileId), neighbour('right'), neighbour('left')] : [-1, -1, -1];
+    KioskModule.setNavSlideTiles?.(tiles[0], tiles[1], tiles[2]).catch(() => {});
+  }, [navGestureActive, dashboardSwipeBetweenTiles, shownTileId, orderedDashboardTiles, keptTileIds, webViewKey]);
 
   const onDashboardNavGestureRef = useRef(onDashboardNavGesture);
   onDashboardNavGestureRef.current = onDashboardNavGesture;
@@ -3446,6 +3515,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     hideErrorUrl,
     alwaysLoadFromNetwork,
     disableOverscroll,
+    pullToRefresh,
     silentPrintWindowPrint,
     keyboardMode,
     onJsExecuted,
@@ -3467,11 +3537,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     customUserAgent,
     basicAuthCredential,
     onRenderProcessGone: handleWebViewRenderProcessGone,
-  }), [autoReload, hideErrorUrl, alwaysLoadFromNetwork, disableOverscroll, silentPrintWindowPrint,
+    mediaGuard: pauseWebMediaWhenHidden,
+  }), [autoReload, hideErrorUrl, alwaysLoadFromNetwork, disableOverscroll, pullToRefresh, silentPrintWindowPrint,
     keyboardMode, onJsExecuted, webViewBackButtonEnabled, urlFilterEnabled, urlFilterMode,
     urlFilterList, urlFilterShowFeedback, pdfViewerEnabled, windowPrintEnabled, printPaperSize,
     silentPrintEnabled, escPosWidthDots, escPosCut, escPosFeedLines, printOrigins, zoomLevel, zoomMode,
-    disableUserZoom, customUserAgent, basicAuthCredential, handleWebViewRenderProcessGone]);
+    disableUserZoom, customUserAgent, basicAuthCredential, handleWebViewRenderProcessGone, pauseWebMediaWhenHidden]);
 
   // Latest callbacks for the kept tiles' handlers, which are created once per tile.
   const keptTileCallbacksRef = useRef({ onUserInteraction, markUserInteraction });
@@ -3482,13 +3553,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     const cached = keptTileHandlersRef.current[id];
     if (cached) return cached;
     const handlers: KeptTileHandlers = {
+      wrapperRef: (view) => { tileWrapperRefs.current[id] = view; },
       ref: (instance) => {
         tileWebViewRefs.current[id] = instance;
         if (!instance) return;
         if (shownTileIdRef.current === id) {
           (webViewRef as React.MutableRefObject<WebViewComponentRef | null>).current = instance;
-        } else {
-          instance.pauseMedia(); // loading in the background
         }
       },
       onNavigationStateChange: (state) => {
@@ -3516,6 +3586,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       ref={webViewRef}
       key={webViewKey}
       url={url}
+      initialMediaPaused={webMediaPausedRef.current}
       {...sharedWebViewProps}
       reportPageTouches={urlRotationEnabled && urlRotationPauseOnTouch}
       onPageTouch={() => { lastPageTouchRef.current = Date.now(); }}
@@ -3548,27 +3619,26 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                 const tile = dashboardTiles.find(t => t.id === id);
                 if (!tile) return null;
                 const active = id === shownTileId;
+                const handlers = getKeptTileHandlers(id);
                 return (
                   <View
                     key={`${id}-${webViewKey}`}
+                    ref={handlers.wrapperRef}
+                    collapsable={false}
                     style={[StyleSheet.absoluteFill, !active && styles.hiddenTile]}
                     pointerEvents={active ? 'auto' : 'none'}
                   >
-                    {(() => {
-                      const handlers = getKeptTileHandlers(id);
-                      return (
-                        <WebViewComponent
-                          ref={handlers.ref}
-                          url={tile.url}
-                          {...sharedWebViewProps}
-                          inactive={!active}
-                          jsToExecute={active ? jsToExecute : ''}
-                          onUserInteraction={active ? handlers.onUserInteraction : undefined}
-                          onNavigationStateChange={handlers.onNavigationStateChange}
-                          onPageNavigated={handlers.onPageNavigated}
-                        />
-                      );
-                    })()}
+                    <WebViewComponent
+                      ref={handlers.ref}
+                      url={tile.url}
+                      {...sharedWebViewProps}
+                      inactive={!active}
+                      initialMediaPaused={active && webMediaPausedRef.current}
+                      jsToExecute={active ? jsToExecute : ''}
+                      onUserInteraction={active ? handlers.onUserInteraction : undefined}
+                      onNavigationStateChange={handlers.onNavigationStateChange}
+                      onPageNavigated={handlers.onPageNavigated}
+                    />
                   </View>
                 );
               })}
@@ -3700,6 +3770,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         <TouchableOpacity 
           style={[
             styles.visualIndicator,
+            returnButtonPositionStyle(returnButtonPosition),
             {
               opacity: returnButtonVisible ? 1 : 0,
               backgroundColor: returnButtonVisible ? '#2b7fff' : 'transparent',
@@ -3817,6 +3888,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 const MAX_KEPT_TILES = 5;
 
 type KeptTileHandlers = {
+  wrapperRef: (view: View | null) => void;
   ref: (instance: WebViewComponentRef | null) => void;
   onNavigationStateChange: (state: { canGoBack: boolean; canGoForward: boolean; title: string }) => void;
   onPageNavigated: (url: string) => void;
@@ -3829,6 +3901,7 @@ const styles = StyleSheet.create({
   },
   keptTiles: {
     flex: 1,
+    overflow: 'hidden', // TileSlider slides tiles in from off screen
   },
   // Invisible but still full size, so a tile loaded in the background is already laid out
   // when shown (display: 'none' would leave it at zero size until then). Touches are
@@ -3850,8 +3923,6 @@ const styles = StyleSheet.create({
   },
   visualIndicator: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
     width: 50,
     height: 50,
     backgroundColor: '#2b7fff',

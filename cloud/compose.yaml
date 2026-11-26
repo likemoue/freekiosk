@@ -1,5 +1,8 @@
 name: freekiosk-manager
 
+# deploy/update.sh builds the images tagged with the commit (IMAGE_TAG) and also as latest;
+# going back is IMAGE_TAG=<older commit> docker compose up -d --no-build
+
 x-hardening: &hardening
   init: true
   security_opt: [no-new-privileges:true]
@@ -15,7 +18,8 @@ x-api-env: &api-env
 
 services:
   database:
-    image: postgres:17-alpine
+    # No major bumps here: the data volume needs pg_upgrade or a dump and reload
+    image: postgres:17.12-alpine3.24@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -31,7 +35,7 @@ services:
 
   migrate:
     <<: [*hardening, *api-env]
-    image: freekiosk-manager-migrate:latest
+    image: freekiosk-manager-migrate:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: deploy/Dockerfile
@@ -42,7 +46,7 @@ services:
 
   api:
     <<: [*hardening, *api-env]
-    image: freekiosk-manager-api:latest
+    image: freekiosk-manager-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: deploy/Dockerfile
@@ -66,7 +70,7 @@ services:
 
   web:
     <<: *hardening
-    image: freekiosk-manager-web:latest
+    image: freekiosk-manager-web:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: deploy/Dockerfile

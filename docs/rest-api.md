@@ -91,7 +91,7 @@ Returns complete device status in one call.
     "battery": { "level": 85, "charging": true, "temperature": 25.5 },
     "screen": { "on": true, "brightness": 75, "screensaverActive": false },
     "webview": { "currentUrl": "http://...", "canGoBack": false, "loading": false },
-    "device": { "model": "SM-T510", "manufacturer": "samsung", "android": "11" },
+    "device": { "ip": "192.168.1.50", "hostname": "freekiosk", "version": "2.1.0", "isDeviceOwner": true, "kioskMode": true, "manufacturer": "samsung", "model": "SM-T510", "androidVersion": "11", "apiLevel": 30, "processor": "qcom", "deviceName": "gta3xl", "product": "gta3xlwifixx", "uptime": 86400, "androidId": "a1b2c3d4e5f60718" },
     "wifi": { "connected": true, "ssid": "Home", "rssi": -45, "ip": "192.168.1.50" },
     "sensors": { "light": 150.5, "proximity": 5, "accelerometer": {...} },
     "autoBrightness": { "enabled": true, "min": 10, "max": 100, "currentLightLevel": 150.5 },
@@ -302,9 +302,18 @@ Device information.
   "data": {
     "ip": "192.168.1.50",
     "hostname": "freekiosk",
-    "version": "1.2.11",
+    "version": "2.1.0",
     "isDeviceOwner": true,
-    "kioskMode": true
+    "kioskMode": true,
+    "manufacturer": "samsung",
+    "model": "SM-T510",
+    "androidVersion": "11",
+    "apiLevel": 30,
+    "processor": "qcom",
+    "deviceName": "gta3xl",
+    "product": "gta3xlwifixx",
+    "uptime": 86400,
+    "androidId": "a1b2c3d4e5f60718"
   }
 }
 ```
@@ -316,8 +325,16 @@ Device information.
 
 | Field | Type | Description |
 |---|---|---|
+| **ip** | string | Local IP address |
+| **hostname** | string | Always `freekiosk` |
+| **version** | string | FreeKiosk version |
 | **isDeviceOwner** | boolean | Whether the app has Device Owner privileges (required for reboot, lock, true screen off) |
 | **kioskMode** | boolean | Whether kiosk lock task mode is currently active |
+| **manufacturer**, **model**, **deviceName**, **product**, **processor** | string | The values Android reports (`Build.MANUFACTURER`, `MODEL`, `DEVICE`, `PRODUCT`, `HARDWARE`) |
+| **androidVersion** | string | Android release, for example `11` |
+| **apiLevel** | number | Android API level, for example `30` |
+| **uptime** | number | Seconds since the device booted |
+| **androidId** | string | `Settings.Secure.ANDROID_ID`: a stable identifier per tablet, to match it with its entry in FreeKiosk Cloud (the cloud receives it as `android_id`). On Android 8+ it is scoped to FreeKiosk's signing key and the user: it survives reboots and updates and changes after a factory reset. Left out when Android does not give it |
 
 
 
@@ -374,6 +391,8 @@ curl http://TABLET_IP:8080/api/screenshot -o screenshot.png
 #### `GET /api/camera/photo`
 
 Take a photo using the device camera. **(v1.2.5+)**
+
+When no photo can be taken the answer is `503` and the `error` field says why: permission not granted, camera in use (by another app, the live camera stream or motion detection), camera disabled by a device policy, no camera, or a timeout.
 
 **Query Parameters:**
 
@@ -676,6 +695,9 @@ Lock device screen. Uses `DevicePolicyManager.lockNow()` (Device Owner) or `GLOB
 #### `GET|POST /api/restart-ui`
 Restart the FreeKiosk app UI. Calls `activity.recreate()` to fully restart the React Native activity without rebooting the device. Useful for troubleshooting UI issues remotely.
 
+#### `GET|POST /api/open-settings`
+Open the PIN screen on the tablet, as the return gesture does, so a person at the screen can enter the settings with nothing on the dashboard to tap. The PIN is still asked for. Over an external app, FreeKiosk is brought to the front first. Does nothing while the PIN or settings screen is already open.
+
 
 ### Audio Control (POST)
 
@@ -705,7 +727,7 @@ Perfect for controlling Android TV devices or navigating apps.
 > - D-pad navigation highlights UI elements (buttons, links, inputs)
 > - Back, Home, and Recents trigger the corresponding system actions
 >
-> Without the AccessibilityService, keys only work within FreeKiosk's own Activity.
+> Without the AccessibilityService, keys only work within FreeKiosk's own Activity. `/api/remote/home` answers `400` with an explanation in that case, since Home cannot do anything inside FreeKiosk. The service is not in the cloud (QR setup) APK nor in the Play Store build; the GitHub APK includes it, and it has to be enabled.
 
 | Endpoint | Key |
 |----------|-----|
@@ -1026,6 +1048,10 @@ rest_command:
   
   tablet_restart_ui:
     url: http://TABLET_IP:8080/api/restart-ui
+    method: POST
+  
+  tablet_open_settings:
+    url: http://TABLET_IP:8080/api/open-settings
     method: POST
   
   tablet_tts:

@@ -104,6 +104,8 @@
       "dashboardActive": "Tryb pulpitu jest aktywny. Skonfiguruj kafelki na karcie Pulpit.",
       "placeholder": "https://example.com",
       "hint": "Przykład: https://www.freekiosk.app",
+      "pickLocalFile": "Wybierz lokalny plik HTML",
+      "pickLocalFileHint": "Plik jest odczytywany tam, gdzie się znajduje, więc strona przepisywana przez inną aplikację jest zawsze aktualna. Obrazy i skrypty obok niego nie są ładowane: użyj jednego samodzielnego pliku lub wpisz adres file:// dla folderu.",
       "httpWarning": "BEZPIECZEŃSTWO: ten URL używa HTTP (bez szyfrowania).\nDane mogą zostać przechwycone. Użyj HTTPS."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Krawędzie strony",
       "disable": "Wyłącz efekt przewijania poza krawędź",
-      "disableHint": "Usuń elastyczne rozciąganie widoczne przy przeciąganiu poza górę lub dół strony, także na stronach, które się nie przewijają."
+      "disableHint": "Usuń elastyczne rozciąganie widoczne przy przeciąganiu poza górę lub dół strony, także na stronach, które się nie przewijają.",
+      "pullToRefresh": "Pociągnij, aby odświeżyć",
+      "pullToRefreshHint": "Przeciągnięcie w dół od górnej krawędzi strony przeładowuje ją, jak w przeglądarce. Nie działa, gdy strona lub lista pod palcem jest przewinięta."
     },
     "userAgent": {
       "title": "User Agent",
@@ -443,6 +447,8 @@
       "title": "Multimedia WWW",
       "pauseHidden": "Wstrzymuj audio/wideo, gdy są ukryte",
       "pauseHiddenHint": "Wstrzymuj dźwięk i wideo strony WWW, gdy wyświetlany jest wygaszacz ekranu, ekran się wyłącza lub aplikacja przechodzi w tło – w przeciwnym razie radio internetowe lub wideo mogłoby grać w tle bez możliwości zatrzymania. Wyłącz, aby dźwięk WWW grał bez przerwy.",
+      "pausePage": "Wstrzymaj stronę, gdy ekran jest wyłączony",
+      "pausePageHint": "Zatrzymuje własną aktywność strony (liczniki, pobieranie obrazów), gdy ekran jest naprawdę wyłączony (polecenie wyłączenia, blokada, przycisk zasilania, harmonogram), aby pokaz slajdów nie pobierał dalej. Po włączeniu ekranu strona wznawia działanie. Domyślnie wyłączone: panel, który ma być stale aktualny, powinien mieć to wyłączone.",
       "intercom": "Tryb dwukierunkowego audio (domofon)",
       "intercomHint": "Włącz dla dwukierunkowego audio WebRTC / odpowiedzi głosowej (np. karta domofonu Home Assistant / go2rtc). Gdy strona WWW aktywnie używa mikrofonu, FreeKiosk przełącza urządzenie w tryb audio komunikacji, aby kanał zwrotny mikrofonu był przesyłany, a po zakończeniu mówienia przywraca normalne audio. Pozostaw wyłączone przy zwykłym przeglądaniu – działa tylko wtedy, gdy mikrofon jest używany."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "Dotknij N razy w tym samym obszarze (dotknięcia muszą być skupione)",
       "fixedButton": "Stały przycisk",
       "fixedButtonHint": "Dotknij N razy przycisku w rogu",
+      "cornerSequence": "Stuknięcia w rogi",
+      "cornerSequenceHint": "Stuknij dwa razy w lewy górny róg, a potem dwa razy w prawy dolny, w ciągu 3 sekund. Nic nie jest wyświetlane, a klawiatura ekranowa nie może tego wywołać",
       "numTaps": "Liczba dotknięć (2-20)",
       "numTapsHintButton": "Dotknij tyle razy, aby otworzyć ustawienia",
       "numTapsHintAnywhere": "Szybko dotknij tyle razy w dowolnym miejscu ekranu, aby otworzyć ustawienia",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Pozwól również otwierać ustawienia wielokrotnym naciśnięciem przycisku Głośniej/Ciszej",
       "infoButtonMode": "Dotknij przycisku powrotu ({{position}}) {{count}} razy, aby otworzyć ustawienia",
       "infoAnywhereMode": "Dotknij {{count}} razy w dowolnym miejscu ekranu w ciągu {{timeout}}, aby otworzyć ustawienia",
+      "infoCornerMode": "Stuknij dwa razy w lewy górny róg, a potem dwa razy w prawy dolny, w ciągu 3 sekund, aby otworzyć ustawienia",
       "pinRequired": " (wymagany PIN)",
       "kioskScreenOnly": "Działa tylko na ekranie kiosku. Gdy otwarta jest aplikacja, dotknięcia, przycisk i klawisze głośności nie prowadzą do Ustawień: najpierw wróć do ekranu kiosku."
     },
@@ -615,6 +624,7 @@
       "title": "Powrót do ustawień",
       "buttonLine": "• Dotknij przycisku powrotu ({{position}}) {{count}} razy{{invisible}}",
       "anywhereLine": "• Dotknij {{count}} razy w dowolnym miejscu ekranu w ciągu {{timeout}}{{visual}}",
+      "cornerLine": "• Stuknij dwa razy w lewy górny róg, a potem dwa razy w prawy dolny, w ciągu 3 sekund",
       "invisible": " (niewidoczny)",
       "visualIndicator": " (widoczny wskaźnik)",
       "recentApps": "• Lub użyj przełącznika ostatnich aplikacji",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "Na stronie kafelka przesuń dwoma palcami w lewo, aby przejść do następnego kafelka, i w prawo, aby wrócić do poprzedniego.",
       "keepTilesLoaded": "Utrzymuj kafelki wczytane",
       "keepTilesLoadedHint": "Wczytuj kafelki (do 5) w tle od razu po uruchomieniu pulpitu i utrzymuj je w działaniu, aby otwieranie i przełączanie kafelków było natychmiastowe, a każda strona zachowywała swój stan. Zużywa więcej pamięci."
+    },
+    "startOn": {
+      "title": "Uruchom na",
+      "hint": "Co kiosk pokazuje po uruchomieniu lub po powrocie z Ustawień: siatkę kafelków lub jeden z Twoich kafelków.",
+      "grid": "Siatka kafelków"
     },
     "iconColor": "Kolor ikony",
     "colorAuto": "Auto",
@@ -1322,6 +1337,9 @@
       "loadingError": "Błąd wczytywania",
       "loading": "Wczytywanie...",
       "urlLabel": "URL: {{url}}",
+      "errorReason": "Przyczyna: {{reason}}",
+      "blockedByFilter": "Zablokowane przez filtr URL",
+      "blockedByFilterHost": "Zablokowane przez filtr URL: {{host}}",
       "autoReloadText": "Automatyczne przeładowanie za 5 sekund...",
       "reloadNow": "Przeładuj teraz",
       "fallbackSettingsHint": "Dotknij 5× przycisku ustawień, aby wrócić do ustawień",
@@ -1569,6 +1587,12 @@
       "reloadConfig": "Wczytaj ponownie",
       "fileAccessOffTitle": "Dostęp do plików jest wyłączony",
       "fileAccessOffMessage": "Aby otworzyć plik lokalny, najpierw włącz Ogólne > Przeglądarka PDF > Wbudowana przeglądarka PDF. To ustawienie daje przeglądarce dostęp do plików na urządzeniu.",
+      "allFilesNeededTitle": "Wymagany dostęp do wszystkich plików",
+      "allFilesNeededMessage": "Ten plik znajduje się poza folderem FreeKiosk. Na następnym ekranie zezwól FreeKiosk na dostęp do wszystkich plików, następnie wróć i zapisz ponownie.",
+      "allFilesOpenSettings": "Otwórz ustawienia",
+      "allFilesCancel": "Anuluj",
+      "allFilesUnavailableTitle": "Plik poza folderem FreeKiosk",
+      "allFilesUnavailableMessage": "Ta wersja FreeKiosk nie może odczytywać plików spoza własnego folderu. Skopiuj plik do Android/data/com.freekiosk/files/ na urządzeniu lub wybierz go przez „Wybierz lokalny plik HTML”.",
       "passwordNotSavedTitle": "Hasło nie zostało zapisane",
       "basicAuthNotSavedMessage": "Nie udało się zapisać hasła HTTP Basic Auth w bezpiecznej pamięci tego urządzenia. Wszystkie pozostałe ustawienia na tym ekranie zostały zapisane. Zdarza się to w oprogramowaniu, w którym Android Keystore jest uszkodzony.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

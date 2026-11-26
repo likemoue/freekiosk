@@ -104,6 +104,8 @@
       "dashboardActive": "Der Dashboard-Modus ist aktiv. Konfiguriere deine Kacheln im Tab Dashboard.",
       "placeholder": "https://example.com",
       "hint": "Beispiel: https://www.freekiosk.app",
+      "pickLocalFile": "Lokale HTML-Datei auswählen",
+      "pickLocalFileHint": "Die Datei wird dort gelesen, wo sie liegt – eine Seite, die eine andere App neu schreibt, wird also aktuell angezeigt. Bilder und Skripte daneben werden nicht geladen: Nutzen Sie eine eigenständige Datei oder geben Sie eine file://-Adresse für einen Ordner ein.",
       "httpWarning": "SICHERHEIT: Diese URL verwendet HTTP (unverschlüsselt).\nDeine Daten können abgefangen werden. Verwende stattdessen HTTPS."
     },
     "auth": {
@@ -430,7 +432,9 @@
     "overscroll": {
       "title": "Seitenränder",
       "disable": "Overscroll-Effekt deaktivieren",
-      "disableHint": "Entfernt den elastischen Dehneffekt, der beim Ziehen über den oberen oder unteren Seitenrand hinaus erscheint, auch bei Seiten, die nicht scrollen."
+      "disableHint": "Entfernt den elastischen Dehneffekt, der beim Ziehen über den oberen oder unteren Seitenrand hinaus erscheint, auch bei Seiten, die nicht scrollen.",
+      "pullToRefresh": "Zum Aktualisieren nach unten ziehen",
+      "pullToRefreshHint": "Vom oberen Seitenrand nach unten ziehen lädt die Seite neu, wie im Browser. Wirkt nicht, wenn die Seite oder die Liste unter dem Finger gescrollt ist."
     },
     "userAgent": {
       "title": "User-Agent",
@@ -443,6 +447,8 @@
       "title": "Web-Medien",
       "pauseHidden": "Audio/Video pausieren, wenn ausgeblendet",
       "pauseHiddenHint": "Audio und Video der Webseite pausieren, wenn der Bildschirmschoner angezeigt wird, der Bildschirm ausgeht oder die App in den Hintergrund wechselt. Sonst könnte ein Webradio oder Video unerreichbar im Hintergrund weiterlaufen. Deaktiviere die Option, damit Web-Audio durchgehend weiterläuft.",
+      "pausePage": "Seite pausieren, solange der Bildschirm aus ist",
+      "pausePageHint": "Hält die eigene Aktivität der Seite (Timer, Bildabruf) an, solange der Bildschirm wirklich aus ist (Ausschaltbefehl, Sperre, Ein-/Aus-Taste, Zeitplan), damit eine Diashow nicht weiter herunterlädt. Beim Einschalten läuft sie weiter. Standardmäßig aus: Ein Dashboard, das aktuell bleiben muss, sollte es ausgeschaltet lassen.",
       "intercom": "Modus für bidirektionales Audio (Gegensprechanlage)",
       "intercomHint": "Aktiviere dies für bidirektionales WebRTC-Audio / Rückkanal (z. B. eine Gegensprechanlagen-Karte einer Home-Assistant-/go2rtc-Türklingel). Solange die Webseite aktiv das Mikrofon nutzt, schaltet FreeKiosk das Gerät in den Kommunikations-Audiomodus, damit der Mikrofon-Rückkanal sendet, und stellt das normale Audio wieder her, wenn du aufhörst zu sprechen. Für normales Surfen deaktiviert lassen: Er greift nur, solange das Mikrofon genutzt wird."
     },
@@ -519,6 +525,8 @@
       "tapAnywhereHint": "N-mal im selben Bereich tippen (die Berührungen müssen gruppiert erfolgen)",
       "fixedButton": "Feste Schaltfläche",
       "fixedButtonHint": "N-mal auf eine Schaltfläche in einer Ecke tippen",
+      "cornerSequence": "Ecken-Taps",
+      "cornerSequenceHint": "Zweimal in die linke obere Ecke tippen, dann zweimal in die rechte untere, innerhalb von 3 Sekunden. Nichts wird angezeigt, und eine Bildschirmtastatur kann es nicht auslösen",
       "numTaps": "Anzahl der Berührungen (2-20)",
       "numTapsHintButton": "So oft tippen, um die Einstellungen zu öffnen",
       "numTapsHintAnywhere": "So oft schnell irgendwo auf den Bildschirm tippen, um die Einstellungen zu öffnen",
@@ -539,6 +547,7 @@
       "volumeAltHintOther": "Erlaubt zusätzlich, die Einstellungen durch mehrfaches Drücken der Taste Lauter/Leiser zu öffnen",
       "infoButtonMode": "Tippe {{count}}-mal auf die Zurück-Schaltfläche ({{position}}), um die Einstellungen zu öffnen",
       "infoAnywhereMode": "Tippe {{count}}-mal innerhalb von {{timeout}} irgendwo auf den Bildschirm, um die Einstellungen zu öffnen",
+      "infoCornerMode": "Zweimal in die linke obere Ecke, dann zweimal in die rechte untere Ecke tippen (innerhalb von 3 Sekunden), um die Einstellungen zu öffnen",
       "pinRequired": " (PIN erforderlich)",
       "kioskScreenOnly": "Funktioniert nur auf dem Kiosk-Bildschirm. Solange eine App geöffnet ist, führen Berührungen, die Schaltfläche und die Lautstärketasten nicht zu den Einstellungen: Kehre zuerst zum Kiosk-Bildschirm zurück."
     },
@@ -615,6 +624,7 @@
       "title": "Zurück zu den Einstellungen",
       "buttonLine": "• Tippe {{count}}-mal auf die Zurück-Schaltfläche ({{position}}){{invisible}}",
       "anywhereLine": "• Tippe {{count}}-mal innerhalb von {{timeout}} irgendwo auf den Bildschirm{{visual}}",
+      "cornerLine": "• Zweimal in die linke obere Ecke, dann zweimal in die rechte untere Ecke tippen, innerhalb von 3 Sekunden",
       "invisible": " (unsichtbar)",
       "visualIndicator": " (visuelle Markierung sichtbar)",
       "recentApps": "• Oder verwende die Auswahl der letzten Apps",
@@ -782,6 +792,11 @@
       "swipeBetweenTilesHint": "Auf einer Kachelseite mit zwei Fingern nach links wischen für die nächste Kachel und nach rechts für die vorherige.",
       "keepTilesLoaded": "Kacheln geladen lassen",
       "keepTilesLoadedHint": "Lädt deine Kacheln (bis zu 5) im Hintergrund, sobald das Dashboard startet, und hält sie aktiv: Öffnen und Wechseln geht sofort, und jede Seite behält ihren Zustand. Verbraucht mehr Speicher."
+    },
+    "startOn": {
+      "title": "Starten mit",
+      "hint": "Was der Kiosk beim Start oder nach dem Verlassen der Einstellungen zeigt: das Kachelraster oder eine Ihrer Kacheln.",
+      "grid": "Kachelraster"
     },
     "iconColor": "Symbolfarbe",
     "colorAuto": "Auto",
@@ -1322,6 +1337,9 @@
       "loadingError": "Ladefehler",
       "loading": "Wird geladen...",
       "urlLabel": "URL: {{url}}",
+      "errorReason": "Ursache: {{reason}}",
+      "blockedByFilter": "Vom URL-Filter blockiert",
+      "blockedByFilterHost": "Vom URL-Filter blockiert: {{host}}",
       "autoReloadText": "Automatisches Neuladen in 5 Sekunden...",
       "reloadNow": "Jetzt neu laden",
       "fallbackSettingsHint": "5× auf die Einstellungen-Schaltfläche tippen, um zu den Einstellungen zurückzukehren",
@@ -1567,6 +1585,12 @@
       "reloadConfig": "Neu laden",
       "fileAccessOffTitle": "Dateizugriff ist deaktiviert",
       "fileAccessOffMessage": "Um eine lokale Datei zu öffnen, aktiviere zuerst Allgemein > PDF-Viewer > Integrierter PDF-Viewer. Diese Einstellung gibt dem Browser Zugriff auf Dateien auf dem Gerät.",
+      "allFilesNeededTitle": "Zugriff auf alle Dateien erforderlich",
+      "allFilesNeededMessage": "Diese Datei liegt außerhalb des FreeKiosk-Ordners. Erlauben Sie FreeKiosk auf dem nächsten Bildschirm den Zugriff auf alle Dateien, kehren Sie dann zurück und speichern Sie erneut.",
+      "allFilesOpenSettings": "Einstellungen öffnen",
+      "allFilesCancel": "Abbrechen",
+      "allFilesUnavailableTitle": "Datei außerhalb des FreeKiosk-Ordners",
+      "allFilesUnavailableMessage": "Diese Version von FreeKiosk kann keine Dateien außerhalb ihres eigenen Ordners lesen. Kopieren Sie die Datei nach Android/data/com.freekiosk/files/ auf dem Gerät oder wählen Sie sie mit „Lokale HTML-Datei auswählen“.",
       "passwordNotSavedTitle": "Passwort nicht gespeichert",
       "basicAuthNotSavedMessage": "Das HTTP-Basic-Auth-Passwort konnte nicht im sicheren Speicher dieses Geräts abgelegt werden. Alle anderen Einstellungen auf diesem Bildschirm wurden gespeichert. Das passiert bei Firmware mit defektem Android Keystore.",
       "downloadProgress": "{{percent}}% ({{done}} / {{total}} MB)",

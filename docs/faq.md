@@ -55,14 +55,32 @@
 **Q: Does it work with Home Assistant?**
 - **A:** Perfectly! Many users deploy FreeKiosk for Home Assistant dashboards.
 
+**Q: Does it work with ioBroker?**
+- **A:** Yes, through the [ioBroker.freekiosk](https://github.com/typhosj/ioBroker.freekiosk) adapter, over REST or MQTT. See [Integrations > ioBroker](INTEGRATIONS.md#iobroker).
+
 **Q: Can I display local HTML files?**
-- **A:** Yes. Enter a `file://` URL in Website mode, for example
-  `file:///storage/emulated/0/Android/data/com.freekiosk/files/dashboard/index.html`.
-  You must turn on **General > PDF Viewer > Inline PDF Viewer** first (the settings screen
-  refuses a `file://` URL until you do): that setting is what grants the
-  WebView file access (`allowFileAccess`, `allowFileAccessFromFileURLs`,
-  `allowUniversalAccessFromFileURLs` and the `file://` origin). Without it the page fails
-  with `net::ERR_ACCESS_DENIED`.
+- **A:** Yes, in Website mode, in three ways. For all of them you must turn on **General > PDF Viewer >
+  Inline PDF Viewer** first (the settings screen refuses a local file until you do): that setting is what
+  grants the WebView file access (`allowFileAccess`, `allowFileAccessFromFileURLs`,
+  `allowUniversalAccessFromFileURLs`, the `file://` and `content://` origins). Without it the page
+  fails with `net::ERR_ACCESS_DENIED`.
+  1. **In FreeKiosk's own folder**, which needs nothing more. Enter, for example,
+     `file:///storage/emulated/0/Android/data/com.freekiosk/files/dashboard/index.html`. A page there can load
+     the images, styles and scripts next to it.
+  2. **Anywhere on the device**: type the path, `/storage/emulated/0/news/news001.html` or
+     `file:///storage/emulated/0/news/news001.html` (a path, or `file://` with a slash too few, becomes a
+     `file:///` address when you save). Android must allow FreeKiosk **All files access**: the settings screen
+     tells you and opens that Android screen, or over ADB:
+     `adb shell appops set com.freekiosk MANAGE_EXTERNAL_STORAGE allow`. **Not in the Play Store build**, which has
+     no such permission: use the app's folder or the next option there.
+  3. **General > Website URL > Choose a local HTML file**: pick the page with Android's document picker. The file is
+     read where it is (the address is a `content://` document that FreeKiosk keeps the permission on, also after a
+     restart), so a page that another app rewrites is shown fresh. It needs no extra permission, but the images and
+     scripts next to the page do not load: use one self-contained file. A TV without a document picker has no such button.
+     The permission is on that one file: if another app replaces it with a new file (delete, then create, as some sync
+     apps do) the page fails with `net::ERR_FILE_NOT_FOUND` until you pick it again, whereas a file rewritten in place
+     keeps working. Checked on an Android 14 tablet: after `adb push` over the file the page failed, and loaded again
+     after picking the file again.
 
 **Q: How do I change the URL?**
 - **A:** Tap 5 times bottom-right → Enter PIN → Settings → Change URL.

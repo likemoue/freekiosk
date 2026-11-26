@@ -19,6 +19,7 @@ import { getTileColor, MATERIAL_PALETTE } from '../../../utils/dashboardColors';
 import { StorageService } from '../../../utils/storage';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTranslation } from 'react-i18next';
+import { hasUsableHost } from '../../../utils/urlInput';
 
 interface DashboardTabProps {
   dashboardModeEnabled: boolean;
@@ -48,6 +49,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboardModeEnabled }) => 
   const [navAutoHideSeconds, setNavAutoHideSeconds] = useState(4);
   const [swipeBetweenTiles, setSwipeBetweenTiles] = useState(false);
   const [keepTilesLoaded, setKeepTilesLoaded] = useState(false);
+  const [startTile, setStartTile] = useState('');
 
   useEffect(() => {
     loadTiles();
@@ -56,6 +58,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboardModeEnabled }) => 
     StorageService.getDashboardNavAutoHideSeconds().then(setNavAutoHideSeconds);
     StorageService.getDashboardSwipeBetweenTiles().then(setSwipeBetweenTiles);
     StorageService.getDashboardKeepTilesLoaded().then(setKeepTilesLoaded);
+    StorageService.getDashboardStartTile().then(setStartTile);
   }, []);
 
   const handleNavAutoHideChange = async (enabled: boolean) => {
@@ -71,6 +74,11 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboardModeEnabled }) => 
   const handleKeepTilesLoadedChange = async (enabled: boolean) => {
     setKeepTilesLoaded(enabled);
     await StorageService.saveDashboardKeepTilesLoaded(enabled);
+  };
+
+  const handleStartTileChange = async (tileId: string) => {
+    setStartTile(tileId);
+    await StorageService.saveDashboardStartTile(tileId);
   };
 
   const handleNavAutoHideSecondsChange = async (seconds: number) => {
@@ -130,7 +138,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboardModeEnabled }) => 
       return;
     }
     if (!urlLower.startsWith('http://') && !urlLower.startsWith('https://')) {
-      if (finalUrl.includes('.')) {
+      if (hasUsableHost(finalUrl)) {
         finalUrl = 'https://' + finalUrl;
       } else {
         Alert.alert(t('dashboard.errors.invalidUrl'), t('dashboard.errors.enterValidUrl'));
@@ -281,6 +289,25 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboardModeEnabled }) => 
           value={keepTilesLoaded}
           onValueChange={handleKeepTilesLoadedChange}
         />
+      </SettingsSection>
+
+      <SettingsSection title={t('dashboard.startOn.title')} icon="home">
+        <Text style={styles.startOnHint}>{t('dashboard.startOn.hint')}</Text>
+        <View style={[styles.iconModeRow, styles.startOnRow]}>
+          {[{ id: '', label: t('dashboard.startOn.grid') }, ...tiles.map(tile => ({ id: tile.id, label: tile.label }))].map(option => {
+            // A start tile that was deleted falls back to the grid, so show the grid as chosen.
+            const active = option.id === '' ? !tiles.some(tile => tile.id === startTile) : startTile === option.id;
+            return (
+              <TouchableOpacity
+                key={option.id || 'grid'}
+                style={[styles.iconModeButton, active && styles.iconModeButtonActive]}
+                onPress={() => handleStartTileChange(option.id)}
+              >
+                <Text style={[styles.iconModeText, active && styles.iconModeTextActive]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </SettingsSection>
 
       <SettingsSection title={t('dashboard.tilesTitle')} icon="view-dashboard">
@@ -511,6 +538,13 @@ const styles = StyleSheet.create({
   iconModeRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
+  },
+  startOnRow: {
+    flexWrap: 'wrap',
+  },
+  startOnHint: {
+    ...Typography.hint,
+    marginBottom: Spacing.sm,
   },
   iconModeButton: {
     paddingHorizontal: Spacing.md,

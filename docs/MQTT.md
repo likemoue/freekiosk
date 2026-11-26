@@ -41,6 +41,9 @@ FreeKiosk includes a native MQTT client for real-time integration with **Home As
 > [!TIP]
 > **MQTT vs REST API**: MQTT is push-based — the tablet publishes status updates automatically every N seconds. The REST API requires polling. MQTT is the preferred integration for Home Assistant. Both can run simultaneously.
 
+> [!NOTE]
+> **ioBroker**: the [ioBroker.freekiosk](https://github.com/typhosj/ioBroker.freekiosk) adapter brings its own MQTT broker and maps the tablet's status, images and commands to ioBroker states. See [Integrations > ioBroker](INTEGRATIONS.md#iobroker).
+
 ## Enabling MQTT
 
 ### Via UI
@@ -278,7 +281,7 @@ All entities are grouped under one HA device:
 
 
 
-#### Buttons (14)
+#### Buttons (15)
 
 
 
@@ -289,6 +292,7 @@ All entities are grouped under one HA device:
 | **Reboot** | `.../set/reboot` | mdi:restart |
 | **Clear Cache** | `.../set/clear_cache` | mdi:delete-sweep |
 | **Lock** | `.../set/lock` | mdi:lock |
+| **Open Settings** | `.../set/open_settings` | mdi:cog |
 | **Remote Up** | `.../set/remote_up` | mdi:arrow-up-bold |
 | **Remote Down** | `.../set/remote_down` | mdi:arrow-down-bold |
 | **Remote Left** | `.../set/remote_left` | mdi:arrow-left-bold |
@@ -394,6 +398,7 @@ Commands are sent by publishing to `{baseTopic}/{topicId}/set/{entity}`.
 | **reboot** | reboot | any | Reboot device (Device Owner required) |
 | **clear_cache** | clearCache | any | Clear WebView cache |
 | **lock** | lockDevice | any | Lock device screen |
+| **open_settings** | openSettings | any | Open the PIN screen to the settings (the PIN is still asked for) |
 | **url** | setUrl | URL string | Navigate to URL |
 | **mode** | setMode | JSON: `{"mode":"webview","url":"https://..."}`, `{"mode":"external_app","package":"com.app"}` (omit `package` for the stored multi-app config), or `{"mode":"media_player"}` | Switch display mode at runtime (webview / external_app / media_player) |
 | **tts** | tts | text string | Text-to-speech (handled natively) |
@@ -447,7 +452,7 @@ FreeKiosk can detect motion using the device camera and report it as a binary se
 
 **Always-on mode**: Enable "Always-on Motion Detection" in MQTT settings or via the HA switch entity to run motion detection continuously. The `motion_detected` binary sensor will update in real-time. Note: this uses the camera continuously and increases battery usage.
 
-**Only wake for a face**: with Settings > Display > Screensaver > Motion Detection > *Only wake for a face* on, `motion_detected` turns on only for motion followed by a face in the camera image (a face looking at the camera; a turned or distant one may be missed). Movement measured on a running camera stream has no face check and is not reported while the option is on. The setting is applied even with always-on motion detection, though the switch is only shown in the screensaver settings while screensaver motion detection is on.
+**Only wake for a face**: with Settings > Display > Screensaver > Motion Detection > *Only wake for a face* on, `motion_detected` turns on only for motion followed by a face in the camera image (a face within about 2 m of the camera; one turned away may be missed). Movement measured on a running camera stream has no face check and is not reported while the option is on. The setting is applied even with always-on motion detection, though the switch is only shown in the screensaver settings while screensaver motion detection is on.
 
 > [!NOTE]
 > Camera permission must be granted for motion detection to work. FreeKiosk requests this permission automatically on first launch.
@@ -476,6 +481,32 @@ If the connection is lost unexpectedly, the broker publishes `"offline"` to the 
 ### Concurrent with REST API
 
 MQTT and the REST API can run simultaneously. Both use the same internal command handler and status data. Enabling MQTT does not disable the REST API.
+
+
+## Home Assistant on another network (Nabu Casa)
+
+FreeKiosk talks to an **MQTT broker**, never to the Home Assistant API. `mqtt.publish` is a Home Assistant service that publishes to the same broker, so there is no Home Assistant token or session to configure in FreeKiosk.
+
+Nabu Casa remote access forwards the Home Assistant web interface only. It does not carry MQTT traffic, so the tablet cannot use it as a broker address. If the tablet is not on the same network as Home Assistant, give it a path to the broker:
+
+
+
+| Step | Action |
+|---|---|
+| **1** | In Home Assistant, install the **Mosquitto broker** add-on and add the MQTT integration |
+| **2** | Make the broker reachable from the tablet: put both on a VPN (Tailscale, WireGuard), **or** expose it with TLS on port **8883** |
+| **3** | In **Settings > Advanced > MQTT**, enter the broker address, port, username and password |
+| **4** | Press **Connect**. Home Assistant discovers the tablet, and `mqtt.publish` automations drive it as in the examples below |
+
+
+
+> [!NOTE]
+> FreeKiosk enables TLS when the port is 8883 and not otherwise. It uses the system certificate store, so the broker needs a certificate that Android trusts (a self-signed certificate is not accepted).
+
+> [!CAUTION]
+> Do not expose a plain-text broker (port 1883) to the Internet. The state, the commands and, when enabled, the screenshots and camera pictures would cross the network in clear. Use a VPN, or TLS on 8883 with a username, a password and the topic ACLs described in [Images](#-images-screenshot--camera).
+
+If the tablet and Home Assistant share a network, skip step 2 and use the broker's local address.
 
 
 ## Testing with MQTT CLI

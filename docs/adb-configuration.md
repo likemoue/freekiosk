@@ -181,7 +181,7 @@ Each app in the array supports these fields:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `--es url "https://..."` | String | URL to display in kiosk WebView |
+| `--es url "https://..."` | String | URL to display in kiosk WebView. A local file is a `file:///...` address (needs `pdf_viewer_enabled`); outside FreeKiosk's own folder it also needs All files access: `adb shell appops set com.freekiosk MANAGE_EXTERNAL_STORAGE allow` (not in the Play Store build). See the [FAQ](faq.md) |
 
 ### Dashboard Parameters
 
@@ -219,7 +219,7 @@ Every key below is a straight passthrough: the value you pass is stored as-is.
 
 | Parameter | Description |
 |-----------|-------------|
-| `--es return_mode "tap_anywhere"` | How to reach settings: `tap_anywhere` (tap the screen `return_tap_count` times, the default) or `button` (fixed button). Any other value leaves no way in |
+| `--es return_mode "tap_anywhere"` | How to reach settings: `tap_anywhere` (tap the screen `return_tap_count` times, the default), `button` (fixed button) or `corner_sequence` (tap the top-left corner twice, then the bottom-right corner twice, within 3 seconds; WebView and media player only, App mode counts taps instead). Any other value leaves no way in |
 | `--es return_button_position "top-left"` | Fixed-button corner: `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `--ei return_tap_count 5` | Number of taps to open settings |
 | `--ei return_tap_timeout 1500` | Time window, in milliseconds, to complete **all** the taps, counted from the first one (default 1500). The Settings screen accepts 500 to 5000; over ADB any value works. Raise it before you drive the gesture from a script, see [Scripting the settings gesture](#scripting-the-settings-gesture) |
@@ -230,7 +230,7 @@ Every key below is a straight passthrough: the value you pass is stored as-is.
 | `--es overlay_button_position "bottom-right"` | Corner for that button |
 | `--ei pin_max_attempts 5` | Wrong-PIN attempts before lockout |
 | `--es screen_orientation "landscape"` | FreeKiosk's orientation: `auto` (follow the device), `portrait`, `landscape`, `reverse_portrait` or `reverse_landscape`. Not applied to an external app |
-| `--es keyboard_mode "default"` | On-screen keyboard: `default`, `force_numeric`, `smart` or `none` (no on-screen keyboard; a scanner still types into the fields) |
+| `--es keyboard_mode "default"` | On-screen keyboard: `default`, `force_numeric`, `smart` or `none` (no on-screen keyboard; a scanner still types into the fields). Some third-party keyboards (SwiftKey on a Huawei MediaPad M5 Lite, reported in #148) still show their suggestion bar and capitalize the first character of every scan: install a blank input method ("Null Keyboard") and make it the default, keeping your usual keyboard enabled to type the PIN |
 
 **Lockdown**
 
@@ -243,6 +243,8 @@ Every key below is a straight passthrough: the value you pass is stored as-is.
 | `--ez allow_hardware_screenshot true` | Allow the Power + Volume Down screenshot while Lock Mode is on (Device Owner only, off by default, applies the next time Lock Mode starts) |
 | `--ez allow_usb_debug_dialog true` | Let the "Allow USB debugging?" prompt appear while Lock Mode is on (Device Owner only, off by default, applies the next time Lock Mode starts; see [the troubleshooting entry](#-the-allow-usb-debugging-prompt-does-not-appear-in-lock-mode)) |
 | `--ez keep_screen_on true` | Keep the display awake |
+| `--ez auto_wake_on_screen_off true` | Wake the screen again by itself when something turns it off (Settings > Display > Auto Wake on Screen Off); off by default |
+| `--ez pause_page_screen_off true` | Pause the page's own activity (timers, image fetching) while the screen is really off; off by default. A screen-off command, a lock, the power button or a schedule counts, a dimmed screensaver does not |
 
 **WebView behavior**
 
@@ -253,6 +255,7 @@ Every key below is a straight passthrough: the value you pass is stored as-is.
 | `--ez always_load_from_network true` | Fetch every image, script and style sheet from the network on each load, so an updated site never shows old files. Uses more data, and a page cannot show from cache while the network is down |
 | `--ez pdf_viewer_enabled true` | Open PDFs in the bundled viewer. **This is also what allows `file://` URLs**: without it the WebView refuses to load a local file, whatever the label says (see the [FAQ](faq.md)) |
 | `--ez disable_overscroll true` | Remove the elastic stretch at the top and bottom of the page. Off by default (Android's standard behaviour) |
+| `--ez pull_to_refresh true` | Drag down from the top of the page to reload it, as in a browser. Off by default |
 | `--ez session_reset_button_enabled true` | Show a small button, bottom-left, that clears cookies, cache and web storage after a confirmation, then returns to the start URL. Meant for shared tablets. Off by default |
 | `--es webview_zoom_level "100"` | Page zoom, 50 to 200 |
 | `--es webview_zoom_mode "standard"` | `standard` (CSS zoom) or `fit` (reflow) |
@@ -312,7 +315,7 @@ adb shell "am start -n com.freekiosk/.MainActivity --es pin YOUR_PIN --ez url_pl
 | `--ez screen_scheduler_enabled false` | Turn the screen on and off on a schedule |
 | `--es screen_scheduler_rules '[]'` | Schedule rules, as a JSON array |
 | `--ez screen_scheduler_wake_on_touch true` | Touch wakes the screen outside scheduled hours |
-| `--es screensaver_delay "300"` | Inactivity before the screensaver, in seconds |
+| `--es screensaver_delay "300000"` | Inactivity before the screensaver, in **milliseconds** (`300000` = 5 minutes; `300` would be 0.3 s) |
 | `--es screensaver_brightness "0"` | Brightness while the screensaver is showing |
 
 **Screen scheduler rule format**
@@ -423,6 +426,12 @@ editor writes, so a rule built on a tablet and read back from the cloud is a val
 ```bash
 adb shell am start -n com.freekiosk/.MainActivity --es pin "1234" --es cloud_token "TOKEN"
 ```
+
+**Enrolling resets all local settings.** The Settings screen warns about it before a manual enrollment; the ADB
+route does not ask. The tablet is then configured from the cloud (a profile, or the settings you push), so set what
+you need from the cloud, or send the ADB settings after the enrollment: a change made on the tablet is synced up to
+the cloud. Settings sent in the same command as `cloud_token` are lost too (checked on a tablet: a URL and the REST API
+settings sent with the token were gone once it had enrolled).
 
 The token is never written to logcat. The enrollment runs the next time the app starts, and
 only on a tablet that is not enrolled yet: sent to a tablet that is already enrolled, the

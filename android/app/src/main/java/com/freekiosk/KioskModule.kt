@@ -56,6 +56,30 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private val safetyHubPackage = "com.google.android.apps.safetyhub"
 
     companion object {
+        /**
+         * #300: Settings.Secure.ANDROID_ID, a stable identifier per tablet, to match it with its entry in
+         * FreeKiosk Cloud. On Android 8+ it is scoped to the app's signing key and the user: stable across
+         * reboots and updates, changed by a factory reset. Null when it cannot be read.
+         */
+        fun androidId(context: android.content.Context): String? = try {
+            android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+                ?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+
+        /** The WebView in [view]'s subtree (a WebViewComponent's host view, or a tile wrapper). */
+        internal fun findWebView(view: View?): WebView? {
+            if (view == null) return null
+            if (view is WebView) return view
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    findWebView(view.getChildAt(i))?.let { return it }
+                }
+            }
+            return null
+        }
+
         // #234: how long the battery dialog may stay whitelisted if we never see the user
         // come back (dialog dismissed by the system, activity never resumed).
         private const val BATTERY_DIALOG_WHITELIST_TIMEOUT_MS = 60_000L
@@ -201,6 +225,23 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         }
     }
 
+    // Dashboard: the tile views a sideways drag slides (TileSlider). Each is a React tag:
+    // -1 = no tile that way, -2 = a tile that is not mounted. current -1 = tiles not kept.
+    @ReactMethod
+    fun setNavSlideTiles(current: Int, prev: Int, next: Int, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val activity = reactApplicationContext.currentActivity as? MainActivity
+                val uiManager = UIManagerHelper.getUIManager(reactApplicationContext, UIManagerType.FABRIC)
+                val view = { tag: Int -> if (tag > 0) runCatching { uiManager?.resolveView(tag) }.getOrNull() else null }
+                activity?.tileSlider?.setTiles(view(current), view(prev), view(next), prev != -1, next != -1)
+                promise.resolve(activity != null)
+            } catch (e: Exception) {
+                promise.resolve(false)
+            }
+        }
+    }
+
     // #180 — Tells MainActivity whether the Kiosk screen is the active route, so the
     // native tap-to-settings fallback (dispatchTouchEvent) only fires on the kiosk
     // screen and not while the user is inside Pin/Settings. Revert: delete this method.
@@ -230,17 +271,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             promise.resolve(false)
         }
     }
-
-    // #177 — Pause/resume the Android WebView identified by [tag] (its React node handle).
-    // react-native-webview's onHostPause() is a no-op, so WebView media keeps playing when the
-    // app is backgrounded / the screen is off / the screensaver overlay is shown. WebView.onPause()
-    // suspends the renderer (media, animations, WebRTC). Targeted by tag so only the main content
-    // WebView is affected — never the screensaver's own WebView.
-    @ReactMethod
-    fun pauseWebView(tag: Int, promise: Promise) = setWebViewPaused(tag, true, promise)
-
-    @ReactMethod
-    fun resumeWebView(tag: Int, promise: Promise) = setWebViewPaused(tag, false, promise)
 
     // #234: the WifiLock is near-useless and must not be trusted. HIGH_PERF is deprecated
     // and silently replaced by LOW_LATENCY, which the SDK documents as active only while the
@@ -434,35 +464,6 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 .forEach { info -> info.activityInfo?.packageName?.let { packages.add(it) } }
         } catch (_: Exception) {}
         return packages.toList()
-    }
-
-    private fun setWebViewPaused(tag: Int, paused: Boolean, promise: Promise) {
-        UiThreadUtil.runOnUiThread {
-            try {
-                val uiManager = UIManagerHelper.getUIManager(reactApplicationContext, UIManagerType.FABRIC)
-                val webView = findWebView(uiManager?.resolveView(tag))
-                if (webView == null) {
-                    promise.resolve(false)
-                    return@runOnUiThread
-                }
-                if (paused) webView.onPause() else webView.onResume()
-                promise.resolve(true)
-            } catch (e: Exception) {
-                // Never crash: the view may have been unmounted (race) or resolveView may throw.
-                promise.resolve(false)
-            }
-        }
-    }
-
-    private fun findWebView(view: View?): WebView? {
-        if (view == null) return null
-        if (view is WebView) return view
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
-                findWebView(view.getChildAt(i))?.let { return it }
-            }
-        }
-        return null
     }
 
     @ReactMethod
@@ -2180,6 +2181,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         map.putString("serial", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "unknown" else
             @Suppress("DEPRECATION") (android.os.Build.SERIAL ?: ""))
         map.putLong("uptimeSeconds", android.os.SystemClock.elapsedRealtime() / 1000)
+        map.putString("androidId", androidId(reactApplicationContext) ?: "")
         promise.resolve(map)
     }
 

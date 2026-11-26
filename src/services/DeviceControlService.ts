@@ -45,6 +45,8 @@ export interface DeviceInfo {
   /** The maker's build of Android (Build.DISPLAY) and its security patch, YYYY-MM-DD */
   androidBuild: string;
   securityPatch: string;
+  /** #300: Settings.Secure.ANDROID_ID, a stable identifier per tablet. Absent when unreadable. */
+  androidId?: string;
 }
 
 export interface WifiStatus {
@@ -241,6 +243,7 @@ class DeviceControlServiceClass {
     let androidVersion = '';
     let androidBuild = '';
     let securityPatch = '';
+    let androidId = '';
     let uptime = 0;
     try {
       if (KioskModule?.getStorageInfo) {
@@ -258,6 +261,7 @@ class DeviceControlServiceClass {
         androidVersion = sys.androidVersion || '';
         androidBuild = sys.androidBuild || '';
         securityPatch = sys.securityPatch || '';
+        androidId = sys.androidId || '';
         uptime = sys.uptimeSeconds || 0;
       }
     } catch (error) {
@@ -278,6 +282,7 @@ class DeviceControlServiceClass {
       androidVersion,
       androidBuild,
       securityPatch,
+      ...(androidId ? { androidId } : {}),
     };
   }
 
